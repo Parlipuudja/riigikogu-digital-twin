@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { makePrediction } from '@/lib/prediction';
 
+export const dynamic = 'force-dynamic';
+
 const PredictionRequestSchema = z.object({
   billTitle: z.string().min(1, 'Bill title is required'),
   billDescription: z.string().min(1, 'Bill description is required'),

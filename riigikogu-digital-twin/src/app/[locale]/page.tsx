@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { setRequestLocale } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,6 +16,7 @@ export default function HomePage({
 }: {
   params: { locale: string };
 }) {
+  setRequestLocale(locale);
   const t = useTranslations("home");
 
   const features = [

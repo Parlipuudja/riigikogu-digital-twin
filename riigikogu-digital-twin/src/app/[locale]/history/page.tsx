@@ -1,7 +1,13 @@
 import { useTranslations } from "next-intl";
+import { setRequestLocale } from "next-intl/server";
 import { VoteHistoryTable } from "@/components/vote-history-table";
 
-export default function HistoryPage() {
+export default function HistoryPage({
+  params: { locale },
+}: {
+  params: { locale: string };
+}) {
+  setRequestLocale(locale);
   const t = useTranslations("history");
 
   return (
