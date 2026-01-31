@@ -1,0 +1,141 @@
+{
+  "common": {
+    "appName": "Riigikogu Digital Twin",
+    "tagline": "Predict how Estonian MPs vote",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "back": "Back",
+    "language": "Language"
+  },
+  "nav": {
+    "home": "Home",
+    "predict": "Predict Vote",
+    "history": "Voting History",
+    "evaluate": "Evaluation",
+    "about": "About"
+  },
+  "home": {
+    "title": "Riigikogu Digital Twin",
+    "subtitle": "AI-powered vote prediction for Estonian Parliament",
+    "description": "This application uses historical voting data and AI to predict how MP Tõnis Lukas would vote on proposed legislation.",
+    "features": {
+      "predict": {
+        "title": "Vote Prediction",
+        "description": "Enter bill details to get a prediction on how the MP would vote"
+      },
+      "history": {
+        "title": "Voting History",
+        "description": "Browse historical voting records and patterns"
+      },
+      "evaluate": {
+        "title": "Evaluation",
+        "description": "See how accurate our predictions are through backtesting"
+      }
+    },
+    "cta": "Try a Prediction"
+  },
+  "predict": {
+    "title": "Predict Vote",
+    "subtitle": "Enter bill details to predict how Tõnis Lukas would vote",
+    "form": {
+      "billTitle": "Bill Title",
+      "billTitlePlaceholder": "Enter the title of the bill...",
+      "billDescription": "Bill Description",
+      "billDescriptionPlaceholder": "Enter a summary or description of the bill...",
+      "billFullText": "Full Text (Optional)",
+      "billFullTextPlaceholder": "Paste the full text of the bill for more accurate predictions...",
+      "category": "Category",
+      "categoryPlaceholder": "Select a category...",
+      "submit": "Predict Vote"
+    },
+    "result": {
+      "title": "Prediction Result",
+      "prediction": "Predicted Vote",
+      "confidence": "Confidence",
+      "reasoning": "Reasoning",
+      "similarVotes": "Similar Past Votes",
+      "relevantSpeeches": "Relevant Speeches",
+      "noSimilarVotes": "No similar votes found",
+      "noRelevantSpeeches": "No relevant speeches found"
+    },
+    "decisions": {
+      "FOR": "For",
+      "AGAINST": "Against",
+      "ABSTAIN": "Abstain",
+      "ABSENT": "Absent"
+    }
+  },
+  "history": {
+    "title": "Voting History",
+    "subtitle": "Browse Tõnis Lukas's voting record",
+    "filters": {
+      "search": "Search bills...",
+      "decision": "Filter by decision",
+      "dateRange": "Date range",
+      "all": "All"
+    },
+    "table": {
+      "date": "Date",
+      "bill": "Bill",
+      "decision": "Decision",
+      "party": "Party"
+    },
+    "empty": "No votes found"
+  },
+  "evaluate": {
+    "title": "Model Evaluation",
+    "subtitle": "Backtesting results for prediction accuracy",
+    "metrics": {
+      "totalVotes": "Total Votes",
+      "accuracy": "Overall Accuracy",
+      "byDecision": "Accuracy by Decision Type"
+    },
+    "chart": {
+      "title": "Prediction Results"
+    },
+    "table": {
+      "title": "Recent Predictions",
+      "date": "Date",
+      "bill": "Bill",
+      "actual": "Actual",
+      "predicted": "Predicted",
+      "confidence": "Confidence",
+      "correct": "Correct"
+    }
+  },
+  "about": {
+    "title": "About",
+    "subtitle": "How this application works",
+    "methodology": {
+      "title": "Methodology",
+      "description": "This application uses Retrieval-Augmented Generation (RAG) combined with Claude AI to predict voting behavior.",
+      "steps": {
+        "1": "Historical voting data and speeches are collected from the Riigikogu API",
+        "2": "Text is converted to vector embeddings for semantic search",
+        "3": "When a new bill is submitted, similar past votes and speeches are retrieved",
+        "4": "Claude AI analyzes the context and makes a prediction with reasoning"
+      }
+    },
+    "data": {
+      "title": "Data Sources",
+      "description": "All data comes from official Riigikogu (Estonian Parliament) sources:",
+      "sources": {
+        "votes": "Voting records from the Riigikogu API",
+        "speeches": "Stenograms from plenary sessions",
+        "bills": "Bill metadata and full texts"
+      }
+    },
+    "limitations": {
+      "title": "Limitations",
+      "description": "This is an experimental tool and predictions should not be taken as definitive. Factors that may affect accuracy include:",
+      "factors": {
+        "1": "Party dynamics and coalition agreements",
+        "2": "Personal relationships and lobbying",
+        "3": "Current events not captured in historical data",
+        "4": "Changes in political positions over time"
+      }
+    }
+  }
+}
