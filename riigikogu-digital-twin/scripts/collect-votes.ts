@@ -3,7 +3,8 @@
  * Usage: npm run data:collect-votes
  */
 
-import { Pool } from 'pg';
+import 'dotenv/config';
+import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import {
   getVotings,
@@ -16,95 +17,107 @@ import {
 const MP_UUID = process.env.MP_UUID || '36a13f33-bfa9-4608-b686-4d7a4d33fdc4';
 const MP_NAME = 'Tõnis Lukas';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/riigikogu',
-});
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/riigikogu';
+
+const clientOptions = {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: false,
+    deprecationErrors: true,
+  },
+};
 
 async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function collectVotes(startDate: string, endDate: string): Promise<void> {
   console.log(`Collecting votes from ${startDate} to ${endDate}...`);
 
-  // Get all votings in the date range
-  const votingsResult = await getVotings(startDate, endDate);
+  const client = new MongoClient(uri, clientOptions);
 
-  if (votingsResult.error) {
-    console.error('Error fetching votings:', votingsResult.error);
-    return;
-  }
+  try {
+    await client.connect();
+    const db = client.db();
+    const collection = db.collection('votes');
 
-  const votings = votingsResult.data;
-  console.log(`Found ${votings.length} votings`);
+    // Get all votings in the date range
+    const votingsResult = await getVotings(startDate, endDate);
 
-  let inserted = 0;
-  let skipped = 0;
-
-  for (const voting of votings) {
-    // Add delay to avoid rate limiting
-    await sleep(200);
-
-    // Get voting details including individual votes
-    const detailsResult = await getVotingDetails(voting.uuid);
-
-    if (detailsResult.error) {
-      console.error(`Error fetching voting ${voting.uuid}:`, detailsResult.error);
-      continue;
+    if (votingsResult.error) {
+      console.error('Error fetching votings:', votingsResult.error);
+      return;
     }
 
-    const details = detailsResult.data;
+    const votings = votingsResult.data;
+    console.log(`Found ${votings.length} votings`);
 
-    // Find MP's vote in this voting
-    const mpVote = findMpVote(details, MP_UUID);
+    let inserted = 0;
+    let skipped = 0;
 
-    if (!mpVote) {
-      // MP didn't participate in this voting
-      skipped++;
-      continue;
-    }
+    for (const voting of votings) {
+      // Add delay to avoid rate limiting
+      await sleep(200);
 
-    const decision = normalizeDecision(mpVote.decision.code);
-    const party = mpVote.faction?.value || 'Unknown';
+      // Get voting details including individual votes
+      const detailsResult = await getVotingDetails(voting.uuid);
 
-    try {
-      // Check if vote already exists
-      const existing = await pool.query(
-        'SELECT id FROM votes WHERE voting_id = $1 AND mp_uuid = $2',
-        [voting.uuid, MP_UUID]
-      );
+      if (detailsResult.error) {
+        console.error(`Error fetching voting ${voting.uuid}:`, detailsResult.error);
+        continue;
+      }
 
-      if (existing.rows.length > 0) {
+      const details = detailsResult.data;
+
+      // Find MP's vote in this voting
+      const mpVote = findMpVote(details, MP_UUID);
+
+      if (!mpVote) {
+        // MP didn't participate in this voting
         skipped++;
         continue;
       }
 
-      // Insert the vote
-      await pool.query(
-        `INSERT INTO votes (id, voting_id, mp_uuid, mp_name, party, decision, voting_title, date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          uuidv4(),
-          voting.uuid,
-          MP_UUID,
-          MP_NAME,
-          party,
-          decision,
-          voting.title,
-          voting.votingTime,
-        ]
-      );
+      const decision = normalizeDecision(mpVote.decision.code);
+      const party = mpVote.faction?.value || 'Unknown';
 
-      inserted++;
-      console.log(`Inserted vote: ${voting.title.substring(0, 50)}... - ${decision}`);
-    } catch (error) {
-      console.error('Database error:', error);
+      try {
+        // Check if vote already exists
+        const existing = await collection.findOne({
+          voting_id: voting.uuid,
+          mp_uuid: MP_UUID,
+        });
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        // Insert the vote
+        await collection.insertOne({
+          id: uuidv4(),
+          voting_id: voting.uuid,
+          mp_uuid: MP_UUID,
+          mp_name: MP_NAME,
+          party: party,
+          decision: decision,
+          voting_title: voting.title,
+          date: voting.votingTime,
+        });
+
+        inserted++;
+        console.log(`Inserted vote: ${voting.title.substring(0, 50)}... - ${decision}`);
+      } catch (error) {
+        console.error('Database error:', error);
+      }
     }
-  }
 
-  console.log(`\nCollection complete:`);
-  console.log(`  Inserted: ${inserted}`);
-  console.log(`  Skipped: ${skipped}`);
+    console.log(`\nCollection complete:`);
+    console.log(`  Inserted: ${inserted}`);
+    console.log(`  Skipped: ${skipped}`);
+  } finally {
+    await client.close();
+  }
 }
 
 async function main(): Promise<void> {
@@ -117,8 +130,6 @@ async function main(): Promise<void> {
   } catch (error) {
     console.error('Error:', error);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 

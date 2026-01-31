@@ -3,102 +3,113 @@
  * Usage: npm run data:collect-speeches
  */
 
-import { Pool } from 'pg';
+import 'dotenv/config';
+import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 import { getStenograms, extractMpSpeeches } from '../src/lib/riigikogu-api';
 
 // Tõnis Lukas MP UUID
 const MP_UUID = process.env.MP_UUID || '36a13f33-bfa9-4608-b686-4d7a4d33fdc4';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/riigikogu',
-});
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/riigikogu';
+
+const clientOptions = {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: false,
+    deprecationErrors: true,
+  },
+};
 
 async function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function collectSpeeches(startDate: string, endDate: string): Promise<void> {
   console.log(`Collecting speeches from ${startDate} to ${endDate}...`);
 
-  const result = await getStenograms(startDate, endDate);
+  const client = new MongoClient(uri, clientOptions);
 
-  if (result.error) {
-    console.error('Error fetching stenograms:', result.error);
-    return;
-  }
+  try {
+    await client.connect();
+    const db = client.db();
+    const collection = db.collection('speeches');
 
-  const stenograms = result.data;
-  console.log(`Found ${stenograms.length} stenograms`);
+    const result = await getStenograms(startDate, endDate);
 
-  let inserted = 0;
-  let skipped = 0;
-
-  for (const stenogram of stenograms) {
-    await sleep(100);
-
-    // Extract speeches by the target MP
-    const speeches = extractMpSpeeches(stenogram, MP_UUID);
-
-    if (speeches.length === 0) {
-      continue;
+    if (result.error) {
+      console.error('Error fetching stenograms:', result.error);
+      return;
     }
 
-    console.log(`Found ${speeches.length} speeches in session ${stenogram.sessionDate}`);
+    const stenograms = result.data;
+    console.log(`Found ${stenograms.length} stenograms`);
 
-    for (const speech of speeches) {
-      if (!speech.text || speech.text.trim().length < 50) {
-        // Skip very short entries (procedural comments)
-        skipped++;
+    let inserted = 0;
+    let skipped = 0;
+
+    for (const stenogram of stenograms) {
+      await sleep(100);
+
+      // Extract speeches by the target MP
+      const speeches = extractMpSpeeches(stenogram, MP_UUID);
+
+      if (speeches.length === 0) {
         continue;
       }
 
-      try {
-        // Check if speech already exists (simple deduplication)
-        const existing = await pool.query(
-          `SELECT id FROM speeches
-           WHERE mp_uuid = $1
-           AND session_date = $2
-           AND full_text = $3`,
-          [MP_UUID, stenogram.sessionDate, speech.text]
-        );
+      console.log(`Found ${speeches.length} speeches in session ${stenogram.sessionDate}`);
 
-        if (existing.rows.length > 0) {
+      for (const speech of speeches) {
+        if (!speech.text || speech.text.trim().length < 50) {
+          // Skip very short entries (procedural comments)
           skipped++;
           continue;
         }
 
-        // Determine session type
-        const sessionType = stenogram.sessionType?.toLowerCase().includes('committee')
-          ? 'COMMITTEE'
-          : 'PLENARY';
+        try {
+          // Check if speech already exists (simple deduplication)
+          const existing = await collection.findOne({
+            mp_uuid: MP_UUID,
+            session_date: stenogram.sessionDate,
+            full_text: speech.text,
+          });
 
-        // Insert the speech
-        await pool.query(
-          `INSERT INTO speeches (id, mp_uuid, session_date, session_type, topic, full_text)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [
-            uuidv4(),
-            MP_UUID,
-            stenogram.sessionDate,
-            sessionType,
-            speech.topic || 'General',
-            speech.text,
-          ]
-        );
+          if (existing) {
+            skipped++;
+            continue;
+          }
 
-        inserted++;
-        const topicPreview = speech.topic || 'General';
-        console.log(`  Inserted: ${topicPreview.substring(0, 40)}...`);
-      } catch (error) {
-        console.error('Database error:', error);
+          // Determine session type
+          const sessionType = stenogram.sessionType?.toLowerCase().includes('committee')
+            ? 'COMMITTEE'
+            : 'PLENARY';
+
+          // Insert the speech
+          await collection.insertOne({
+            id: uuidv4(),
+            mp_uuid: MP_UUID,
+            session_date: stenogram.sessionDate,
+            session_type: sessionType,
+            topic: speech.topic || 'General',
+            full_text: speech.text,
+          });
+
+          inserted++;
+          const topicPreview = speech.topic || 'General';
+          console.log(`  Inserted: ${topicPreview.substring(0, 40)}...`);
+        } catch (error) {
+          console.error('Database error:', error);
+        }
       }
     }
-  }
 
-  console.log(`\nCollection complete:`);
-  console.log(`  Inserted: ${inserted}`);
-  console.log(`  Skipped: ${skipped}`);
+    console.log(`\nCollection complete:`);
+    console.log(`  Inserted: ${inserted}`);
+    console.log(`  Skipped: ${skipped}`);
+  } finally {
+    await client.close();
+  }
 }
 
 async function main(): Promise<void> {
@@ -111,8 +122,6 @@ async function main(): Promise<void> {
   } catch (error) {
     console.error('Error:', error);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 

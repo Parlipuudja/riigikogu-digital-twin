@@ -3,15 +3,16 @@
  * Usage: npm run embeddings:generate
  */
 
+import 'dotenv/config';
 import {
   generateVoteEmbeddings,
   generateSpeechEmbeddings,
   generateBillEmbeddings,
 } from '../src/lib/embeddings';
-import pool from '../src/lib/db';
+import { closeConnection } from '../src/lib/mongodb';
 
 async function main(): Promise<void> {
-  console.log('Starting embedding generation...\n');
+  console.log('Starting embedding generation (using Voyage AI voyage-multilingual-2)...\n');
 
   try {
     // Generate embeddings for votes
@@ -32,7 +33,7 @@ async function main(): Promise<void> {
     console.error('Error generating embeddings:', error);
     process.exit(1);
   } finally {
-    await pool.end();
+    await closeConnection();
   }
 }
 

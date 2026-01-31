@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { getCollection } from '@/lib/mongodb';
 
 export const dynamic = 'force-dynamic';
 
 const MP_UUID = process.env.MP_UUID || '36a13f33-bfa9-4608-b686-4d7a4d33fdc4';
 
-interface VoteRow {
+interface VoteDocument {
   id: string;
   voting_id: string;
   voting_title: string;
   decision: string;
   party: string;
-  date: Date;
+  date: Date | string;
+  mp_uuid: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -22,42 +23,32 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    let whereClause = 'WHERE mp_uuid = $1';
-    const params: unknown[] = [MP_UUID];
-    let paramIndex = 2;
+    const collection = await getCollection<VoteDocument>('votes');
+
+    // Build filter
+    const filter: Record<string, unknown> = { mp_uuid: MP_UUID };
 
     if (decision && decision !== 'all') {
-      whereClause += ` AND decision = $${paramIndex}`;
-      params.push(decision.toUpperCase());
-      paramIndex++;
+      filter.decision = decision.toUpperCase();
     }
 
     if (search) {
-      whereClause += ` AND voting_title ILIKE $${paramIndex}`;
-      params.push(`%${search}%`);
-      paramIndex++;
+      filter.voting_title = { $regex: search, $options: 'i' };
     }
 
     // Get total count
-    const countResult = await query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM votes ${whereClause}`,
-      params
-    );
-    const total = parseInt(countResult[0].count);
+    const total = await collection.countDocuments(filter);
 
     // Get votes with pagination
-    params.push(limit, offset);
-    const votes = await query<VoteRow>(
-      `SELECT id, voting_id, voting_title, decision, party, date
-       FROM votes
-       ${whereClause}
-       ORDER BY date DESC
-       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-      params
-    );
+    const votes = await collection
+      .find(filter)
+      .sort({ date: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray();
 
     return NextResponse.json({
-      votes: votes.map(v => ({
+      votes: votes.map((v) => ({
         id: v.id,
         votingId: v.voting_id,
         title: v.voting_title,

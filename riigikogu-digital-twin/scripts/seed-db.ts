@@ -3,12 +3,19 @@
  * Usage: npm run db:seed
  */
 
-import { Pool } from 'pg';
+import 'dotenv/config';
+import { MongoClient, ServerApiVersion } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/riigikogu',
-});
+const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/riigikogu';
+
+const clientOptions = {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: false,
+    deprecationErrors: true,
+  },
+};
 
 const MP_UUID = '36a13f33-bfa9-4608-b686-4d7a4d33fdc4';
 const MP_NAME = 'Tõnis Lukas';
@@ -112,46 +119,60 @@ const sampleSpeeches = [
 ];
 
 async function seedDatabase(): Promise<void> {
-  const client = await pool.connect();
+  const client = new MongoClient(uri, clientOptions);
 
   try {
-    await client.query('BEGIN');
+    await client.connect();
+    const db = client.db();
 
     console.log('Seeding votes...');
-    for (const vote of sampleVotes) {
-      const id = uuidv4();
-      const votingId = uuidv4();
+    const votesCollection = db.collection('votes');
 
-      await client.query(
-        `INSERT INTO votes (id, voting_id, mp_uuid, mp_name, party, decision, voting_title, date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT DO NOTHING`,
-        [id, votingId, MP_UUID, MP_NAME, PARTY, vote.decision, vote.votingTitle, vote.date]
-      );
+    const voteDocuments = sampleVotes.map((vote) => ({
+      id: uuidv4(),
+      voting_id: uuidv4(),
+      mp_uuid: MP_UUID,
+      mp_name: MP_NAME,
+      party: PARTY,
+      decision: vote.decision,
+      voting_title: vote.votingTitle,
+      date: vote.date,
+    }));
+
+    // Use insertMany with ordered: false to skip duplicates
+    try {
+      await votesCollection.insertMany(voteDocuments, { ordered: false });
+    } catch (e: unknown) {
+      // Ignore duplicate key errors
+      if ((e as { code?: number }).code !== 11000) throw e;
     }
     console.log(`  Inserted ${sampleVotes.length} votes`);
 
     console.log('Seeding speeches...');
-    for (const speech of sampleSpeeches) {
-      const id = uuidv4();
+    const speechesCollection = db.collection('speeches');
 
-      await client.query(
-        `INSERT INTO speeches (id, mp_uuid, session_date, session_type, topic, full_text)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT DO NOTHING`,
-        [id, MP_UUID, speech.sessionDate, 'PLENARY', speech.topic, speech.fullText]
-      );
+    const speechDocuments = sampleSpeeches.map((speech) => ({
+      id: uuidv4(),
+      mp_uuid: MP_UUID,
+      session_date: speech.sessionDate,
+      session_type: 'PLENARY',
+      topic: speech.topic,
+      full_text: speech.fullText,
+    }));
+
+    try {
+      await speechesCollection.insertMany(speechDocuments, { ordered: false });
+    } catch (e: unknown) {
+      if ((e as { code?: number }).code !== 11000) throw e;
     }
     console.log(`  Inserted ${sampleSpeeches.length} speeches`);
 
-    await client.query('COMMIT');
     console.log('\nDatabase seeded successfully!');
   } catch (error) {
-    await client.query('ROLLBACK');
     console.error('Error seeding database:', error);
     throw error;
   } finally {
-    client.release();
+    await client.close();
   }
 }
 
@@ -161,8 +182,6 @@ async function main(): Promise<void> {
   } catch (error) {
     console.error('Fatal error:', error);
     process.exit(1);
-  } finally {
-    await pool.end();
   }
 }
 
