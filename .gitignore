@@ -36,3 +36,9 @@ next-env.d.ts
 
 # Windows Zone.Identifier files
 *:Zone.Identifier
+
+# Confidential planning docs
+SR *.md
+
+# v0.1 archive
+riigikogu-digital-twin-v0.1-archive/

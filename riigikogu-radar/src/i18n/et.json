@@ -1,0 +1,114 @@
+{
+  "common": {
+    "appName": "Riigikogu Radar",
+    "tagline": "Parlamendi otsuste prognoosimine",
+    "loading": "Laadimine...",
+    "error": "Viga",
+    "submit": "Esita",
+    "cancel": "Tühista",
+    "back": "Tagasi",
+    "viewAll": "Vaata kõiki",
+    "export": "Ekspordi",
+    "share": "Jaga"
+  },
+  "nav": {
+    "home": "Avaleht",
+    "mps": "Saadikud",
+    "drafts": "Eelnõud",
+    "simulate": "Simulatsioon",
+    "accuracy": "Täpsus",
+    "about": "Meist",
+    "login": "Logi sisse"
+  },
+  "home": {
+    "hero": {
+      "title": "Kuidas Riigikogu hääletab?",
+      "subtitle": "Tehisintellektil põhinev parlamendi otsuste prognoos"
+    },
+    "predict": {
+      "title": "Analüüsi eelnõu",
+      "placeholder": "Sisesta eelnõu pealkiri või kirjeldus...",
+      "button": "Analüüsi"
+    },
+    "upcoming": {
+      "title": "Tulevased hääletused"
+    },
+    "recent": {
+      "title": "Hiljutised prognoosid"
+    },
+    "accuracy": {
+      "title": "Mudeli täpsus",
+      "overall": "Üldine",
+      "for": "Poolt",
+      "against": "Vastu",
+      "last30": "Viimased 30 päeva",
+      "methodology": "Vaata metoodikat"
+    }
+  },
+  "mps": {
+    "title": "Riigikogu liikmed",
+    "search": "Otsi saadikut...",
+    "filters": {
+      "party": "Erakond",
+      "all": "Kõik"
+    },
+    "card": {
+      "memberSince": "Liige alates",
+      "votes": "Hääletused",
+      "attendance": "Osalus",
+      "partyLoyalty": "Erakonna lojaalsus"
+    }
+  },
+  "mp": {
+    "votingSummary": "Hääletuste kokkuvõte",
+    "totalVotes": "Hääletusi kokku",
+    "partyLoyalty": "Erakonna lojaalsus",
+    "votesWithParty": "Hääled erakonnaga",
+    "againstParty": "Erakonna vastu",
+    "dissentTopics": "Eriarvamusel teemad",
+    "politicalPosition": "Poliitiline positsioon",
+    "economic": "Majanduspoliitika",
+    "social": "Sotsiaalpoliitika",
+    "eu": "EL integratsioon",
+    "defense": "Kaitsekulutused",
+    "left": "Vasak",
+    "right": "Parem",
+    "liberal": "Liberaalne",
+    "conservative": "Konservatiivne",
+    "skeptic": "Skeptik",
+    "federalist": "Föderalist",
+    "reduce": "Vähenda",
+    "increase": "Suurenda",
+    "keyIssues": "Peamised teemad",
+    "recentVotes": "Hiljutised hääletused",
+    "predictVote": "Prognoosi selle saadiku häält"
+  },
+  "simulation": {
+    "title": "Parlamendi simulatsioon",
+    "likelyToPass": "Tõenäoliselt läbib",
+    "likelyToFail": "Tõenäoliselt ei läbi",
+    "uncertain": "Ebakindel",
+    "probability": "tõenäosus",
+    "breakdown": "Erakondade lõikes",
+    "swingVotes": "Kõikuvad hääled",
+    "confidence": "Kindluse jaotus",
+    "high": "Kõrge",
+    "medium": "Keskmine",
+    "low": "Madal"
+  },
+  "prediction": {
+    "for": "POOLT",
+    "against": "VASTU",
+    "abstain": "ERAPOOLETU",
+    "absent": "PUUDUB",
+    "confidence": "Kindlus",
+    "reasoning": "Põhjendus"
+  },
+  "footer": {
+    "about": "Meist",
+    "methodology": "Metoodika",
+    "api": "API",
+    "contact": "Kontakt",
+    "copyright": "Riigikogu Radar"
+  }
+}

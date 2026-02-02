@@ -1,0 +1,114 @@
+{
+  "common": {
+    "appName": "Riigikogu Radar",
+    "tagline": "Parliamentary decision prediction",
+    "loading": "Loading...",
+    "error": "Error",
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "back": "Back",
+    "viewAll": "View all",
+    "export": "Export",
+    "share": "Share"
+  },
+  "nav": {
+    "home": "Home",
+    "mps": "MPs",
+    "drafts": "Drafts",
+    "simulate": "Simulate",
+    "accuracy": "Accuracy",
+    "about": "About",
+    "login": "Log in"
+  },
+  "home": {
+    "hero": {
+      "title": "How will the Riigikogu vote?",
+      "subtitle": "AI-powered parliamentary decision prediction"
+    },
+    "predict": {
+      "title": "Analyze a bill",
+      "placeholder": "Enter bill title or description...",
+      "button": "Analyze"
+    },
+    "upcoming": {
+      "title": "Upcoming votes"
+    },
+    "recent": {
+      "title": "Recent predictions"
+    },
+    "accuracy": {
+      "title": "Model accuracy",
+      "overall": "Overall",
+      "for": "For",
+      "against": "Against",
+      "last30": "Last 30 days",
+      "methodology": "View methodology"
+    }
+  },
+  "mps": {
+    "title": "Members of Parliament",
+    "search": "Search MPs...",
+    "filters": {
+      "party": "Party",
+      "all": "All"
+    },
+    "card": {
+      "memberSince": "Member since",
+      "votes": "Votes",
+      "attendance": "Attendance",
+      "partyLoyalty": "Party loyalty"
+    }
+  },
+  "mp": {
+    "votingSummary": "Voting summary",
+    "totalVotes": "Total votes",
+    "partyLoyalty": "Party loyalty",
+    "votesWithParty": "Votes with party",
+    "againstParty": "Against party",
+    "dissentTopics": "Dissent topics",
+    "politicalPosition": "Political position",
+    "economic": "Economic policy",
+    "social": "Social policy",
+    "eu": "EU integration",
+    "defense": "Defense spending",
+    "left": "Left",
+    "right": "Right",
+    "liberal": "Liberal",
+    "conservative": "Conservative",
+    "skeptic": "Skeptic",
+    "federalist": "Federalist",
+    "reduce": "Reduce",
+    "increase": "Increase",
+    "keyIssues": "Key issues",
+    "recentVotes": "Recent votes",
+    "predictVote": "Predict this MP's vote"
+  },
+  "simulation": {
+    "title": "Parliament simulation",
+    "likelyToPass": "Likely to pass",
+    "likelyToFail": "Likely to fail",
+    "uncertain": "Uncertain",
+    "probability": "probability",
+    "breakdown": "Breakdown by party",
+    "swingVotes": "Swing votes",
+    "confidence": "Confidence distribution",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low"
+  },
+  "prediction": {
+    "for": "FOR",
+    "against": "AGAINST",
+    "abstain": "ABSTAIN",
+    "absent": "ABSENT",
+    "confidence": "Confidence",
+    "reasoning": "Reasoning"
+  },
+  "footer": {
+    "about": "About",
+    "methodology": "Methodology",
+    "api": "API",
+    "contact": "Contact",
+    "copyright": "Riigikogu Radar"
+  }
+}
