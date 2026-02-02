@@ -1,143 +1,206 @@
-# CLAUDE.md
+# CLAUDE.md — Riigikogu Radar (Codename: Stig Rästa)
 
-This file provides guidance to Claude Code when working with code in this repository.
+## Mission
 
-## Project Overview
+> **Make the Estonian Parliament legible through AI-powered intelligence.**
 
-Riigikogu Digital Twin - A web application that predicts how Estonian MPs would vote on proposed legislation using AI. The system:
-- Creates AI-powered "digital twin" profiles for any Member of Parliament
-- Analyzes historical voting records, speeches, and political positions
-- Generates personalized vote predictions with bilingual reasoning (Estonian/English)
-- Runs parliament-wide simulations to predict bill passage probability
-- Includes backtesting to measure prediction accuracy
+We are building an independent parliamentary intelligence system following the think tank model (RAND, Arenguseire Keskus). Our principles:
+- **Accuracy over speed**: Better to be right than first
+- **Transparency over magic**: Explain how predictions work
+- **Data over opinion**: Let facts speak, avoid editorializing
+- **Non-partisan**: Serve truth, not political alignment
+
+## Strategic Context
+
+| Parameter | Value |
+|-----------|-------|
+| **MVP Deadline** | 1 March 2026 |
+| **Primary Users** | Journalists |
+| **Monetization** | Freemium |
+| **Production URL** | https://seosetu.ee |
+| **Vercel URL** | https://riigikogu-radar.vercel.app |
+
+## MVP Success Criteria
+
+1. **>70% prediction accuracy** (backtested)
+2. **All 101 active MPs have profiles**
+3. **Data freshness <24h**
+4. **3-5 journalists using actively** (validation)
+
+## Working Directory
+
+All commands should be run from: `/home/parli/AllMine/StigRästa/riigikogu-radar`
 
 ## Commands
 
 ```bash
 # Development
-npm run dev              # Start Next.js dev server (localhost:3000)
-npm run build            # Production build
-npm run lint             # ESLint
+npm run dev                    # Start dev server (localhost:3000)
+npm run build                  # Production build
+npm run lint                   # ESLint
 
-# Database (MongoDB Atlas)
-npm run db:seed          # Load sample data
-npm run db:size          # Check database size/usage
+# MP Profile Generation
+npx tsx scripts/regen-mp.ts --all           # Generate all MP profiles
+npx tsx scripts/regen-mp.ts <slug>          # Regenerate specific MP
+npx tsx scripts/regen-mp.ts --all --limit=N # Generate N new MPs
 
-# Data Sync from Riigikogu API
-npm run sync:all         # Sync all data (members, votings, drafts, stenograms)
-npm run sync:members     # Sync parliament members
-npm run sync:votings     # Sync voting records with voter details
-npm run sync:drafts      # Sync legislative drafts/bills
-npm run sync:stenograms  # Sync stenogram speeches
-npm run sync:status      # Check sync progress
-npm run sync:resume      # Resume interrupted sync
-npm run sync:draft-texts # Download and extract full text from draft PDF/DOCX files
-npm run sync:link-votings # Link votings to drafts using API-provided UUIDs
+# Data Sync
+npm run sync:all               # Sync all data from Riigikogu API
+npm run sync:members           # Sync parliament members
+npm run sync:votings           # Sync voting records
+npm run sync:drafts            # Sync legislative drafts
+npm run sync:stenograms        # Sync speeches
+npm run sync:draft-texts       # Extract text from PDF/DOCX
 
-# Embeddings & RAG
-npm run embeddings:generate  # Generate Voyage AI embeddings for vector search
+# Embeddings (required for RAG)
+npm run embeddings:generate    # Generate vector embeddings
 
 # Backtesting
-npm run backtest         # Run backtests for all active MPs
-npm run backtest:mp      # Run backtest for specific MP (--mp=slug)
+npm run backtest               # Run backtests for all MPs
+npm run backtest:mp            # Backtest specific MP (--mp=slug)
+
+# Database
+npx tsx scripts/db-stats.ts    # Check database size (512MB limit)
+
+# Deployment
+npx vercel --prod              # Deploy to production
 ```
 
 ## Architecture
 
-**Tech Stack:** Next.js 14 (App Router), TypeScript, MongoDB Atlas + Vector Search, Claude Sonnet 4, Voyage AI (voyage-multilingual-2), Tailwind CSS + shadcn/ui, next-intl (bilingual ET/EN)
-
-**Core Data Flow:**
 ```
-User submits bill → POST /api/mps/[slug]/predict → prediction.ts → claude.ts → Claude API → JSON response → UI
+┌─────────────────────────────────────────────────────────────┐
+│                    DATA LAYER                                │
+│   MongoDB Atlas: members, mps, votings, drafts, stenograms  │
+│   Voyage AI: Vector embeddings (1024 dimensions)            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    INTELLIGENCE LAYER                        │
+│   RAG: Similar votes + speeches via vector search           │
+│   Claude Sonnet 4: Prediction generation                    │
+│   Profile Generator: AI-powered MP analysis                 │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    INTERFACE LAYER                           │
+│   Next.js 14 App Router                                     │
+│   Bilingual: Estonian (et) / English (en)                   │
+│   API: /api/v1/mps, /api/v1/simulate, /api/v1/mps/[slug]/predict │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Key Directories:**
-- `src/lib/` - Core logic:
-  - `claude.ts` - Claude API wrapper for predictions
-  - `prediction.ts` - Prediction orchestration with RAG
-  - `embeddings.ts` - Vector search for similar votes/speeches
-  - `backtesting.ts` - Accuracy measurement with temporal isolation
-  - `instruction-generator.ts` - AI-powered MP profile generation
-  - `mp-service.ts` - MP profile CRUD operations
-  - `mongodb.ts` - Database connection
-  - `voyage.ts` - Voyage AI embeddings
-  - `riigikogu-api.ts` - Estonian Parliament API client
-- `src/app/api/` - API routes:
-  - `predict/` - Legacy single-MP prediction
-  - `mps/` - MP profile management
-  - `mps/[slug]/predict/` - MP-specific predictions
-  - `mps/[slug]/backtest/` - Backtesting endpoints
-  - `simulate/` - Parliament-wide vote simulation
-- `src/app/[locale]/` - Pages with i18n routing (et/en)
-- `scripts/` - Data collection and management:
-  - `sync-api.ts` - Main data sync orchestrator
-  - `lib/sync-*.ts` - Collection-specific sync modules
-  - `sync-draft-texts.ts` - PDF/DOCX text extraction
-  - `link-votings-drafts.ts` - Voting-draft relationship linking
-  - `run-backtest.ts` - Batch backtesting
-  - `regen-mp.ts` - Regenerate MP profiles
+## Key Directories
 
-**Database Collections** (MongoDB Atlas):
-- `mps` - MP profiles with AI-generated instructions
-- `votings` - Voting records with embedded voter decisions
-- `drafts` - Legislative drafts with full text
-- `stenograms` - Parliamentary speeches with speaker data
-- `members` - Parliament member details
-- `sync_progress` - Data sync tracking
-- `backtest_progress` - Backtest state for resume
+```
+riigikogu-radar/
+├── src/
+│   ├── app/
+│   │   ├── [locale]/          # Pages (et/en)
+│   │   │   ├── mps/           # MP list and detail pages
+│   │   │   ├── simulate/      # Parliament simulation
+│   │   │   └── accuracy/      # Accuracy dashboard
+│   │   └── api/v1/            # API routes
+│   ├── lib/
+│   │   ├── ai/                # Claude, Voyage AI integrations
+│   │   ├── data/              # MongoDB, data access
+│   │   ├── prediction/        # Vote prediction, RAG
+│   │   └── sync/              # Riigikogu API sync
+│   ├── components/            # React components
+│   └── types/                 # TypeScript types
+└── scripts/                   # Data collection, generation
+```
 
-**Vector Search Index:**
-Create `vector_index` on `votings`, `drafts` collections with:
-- path: `embedding`
-- numDimensions: 1024
-- similarity: cosine
+## Data Types
 
-**External APIs:**
-- Riigikogu Open Data API: `https://api.riigikogu.ee/api` (voting records, stenograms, drafts)
-- Claude Sonnet 4: Vote prediction and profile generation
-- Voyage AI voyage-multilingual-2: Embeddings for similarity search (1024 dimensions)
+**MPProfile** (stored in `mps` collection):
+```typescript
+{
+  uuid: string;           // Riigikogu member UUID
+  slug: string;           // URL-friendly name
+  status: "active" | "pending" | "inactive";
+  info?: {
+    fullName: string;
+    party: { code, name, nameEn };
+    photoUrl: string;
+    votingStats: { total, attendancePercent, partyLoyaltyPercent, distribution };
+    policyAreas: Array<{ area, areaEn, count }>;
+  };
+  instruction?: {
+    promptTemplate: string;  // AI-generated profile for predictions
+    politicalProfile: { economicScale, socialScale };
+    keyIssues: Array<{ issue, issueEn, position, confidence }>;
+  };
+  backtest?: {
+    accuracy: { overall, byDecision };
+    sampleSize: number;
+    lastRunAt: Date;
+  };
+}
+```
 
 ## Environment Variables
 
 Required in `.env`:
 ```
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/riigikogu
+MONGODB_URI=mongodb+srv://...
 ANTHROPIC_API_KEY=sk-ant-...
-VOYAGE_API_KEY=pa-...    # For embeddings:generate
-MP_UUID=...              # Default MP UUID for legacy /api/predict endpoint
+VOYAGE_API_KEY=pa-...
 ```
 
-## Key Features
+## Autonomy Guidelines
 
-### Multi-MP Digital Twin System
-- Create profiles for any current Riigikogu member
-- AI analyzes voting history and speeches to build political profile
-- Generates personalized instruction templates for predictions
-- Profiles include: political position scales, key issues, decision factors, behavioral patterns
+You have authority to:
+- Make architectural decisions that serve the mission
+- Refactor code for clarity and maintainability
+- Add features that clearly support MVP criteria
+- Fix bugs and improve reliability
+- Update this CLAUDE.md as the project evolves
 
-### Vote Prediction
-- Submit bill title and description
-- RAG retrieves similar past votes and relevant speeches
-- Claude predicts vote (FOR/AGAINST/ABSTAIN) with confidence
-- Bilingual reasoning in Estonian and English
+Always:
+- Commit working code with clear messages
+- Deploy to production after significant changes
+- Track accuracy metrics
+- Prioritize journalist-facing features
 
-### Parliament Simulation
-- Batch predict all active MPs on a bill
-- Calculate passage probability
-- Group by confidence level
+Avoid:
+- Over-engineering (YAGNI)
+- Political commentary in code or data
+- Exposing API keys or credentials
+- Breaking changes without migration path
 
-### Backtesting
-- Temporal isolation: predictions use only data available before each test vote
-- Confusion matrix and precision metrics
-- Resume capability for long runs
-- Results stored on MP profile
+## Current Status (auto-updated)
 
-## Current Data Status
+Check live status:
+- **MPs**: `curl -s https://seosetu.ee/api/v1/mps | jq '.data.total'`
+- **Health**: `curl -s https://seosetu.ee/api/v1/health`
+- **DB Size**: `npx tsx scripts/db-stats.ts`
 
-The database contains synchronized data from Riigikogu API:
-- ~500 drafts with full text (PDF/DOCX extracted)
-- ~850 votings with embedded voter data
-- ~400 stenograms with speaker speeches
-- ~100 members
+## MVP Roadmap (Week of Feb 2-8)
 
-Voting-draft links are established via `relatedVotingUuids` from the API.
+### Priority 1: Foundation
+- [x] All 101 MPs have profiles
+- [ ] Embeddings generated for RAG
+- [ ] Backtests establish accuracy baseline
+
+### Priority 2: Intelligence
+- [ ] Swing vote detection
+- [ ] Anomaly detection (unusual voting patterns)
+- [ ] Daily data sync automation
+
+### Priority 3: Journalist Interface
+- [ ] Natural language query
+- [ ] Export functionality
+- [ ] Story leads detection
+
+## Related Documents
+
+- `SR Golden Plan.md` — Strategic plan and product vision
+- `SR Mission.md` — Mission statement and philosophy
+- `SR Long-term plan.md` — Long-term direction
+
+---
+
+*Last updated: 2026-02-02*
