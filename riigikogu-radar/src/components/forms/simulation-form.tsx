@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { VoteBadge } from "@/components/data/vote-badge";
 import { PartyBadge } from "@/components/data/party-badge";
@@ -13,13 +13,18 @@ interface SimulationFormProps {
   locale: string;
 }
 
+type ProgressStage = "loading" | "analyzing" | "predicting" | "calculating";
+
 export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
   const t = useTranslations("simulation");
   const [billTitle, setBillTitle] = useState(initialQuery || "");
   const [billDescription, setBillDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [progressStage, setProgressStage] = useState<ProgressStage>("loading");
+  const [progressPercent, setProgressPercent] = useState(0);
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-submit if initialQuery provided
   useEffect(() => {
@@ -29,6 +34,43 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
+  const startProgressAnimation = () => {
+    setProgressStage("loading");
+    setProgressPercent(0);
+
+    // Simulate progress through stages
+    // Stage 1: Loading MPs (0-15%)
+    // Stage 2: Analyzing context (15-40%)
+    // Stage 3: Predicting votes (40-90%)
+    // Stage 4: Calculating results (90-100%)
+
+    let percent = 0;
+    progressInterval.current = setInterval(() => {
+      percent += Math.random() * 3 + 0.5;
+
+      if (percent < 15) {
+        setProgressStage("loading");
+      } else if (percent < 40) {
+        setProgressStage("analyzing");
+      } else if (percent < 90) {
+        setProgressStage("predicting");
+      } else {
+        setProgressStage("calculating");
+        percent = Math.min(percent, 95); // Cap at 95% until done
+      }
+
+      setProgressPercent(Math.min(percent, 95));
+    }, 500);
+  };
+
+  const stopProgressAnimation = () => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+    setProgressPercent(100);
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!billTitle.trim() || isLoading) return;
@@ -36,6 +78,7 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     setIsLoading(true);
     setError(null);
     setResult(null);
+    startProgressAnimation();
 
     try {
       const response = await fetch("/api/v1/simulate", {
@@ -53,8 +96,10 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         throw new Error(data.error?.message || "Simulation failed");
       }
 
+      stopProgressAnimation();
       setResult(data.data.simulation);
     } catch (err) {
+      stopProgressAnimation();
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
@@ -124,12 +169,46 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading state with progress */}
       {isLoading && (
         <div className="card mb-8">
-          <div className="card-content text-center py-12">
-            <LoadingSpinner className="w-8 h-8 mx-auto mb-4 text-rk-500" />
-            <p className="text-ink-600">{t("analyzing")}</p>
+          <div className="card-content py-8">
+            {/* Progress bar */}
+            <div className="mb-6">
+              <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rk-500 transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <div className="text-right mt-1">
+                <span className="text-xs text-ink-400 font-mono">{Math.round(progressPercent)}%</span>
+              </div>
+            </div>
+
+            {/* Progress stages */}
+            <div className="space-y-3">
+              <ProgressStep
+                active={progressStage === "loading"}
+                completed={progressPercent >= 15}
+                label={t("progressLoading")}
+              />
+              <ProgressStep
+                active={progressStage === "analyzing"}
+                completed={progressPercent >= 40}
+                label={t("progressAnalyzing")}
+              />
+              <ProgressStep
+                active={progressStage === "predicting"}
+                completed={progressPercent >= 90}
+                label={t("progressPredicting")}
+              />
+              <ProgressStep
+                active={progressStage === "calculating"}
+                completed={progressPercent >= 100}
+                label={t("progressCalculating")}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -330,5 +409,32 @@ function StanceBadge({ stance }: { stance: string }) {
     <span className={`px-2 py-0.5 text-xs font-medium rounded ${stanceConfig.color}`}>
       {t(stanceConfig.key)}
     </span>
+  );
+}
+
+function ProgressStep({
+  active,
+  completed,
+  label,
+}: {
+  active: boolean;
+  completed: boolean;
+  label: string;
+}) {
+  return (
+    <div className={`flex items-center gap-3 ${completed ? "text-rk-600" : active ? "text-ink-900" : "text-ink-400"}`}>
+      <div className="w-5 h-5 flex items-center justify-center">
+        {completed ? (
+          <svg className="w-5 h-5 text-vote-for" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        ) : active ? (
+          <LoadingSpinner className="w-4 h-4" />
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-ink-200" />
+        )}
+      </div>
+      <span className={`text-sm ${active ? "font-medium" : ""}`}>{label}</span>
+    </div>
   );
 }
