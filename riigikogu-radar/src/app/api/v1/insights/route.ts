@@ -128,6 +128,134 @@ export async function GET() {
       .sort((a, b) => a.margin - b.margin)
       .slice(0, 10);
 
+    // Insight 6: Party rebels - MPs who recently voted against their party majority
+    const partyRebels: Array<{
+      name: string;
+      party: string;
+      slug: string;
+      voteTitle: string;
+      voteDate: string;
+      mpDecision: string;
+      partyMajority: string;
+    }> = [];
+
+    for (const voting of recentVotings.slice(0, 20)) {
+      // Calculate party majorities for this vote
+      const partyVotes = new Map<string, { for: number; against: number }>();
+      for (const voter of voting.voters) {
+        if (voter.decision === "ABSENT" || voter.decision === "ABSTAIN") continue;
+        const party = voter.faction || "Unknown";
+        const stats = partyVotes.get(party) || { for: 0, against: 0 };
+        if (voter.decision === "FOR") stats.for++;
+        else if (voter.decision === "AGAINST") stats.against++;
+        partyVotes.set(party, stats);
+      }
+
+      // Find rebels (voted opposite to party majority)
+      for (const voter of voting.voters) {
+        if (voter.decision === "ABSENT" || voter.decision === "ABSTAIN") continue;
+        const party = voter.faction || "Unknown";
+        const stats = partyVotes.get(party);
+        if (!stats) continue;
+
+        const partyMajority = stats.for > stats.against ? "FOR" : "AGAINST";
+        const majorityStrength = Math.max(stats.for, stats.against) / (stats.for + stats.against);
+
+        // Rebel if voted opposite AND party had clear majority (>60%)
+        if (voter.decision !== partyMajority && majorityStrength > 0.6) {
+          const mp = mps.find((m) => m.uuid === voter.memberUuid);
+          if (mp) {
+            partyRebels.push({
+              name: mp.info?.fullName || voter.fullName,
+              party,
+              slug: mp.slug,
+              voteTitle: voting.title,
+              voteDate: voting.votingTime?.split("T")[0] || "",
+              mpDecision: voter.decision,
+              partyMajority,
+            });
+          }
+        }
+      }
+    }
+
+    // Deduplicate rebels (keep most recent instance per MP)
+    const uniqueRebels = Array.from(
+      partyRebels.reduce((map, rebel) => {
+        if (!map.has(rebel.slug)) map.set(rebel.slug, rebel);
+        return map;
+      }, new Map<string, typeof partyRebels[0]>())
+    ).map(([, rebel]) => rebel).slice(0, 10);
+
+    // Insight 7: Cross-party voting blocs - MPs from different parties who vote together
+    const mpVotePatterns = new Map<string, Map<string, string>>();
+    for (const voting of recentVotings.slice(0, 30)) {
+      for (const voter of voting.voters) {
+        if (voter.decision === "ABSENT") continue;
+        if (!mpVotePatterns.has(voter.memberUuid)) {
+          mpVotePatterns.set(voter.memberUuid, new Map());
+        }
+        mpVotePatterns.get(voter.memberUuid)!.set(voting.uuid, voter.decision);
+      }
+    }
+
+    // Calculate voting similarity between MPs of different parties
+    const crossPartyAlliances: Array<{
+      mp1: { name: string; party: string; slug: string };
+      mp2: { name: string; party: string; slug: string };
+      agreementPercent: number;
+      sharedVotes: number;
+    }> = [];
+
+    const mpList = mps.filter((mp) => mpVotePatterns.has(mp.uuid));
+    for (let i = 0; i < mpList.length; i++) {
+      for (let j = i + 1; j < mpList.length; j++) {
+        const mp1 = mpList[i];
+        const mp2 = mpList[j];
+        // Only compare MPs from different parties
+        if (mp1.info?.party?.code === mp2.info?.party?.code) continue;
+
+        const votes1 = mpVotePatterns.get(mp1.uuid)!;
+        const votes2 = mpVotePatterns.get(mp2.uuid)!;
+
+        let agreements = 0;
+        let sharedVotes = 0;
+        const votes1Entries = Array.from(votes1.entries());
+        for (const [voteId, decision1] of votes1Entries) {
+          const decision2 = votes2.get(voteId);
+          if (decision2 && decision1 !== "ABSTAIN" && decision2 !== "ABSTAIN") {
+            sharedVotes++;
+            if (decision1 === decision2) agreements++;
+          }
+        }
+
+        if (sharedVotes >= 10 && agreements / sharedVotes >= 0.8) {
+          crossPartyAlliances.push({
+            mp1: { name: mp1.info?.fullName || mp1.slug, party: mp1.info?.party?.name || "", slug: mp1.slug },
+            mp2: { name: mp2.info?.fullName || mp2.slug, party: mp2.info?.party?.name || "", slug: mp2.slug },
+            agreementPercent: Math.round((agreements / sharedVotes) * 100),
+            sharedVotes,
+          });
+        }
+      }
+    }
+
+    crossPartyAlliances.sort((a, b) => b.agreementPercent - a.agreementPercent);
+    const topAlliances = crossPartyAlliances.slice(0, 10);
+
+    // Insight 8: Unpredictable MPs (low backtest accuracy - hardest to predict)
+    const unpredictableMPs = mps
+      .filter((mp) => mp.backtest?.accuracy?.overall != null && mp.backtest.sampleSize > 30)
+      .map((mp) => ({
+        name: mp.info?.fullName || mp.slug,
+        party: mp.info?.party?.name || "",
+        accuracy: mp.backtest?.accuracy?.overall || 0,
+        sampleSize: mp.backtest?.sampleSize || 0,
+        slug: mp.slug,
+      }))
+      .sort((a, b) => a.accuracy - b.accuracy)
+      .slice(0, 10);
+
     return NextResponse.json({
       success: true,
       generatedAt: new Date().toISOString(),
@@ -156,6 +284,21 @@ export async function GET() {
           title: "Close/Controversial Votes",
           description: "Recent votes with significant opposition (>30%)",
           data: closeVotes,
+        },
+        partyRebels: {
+          title: "Party Rebels",
+          description: "MPs who recently voted against their party's clear majority",
+          data: uniqueRebels,
+        },
+        crossPartyAlliances: {
+          title: "Cross-Party Voting Blocs",
+          description: "MPs from different parties who vote together >80% of the time",
+          data: topAlliances,
+        },
+        unpredictableMPs: {
+          title: "Most Unpredictable MPs",
+          description: "MPs with lowest prediction accuracy - hardest to forecast",
+          data: unpredictableMPs,
         },
       },
     });
