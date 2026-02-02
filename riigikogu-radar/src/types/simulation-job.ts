@@ -1,0 +1,114 @@
+/**
+ * Types for async simulation job queue
+ */
+
+import type { Prediction, VoteDecision } from "./domain";
+
+export type SimulationJobStatus = "pending" | "processing" | "completed" | "failed";
+
+export interface SimulationJobRequest {
+  billTitle: string;
+  billDescription?: string;
+  billFullText?: string;
+}
+
+export interface SimulationJobProgress {
+  totalMPs: number;
+  completedMPs: number;
+  currentBatch: number;
+}
+
+export interface SimulationJobError {
+  mpSlug: string;
+  error: string;
+}
+
+export interface SimulationJobResult {
+  draftTitle: string;
+  passageProbability: number;
+  totalFor: number;
+  totalAgainst: number;
+  totalAbstain: number;
+  totalUnknown: number;
+  predictions: Prediction[];
+  partyBreakdown: PartyBreakdownResult[];
+  swingVotes: SwingVoteResult[];
+  confidenceDistribution: ConfidenceDistributionResult;
+  simulatedAt: Date;
+}
+
+export interface PartyBreakdownResult {
+  party: string;
+  partyCode: string;
+  totalMembers: number;
+  predictedFor: number;
+  predictedAgainst: number;
+  predictedAbstain: number;
+  stance: "SUPPORTS" | "OPPOSES" | "SPLIT" | "UNKNOWN";
+}
+
+export interface SwingVoteResult {
+  mpSlug: string;
+  mpName: string;
+  party: string;
+  confidence: number;
+  predictedVote: VoteDecision;
+  reason: string;
+}
+
+export interface ConfidenceDistributionResult {
+  high: number;
+  medium: number;
+  low: number;
+  unknown: number;
+}
+
+/**
+ * Main simulation job document stored in MongoDB
+ */
+export interface SimulationJob {
+  _id: string;  // Job ID (UUID)
+  status: SimulationJobStatus;
+
+  request: SimulationJobRequest;
+
+  progress: SimulationJobProgress;
+
+  // Accumulated predictions so far
+  predictions: Prediction[];
+  errors: SimulationJobError[];
+
+  // Final computed result (set when status = completed)
+  result?: SimulationJobResult;
+
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
+  expiresAt: Date;  // TTL: 24 hours
+
+  // Security for self-invocation
+  continuationToken: string;
+  continuationCount: number;  // Max 15 (safety limit)
+}
+
+/**
+ * API response for job creation
+ */
+export interface CreateSimulationJobResponse {
+  jobId: string;
+  status: SimulationJobStatus;
+  progress: SimulationJobProgress;
+}
+
+/**
+ * API response for job status
+ */
+export interface SimulationJobStatusResponse {
+  jobId: string;
+  status: SimulationJobStatus;
+  progress: SimulationJobProgress;
+  result?: SimulationJobResult;
+  errors?: SimulationJobError[];
+  error?: string;  // Error message if status = failed
+}

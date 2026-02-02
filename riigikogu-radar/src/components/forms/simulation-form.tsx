@@ -1,30 +1,35 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { VoteBadge } from "@/components/data/vote-badge";
 import { PartyBadge } from "@/components/data/party-badge";
 import { ConfidenceBar } from "@/components/data/confidence-bar";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import type { SimulationResult, VoteDecision, PartyCode } from "@/types";
+import type { SimulationResult, VoteDecision, PartyCode, SimulationJobStatusResponse } from "@/types";
 
 interface SimulationFormProps {
   initialQuery?: string;
   locale: string;
 }
 
-type ProgressStage = "loading" | "analyzing" | "predicting" | "calculating";
+type ProgressStage = "submitting" | "loading" | "analyzing" | "predicting" | "calculating";
+
+const POLL_INTERVAL_MS = 2000;
 
 export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
   const t = useTranslations("simulation");
   const [billTitle, setBillTitle] = useState(initialQuery || "");
   const [billDescription, setBillDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [progressStage, setProgressStage] = useState<ProgressStage>("loading");
+  const [progressStage, setProgressStage] = useState<ProgressStage>("submitting");
   const [progressPercent, setProgressPercent] = useState(0);
+  const [progressText, setProgressText] = useState("");
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const pollInterval = useRef<NodeJS.Timeout | null>(null);
+  const abortController = useRef<AbortController | null>(null);
 
   // Auto-submit if initialQuery provided
   useEffect(() => {
@@ -34,42 +39,83 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
-  const startProgressAnimation = () => {
-    setProgressStage("loading");
-    setProgressPercent(0);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+      }
+      if (abortController.current) {
+        abortController.current.abort();
+      }
+    };
+  }, []);
 
-    // Simulate progress through stages
-    // Stage 1: Loading MPs (0-15%)
-    // Stage 2: Analyzing context (15-40%)
-    // Stage 3: Predicting votes (40-90%)
-    // Stage 4: Calculating results (90-100%)
+  const getStageFromProgress = (completedMPs: number, totalMPs: number): ProgressStage => {
+    const percent = (completedMPs / totalMPs) * 100;
+    if (percent < 10) return "loading";
+    if (percent < 30) return "analyzing";
+    if (percent < 95) return "predicting";
+    return "calculating";
+  };
 
-    let percent = 0;
-    progressInterval.current = setInterval(() => {
-      percent += Math.random() * 3 + 0.5;
+  const pollJobStatus = useCallback(async (id: string) => {
+    try {
+      abortController.current = new AbortController();
+      const response = await fetch(`/api/v1/simulate/${id}`, {
+        signal: abortController.current.signal,
+      });
+      const data = await response.json();
 
-      if (percent < 15) {
-        setProgressStage("loading");
-      } else if (percent < 40) {
-        setProgressStage("analyzing");
-      } else if (percent < 90) {
-        setProgressStage("predicting");
-      } else {
-        setProgressStage("calculating");
-        percent = Math.min(percent, 95); // Cap at 95% until done
+      if (!data.success) {
+        throw new Error(data.error?.message || "Failed to fetch job status");
       }
 
-      setProgressPercent(Math.min(percent, 95));
-    }, 500);
-  };
+      const jobData: SimulationJobStatusResponse = data.data;
 
-  const stopProgressAnimation = () => {
-    if (progressInterval.current) {
-      clearInterval(progressInterval.current);
-      progressInterval.current = null;
+      // Update progress
+      const completed = jobData.progress.completedMPs;
+      const total = jobData.progress.totalMPs;
+      const percent = Math.round((completed / total) * 100);
+
+      setProgressPercent(percent);
+      setProgressStage(getStageFromProgress(completed, total));
+      setProgressText(`${completed}/${total} ${t("mpsProcessed")}`);
+
+      // Check if done
+      if (jobData.status === "completed" && jobData.result) {
+        // Stop polling
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          pollInterval.current = null;
+        }
+        setProgressPercent(100);
+        setResult(jobData.result as SimulationResult);
+        setIsLoading(false);
+        setJobId(null);
+      } else if (jobData.status === "failed") {
+        // Stop polling
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          pollInterval.current = null;
+        }
+        throw new Error(jobData.error || "Simulation failed");
+      }
+      // If still processing, polling continues
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return; // Ignore abort errors
+      }
+      // Stop polling on error
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = null;
+      }
+      setError(err instanceof Error ? err.message : "An error occurred");
+      setIsLoading(false);
+      setJobId(null);
     }
-    setProgressPercent(100);
-  };
+  }, [t]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -78,9 +124,12 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     setIsLoading(true);
     setError(null);
     setResult(null);
-    startProgressAnimation();
+    setProgressStage("submitting");
+    setProgressPercent(0);
+    setProgressText("");
 
     try {
+      // Submit simulation request
       const response = await fetch("/api/v1/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,14 +145,37 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         throw new Error(data.error?.message || "Simulation failed");
       }
 
-      stopProgressAnimation();
-      setResult(data.data.simulation);
+      // Start polling for results
+      const newJobId = data.data.jobId;
+      setJobId(newJobId);
+      setProgressStage("loading");
+      setProgressPercent(5);
+
+      // Initial poll immediately
+      await pollJobStatus(newJobId);
+
+      // Start polling interval
+      pollInterval.current = setInterval(() => {
+        pollJobStatus(newJobId);
+      }, POLL_INTERVAL_MS);
     } catch (err) {
-      stopProgressAnimation();
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    // Stop polling
+    if (pollInterval.current) {
+      clearInterval(pollInterval.current);
+      pollInterval.current = null;
+    }
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    setIsLoading(false);
+    setJobId(null);
+    setProgressPercent(0);
   };
 
   return (
@@ -141,20 +213,31 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={!billTitle.trim() || isLoading}
-            className="btn-primary"
-          >
-            {isLoading ? (
-              <span className="flex items-center gap-2">
-                <LoadingSpinner />
-                {t("simulating")}
-              </span>
-            ) : (
-              t("simulateButton")
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={!billTitle.trim() || isLoading}
+              className="btn-primary"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <LoadingSpinner />
+                  {t("simulating")}
+                </span>
+              ) : (
+                t("simulateButton")
+              )}
+            </button>
+            {isLoading && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="btn-secondary"
+              >
+                {t("cancel")}
+              </button>
             )}
-          </button>
+          </div>
         </div>
       </form>
 
@@ -169,7 +252,7 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         </div>
       )}
 
-      {/* Loading state with progress */}
+      {/* Loading state with real progress */}
       {isLoading && (
         <div className="card mb-8">
           <div className="card-content py-8">
@@ -177,30 +260,36 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
             <div className="mb-6">
               <div className="h-2 bg-ink-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-rk-500 transition-all duration-300"
+                  className="h-full bg-rk-500 transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-              <div className="text-right mt-1">
-                <span className="text-xs text-ink-400 font-mono">{Math.round(progressPercent)}%</span>
+              <div className="flex justify-between mt-1">
+                <span className="text-xs text-ink-500">{progressText}</span>
+                <span className="text-xs text-ink-400 font-mono">{progressPercent}%</span>
               </div>
             </div>
 
             {/* Progress stages */}
             <div className="space-y-3">
               <ProgressStep
+                active={progressStage === "submitting"}
+                completed={progressStage !== "submitting"}
+                label={t("progressSubmitting")}
+              />
+              <ProgressStep
                 active={progressStage === "loading"}
-                completed={progressPercent >= 15}
+                completed={["analyzing", "predicting", "calculating"].includes(progressStage)}
                 label={t("progressLoading")}
               />
               <ProgressStep
                 active={progressStage === "analyzing"}
-                completed={progressPercent >= 40}
+                completed={["predicting", "calculating"].includes(progressStage)}
                 label={t("progressAnalyzing")}
               />
               <ProgressStep
                 active={progressStage === "predicting"}
-                completed={progressPercent >= 90}
+                completed={progressStage === "calculating"}
                 label={t("progressPredicting")}
               />
               <ProgressStep
@@ -209,6 +298,14 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
                 label={t("progressCalculating")}
               />
             </div>
+
+            {jobId && (
+              <div className="mt-4 pt-4 border-t border-ink-100">
+                <p className="text-xs text-ink-400">
+                  Job ID: <code className="font-mono">{jobId}</code>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
