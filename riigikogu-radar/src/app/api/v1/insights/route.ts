@@ -31,19 +31,68 @@ export async function GET() {
       .limit(50)
       .toArray();
 
+    // Calculate actual party loyalty for each MP from voting data
+    // Party loyalty = how often an MP votes with their party's majority
+    const mpPartyLoyalty = new Map<string, { withParty: number; total: number; party: string }>();
+
+    for (const voting of recentVotings) {
+      // First, calculate party majorities for this vote
+      const partyVotes = new Map<string, { for: number; against: number; abstain: number }>();
+      for (const voter of voting.voters) {
+        if (voter.decision === "ABSENT") continue;
+        const party = voter.faction || "Unknown";
+        const stats = partyVotes.get(party) || { for: 0, against: 0, abstain: 0 };
+        if (voter.decision === "FOR") stats.for++;
+        else if (voter.decision === "AGAINST") stats.against++;
+        else if (voter.decision === "ABSTAIN") stats.abstain++;
+        partyVotes.set(party, stats);
+      }
+
+      // Determine party majority decision
+      const partyMajorities = new Map<string, string>();
+      const partyVotesEntries = Array.from(partyVotes.entries());
+      for (const [party, stats] of partyVotesEntries) {
+        const maxVotes = Math.max(stats.for, stats.against, stats.abstain);
+        if (maxVotes === stats.for) partyMajorities.set(party, "FOR");
+        else if (maxVotes === stats.against) partyMajorities.set(party, "AGAINST");
+        else partyMajorities.set(party, "ABSTAIN");
+      }
+
+      // Now check each voter against their party majority
+      for (const voter of voting.voters) {
+        if (voter.decision === "ABSENT") continue;
+        const party = voter.faction || "Unknown";
+        const partyMajority = partyMajorities.get(party);
+        if (!partyMajority) continue;
+
+        const current = mpPartyLoyalty.get(voter.memberUuid) || { withParty: 0, total: 0, party };
+        current.total++;
+        if (voter.decision === partyMajority) {
+          current.withParty++;
+        }
+        mpPartyLoyalty.set(voter.memberUuid, current);
+      }
+    }
+
     // Insight 1: Low party loyalty MPs (potential swing votes)
+    // Calculate from actual voting data
     const swingVotes = mps
       .filter((mp) => {
-        const loyalty = mp.info?.votingStats?.partyLoyaltyPercent || 100;
-        return loyalty < 80 && mp.info?.votingStats?.total && mp.info.votingStats.total > 50;
+        const loyalty = mpPartyLoyalty.get(mp.uuid);
+        if (!loyalty || loyalty.total < 20) return false; // Need enough votes
+        const loyaltyPercent = Math.round((loyalty.withParty / loyalty.total) * 100);
+        return loyaltyPercent < 85; // Below 85% party loyalty
       })
-      .map((mp) => ({
-        name: mp.info?.fullName || mp.slug,
-        party: mp.info?.party?.name || "",
-        partyLoyalty: mp.info?.votingStats?.partyLoyaltyPercent || 0,
-        totalVotes: mp.info?.votingStats?.total || 0,
-        slug: mp.slug,
-      }))
+      .map((mp) => {
+        const loyalty = mpPartyLoyalty.get(mp.uuid)!;
+        return {
+          name: mp.info?.fullName || mp.slug,
+          party: mp.info?.party?.name || loyalty.party || "",
+          partyLoyalty: Math.round((loyalty.withParty / loyalty.total) * 100),
+          totalVotes: loyalty.total,
+          slug: mp.slug,
+        };
+      })
       .sort((a, b) => a.partyLoyalty - b.partyLoyalty)
       .slice(0, 10);
 
