@@ -105,7 +105,65 @@ export async function getAllMPs(): Promise<{ mps: MPProfile[] }> {
 }
 
 /**
+ * Create MP profile stubs from members collection
+ * Returns count of newly created profiles
+ */
+export async function createMPsFromMembers(): Promise<{ created: number; existing: number }> {
+  const mpsCollection = await getCollection<MPProfile>("mps");
+  const membersCollection = await getCollection<{
+    uuid: string;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    active?: boolean;
+    faction?: { name?: string; code?: string };
+  }>("members");
+
+  // Get all current members (use 'active' field from Riigikogu API)
+  const members = await membersCollection.find({ active: true }).toArray();
+
+  let created = 0;
+  let existing = 0;
+
+  for (const member of members) {
+    // Check if MP already exists
+    const existingMP = await mpsCollection.findOne({ uuid: member.uuid });
+    if (existingMP) {
+      existing++;
+      continue;
+    }
+
+    // Create slug from name
+    const slug = member.fullName
+      .toLowerCase()
+      .replace(/õ/g, "o")
+      .replace(/ä/g, "a")
+      .replace(/ö/g, "o")
+      .replace(/ü/g, "u")
+      .replace(/š/g, "s")
+      .replace(/ž/g, "z")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    // Create stub profile
+    const profile: Omit<MPProfile, "_id"> = {
+      uuid: member.uuid,
+      slug,
+      status: "pending" as MPStatus,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    await mpsCollection.insertOne(profile as MPProfile);
+    created++;
+  }
+
+  return { created, existing };
+}
+
+/**
  * Regenerate MP profile with fresh AI analysis
+ * Creates the MP profile if it doesn't exist
  */
 export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
   const mpsCollection = await getCollection<MPProfile>("mps");
@@ -114,17 +172,13 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
     firstName: string;
     lastName: string;
     fullName: string;
-    faction?: { name?: string; code?: string; nameEn?: string };
-    photoUrl?: string;
+    faction?: { name?: string; value?: string; code?: string; nameEn?: string };
+    photoUrl?: string | { uuid?: string; _links?: { download?: { href?: string } } };
     committeeMemberships?: Array<{ committee?: { name?: string }; role?: string }>;
     previousConvocations?: Array<{ number?: number }>;
+    convocations?: Array<{ number?: number }>;
+    committees?: Array<{ committee?: { name?: string }; role?: { code?: string; value?: string } }>;
   }>("members");
-
-  // Get existing MP record
-  const existing = await mpsCollection.findOne({ uuid });
-  if (!existing) {
-    throw new Error(`MP not found: ${uuid}`);
-  }
 
   // Get member details from members collection
   const member = await membersCollection.findOne({ uuid });
@@ -132,10 +186,45 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
     throw new Error(`Member details not found: ${uuid}`);
   }
 
+  // Check if MP exists, create stub if not
+  let existing = await mpsCollection.findOne({ uuid });
+  if (!existing) {
+    // Create slug from name
+    const slug = member.fullName
+      .toLowerCase()
+      .replace(/õ/g, "o")
+      .replace(/ä/g, "a")
+      .replace(/ö/g, "o")
+      .replace(/ü/g, "u")
+      .replace(/š/g, "s")
+      .replace(/ž/g, "z")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const stub: Omit<MPProfile, "_id"> = {
+      uuid,
+      slug,
+      status: "pending" as MPStatus,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await mpsCollection.insertOne(stub as MPProfile);
+    existing = await mpsCollection.findOne({ uuid });
+  }
+
   // Collect voting and speech data
   const mpData = await collectMPData(uuid);
 
+  // Extract photo URL from various formats
+  const extractPhotoUrl = (photo: typeof member.photoUrl): string | null => {
+    if (!photo) return null;
+    if (typeof photo === "string") return photo;
+    return photo._links?.download?.href || null;
+  };
+
   // Build member details for instruction generator
+  // Note: faction uses 'value' field in API data, fallback to 'name' for compatibility
+  const factionName = member.faction?.value || member.faction?.name || "Unknown";
   const memberDetails = {
     uuid: member.uuid,
     firstName: member.firstName,
@@ -143,15 +232,15 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
     fullName: member.fullName,
     party: {
       code: member.faction?.code || "other",
-      name: member.faction?.name || "Unknown",
-      nameEn: member.faction?.nameEn || "Unknown",
+      name: factionName,
+      nameEn: member.faction?.nameEn || factionName,
     },
-    photoUrl: member.photoUrl || null,
-    committees: (member.committeeMemberships || []).map(cm => ({
+    photoUrl: extractPhotoUrl(member.photoUrl),
+    committees: (member.committees || member.committeeMemberships || []).map(cm => ({
       name: cm.committee?.name || "Unknown",
-      role: cm.role || "Member",
+      role: typeof cm.role === "object" ? cm.role.value || "Member" : cm.role || "Member",
     })),
-    previousTerms: (member.previousConvocations || [])
+    previousTerms: (member.convocations || member.previousConvocations || [])
       .filter(c => c.number !== undefined)
       .map(c => c.number as number),
   };
