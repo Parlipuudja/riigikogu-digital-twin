@@ -9,7 +9,17 @@
     "back": "Back",
     "viewAll": "View all",
     "export": "Export",
-    "share": "Share"
+    "share": "Share",
+    "notFound": "Not Found",
+    "for": "for",
+    "against": "against",
+    "abstained": "abstained",
+    "previous": "Previous",
+    "next": "Next",
+    "total": "total",
+    "tested": "Tested",
+    "pending": "Pending",
+    "noDataFound": "No data found"
   },
   "nav": {
     "home": "Home",
@@ -29,13 +39,17 @@
     "predict": {
       "title": "Analyze a bill",
       "placeholder": "Enter bill title or description...",
-      "button": "Analyze"
+      "button": "Analyze",
+      "analyzing": "Analyzing..."
     },
     "upcoming": {
-      "title": "Upcoming votes"
+      "title": "Upcoming votes",
+      "noDrafts": "No drafts found."
     },
     "recent": {
-      "title": "Recent predictions"
+      "title": "Recent predictions",
+      "noBacktests": "No backtests completed yet.",
+      "mpsTested": "MPs tested"
     },
     "accuracy": {
       "title": "Model accuracy",
@@ -59,7 +73,15 @@
       "attendance": "Attendance",
       "partyLoyalty": "Party loyalty",
       "accuracy": "accuracy"
-    }
+    },
+    "stats": {
+      "totalMPs": "Total MPs",
+      "parties": "Parties",
+      "withProfiles": "With profiles",
+      "pending": "Pending"
+    },
+    "profilePending": "Profile pending",
+    "noMPsFound": "No MPs found. Run data sync first."
   },
   "mp": {
     "votingSummary": "Voting summary",
@@ -69,6 +91,7 @@
     "againstParty": "Against party",
     "dissentTopics": "Dissent topics",
     "politicalPosition": "Political position",
+    "politicalPositionDesc": "AI-analyzed from voting patterns and speeches",
     "economic": "Economic policy",
     "social": "Social policy",
     "eu": "EU integration",
@@ -83,20 +106,41 @@
     "increase": "Increase",
     "keyIssues": "Key issues",
     "recentVotes": "Recent votes",
-    "predictVote": "Predict this MP's vote"
+    "predictVote": "Predict this MP's vote",
+    "predictionAccuracy": "Prediction accuracy",
+    "notFound": "MP Not Found",
+    "profileNotGenerated": "Profile not yet generated. Cannot make predictions.",
+    "for": "FOR",
+    "against": "AGAINST"
   },
   "simulation": {
     "title": "Parliament simulation",
-    "likelyToPass": "Likely to pass",
-    "likelyToFail": "Likely to fail",
+    "subtitle": "Enter a bill and see how the entire parliament would likely vote.",
+    "billTitle": "Bill title",
+    "billTitlePlaceholder": "E.g., Tax Reform Act",
+    "description": "Description (optional)",
+    "descriptionPlaceholder": "Brief description of the bill...",
+    "simulateButton": "Simulate vote",
+    "simulating": "Simulating parliament vote...",
+    "analyzing": "Analyzing all MPs... This may take a moment.",
+    "likelyToPass": "LIKELY TO PASS",
+    "likelyToFail": "LIKELY TO FAIL",
     "uncertain": "Uncertain",
     "probability": "probability",
     "breakdown": "Breakdown by party",
+    "party": "Party",
+    "stance": "Stance",
+    "votesNeeded": "51 votes needed to pass",
     "swingVotes": "Swing votes",
+    "swingVotesDesc": "Low-confidence predictions that could change the outcome",
     "confidence": "Confidence distribution",
     "high": "High",
     "medium": "Medium",
-    "low": "Low"
+    "low": "Low",
+    "unknown": "Unknown",
+    "supports": "SUPPORTS",
+    "opposes": "OPPOSES",
+    "split": "SPLIT"
   },
   "prediction": {
     "for": "FOR",
@@ -109,6 +153,7 @@
   "insights": {
     "title": "Story Leads",
     "subtitle": "AI-detected patterns and anomalies for journalists",
+    "failedToLoad": "Failed to load insights. Please try again later.",
     "swingVotes": {
       "title": "Potential Swing Voters",
       "description": "MPs with lowest party loyalty - may vote unpredictably"
@@ -135,7 +180,9 @@
     },
     "partyRebels": {
       "title": "Party Rebels",
-      "description": "MPs who recently voted against their party's clear majority"
+      "description": "MPs who recently voted against their party's clear majority",
+      "voted": "Voted",
+      "whilePartyVoted": "while party voted"
     },
     "crossPartyAlliances": {
       "title": "Cross-Party Voting Blocs",
@@ -146,11 +193,29 @@
     "attendance": "attendance",
     "votes": "votes",
     "margin": "margin",
-    "agreement": "agreement"
+    "agreement": "agreement",
+    "totalVotes": "total votes",
+    "exportData": "Export Data",
+    "exportMPs": "Export MPs (CSV)",
+    "exportVotings": "Export Votings (CSV)",
+    "rawJsonApi": "Raw JSON API"
   },
   "drafts": {
     "title": "Legislative Drafts",
-    "subtitle": "Browse bills and legislative proposals in the Riigikogu"
+    "subtitle": "Browse bills and legislative proposals in the Riigikogu",
+    "total": "drafts total",
+    "noDrafts": "No drafts found.",
+    "initiators": "Initiators",
+    "submitted": "Submitted",
+    "summary": "Summary",
+    "simulateVote": "Simulate Vote",
+    "simulateVoteDesc": "Use our AI to predict how the Riigikogu would vote on this draft.",
+    "simulate": "Simulate",
+    "relatedVotings": "Related Votings",
+    "details": "Details",
+    "phase": "Phase",
+    "proceeding": "Proceeding",
+    "viewOnRiigikogu": "View on Riigikogu website"
   },
   "footer": {
     "about": "About",

@@ -188,7 +188,7 @@ async function UpcomingVotes({ locale, drafts }: { locale: string; drafts: { id:
           </ul>
         ) : (
           <p className="text-sm text-ink-500">
-            {locale === "et" ? "Eelnõusid ei leitud." : "No drafts found."}
+            {t("noDrafts")}
           </p>
         )}
 
@@ -205,6 +205,8 @@ async function UpcomingVotes({ locale, drafts }: { locale: string; drafts: { id:
 
 async function RecentBacktests({ locale, backtests }: { locale: string; backtests: { id: string; name: string; accuracy: number; date: string }[] }) {
   const t = await getTranslations({ locale, namespace: "home.recent" });
+  const tCommon = await getTranslations({ locale, namespace: "common" });
+  const tMps = await getTranslations({ locale, namespace: "mps" });
 
   return (
     <section className="card">
@@ -227,7 +229,7 @@ async function RecentBacktests({ locale, backtests }: { locale: string; backtest
                     {bt.name}
                   </Link>
                   <div className="text-xs text-ink-500 mt-0.5">
-                    {locale === "et" ? "Testitud" : "Tested"}: {bt.date}
+                    {tCommon("tested")}: {bt.date}
                   </div>
                 </div>
                 <div className="text-right">
@@ -239,7 +241,7 @@ async function RecentBacktests({ locale, backtests }: { locale: string; backtest
                     {bt.accuracy}%
                   </div>
                   <div className="text-xs text-ink-500">
-                    {locale === "et" ? "täpsus" : "accuracy"}
+                    {tMps("card.accuracy")}
                   </div>
                 </div>
               </div>
@@ -247,7 +249,7 @@ async function RecentBacktests({ locale, backtests }: { locale: string; backtest
           </div>
         ) : (
           <p className="text-sm text-ink-500">
-            {locale === "et" ? "Tagasitestimisi pole veel tehtud." : "No backtests completed yet."}
+            {t("noBacktests")}
           </p>
         )}
       </div>
@@ -257,13 +259,14 @@ async function RecentBacktests({ locale, backtests }: { locale: string; backtest
 
 async function AccuracyPanel({ locale, accuracy }: { locale: string; accuracy: { overall: number; for: number; against: number; backtested: number } }) {
   const t = await getTranslations({ locale, namespace: "home.accuracy" });
+  const tRecent = await getTranslations({ locale, namespace: "home.recent" });
 
   return (
     <section className="card">
       <div className="card-header flex items-center justify-between">
         <h2 className="text-lg font-semibold text-ink-900">{t("title")}</h2>
         <span className="text-xs text-ink-500">
-          {accuracy.backtested} {locale === "et" ? "saadikut testitud" : "MPs tested"}
+          {accuracy.backtested} {tRecent("mpsTested")}
         </span>
       </div>
       <div className="card-content">

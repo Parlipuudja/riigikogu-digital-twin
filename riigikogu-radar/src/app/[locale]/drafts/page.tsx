@@ -75,7 +75,7 @@ export default async function DraftsPage({
         <h1 className="text-3xl font-semibold text-ink-900">{t("title")}</h1>
         <p className="text-ink-600 mt-2">{t("subtitle")}</p>
         <p className="text-sm text-ink-500 mt-1">
-          {total} {locale === "et" ? "eelnõu kokku" : "drafts total"}
+          {total} {t("total")}
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export default async function DraftsPage({
         <div className="card">
           <div className="card-content text-center py-12">
             <p className="text-ink-500">
-              {locale === "et" ? "Eelnõusid ei leitud." : "No drafts found."}
+              {t("noDrafts")}
             </p>
           </div>
         </div>
@@ -98,33 +98,43 @@ export default async function DraftsPage({
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-8 flex justify-center gap-2">
-          {page > 1 && (
-            <Link
-              href={`/${locale}/drafts?page=${page - 1}`}
-              className="px-4 py-2 text-sm bg-ink-100 hover:bg-ink-200 rounded transition-colors"
-            >
-              &larr; {locale === "et" ? "Eelmine" : "Previous"}
-            </Link>
-          )}
-          <span className="px-4 py-2 text-sm text-ink-600">
-            {page} / {totalPages}
-          </span>
-          {page < totalPages && (
-            <Link
-              href={`/${locale}/drafts?page=${page + 1}`}
-              className="px-4 py-2 text-sm bg-ink-100 hover:bg-ink-200 rounded transition-colors"
-            >
-              {locale === "et" ? "Järgmine" : "Next"} &rarr;
-            </Link>
-          )}
-        </div>
+        <Pagination locale={locale} page={page} totalPages={totalPages} />
       )}
     </div>
   );
 }
 
-function DraftCard({ draft, locale }: { draft: DraftItem; locale: string }) {
+async function Pagination({ locale, page, totalPages }: { locale: string; page: number; totalPages: number }) {
+  const t = await getTranslations({ locale, namespace: "common" });
+
+  return (
+    <div className="mt-8 flex justify-center gap-2">
+      {page > 1 && (
+        <Link
+          href={`/${locale}/drafts?page=${page - 1}`}
+          className="px-4 py-2 text-sm bg-ink-100 hover:bg-ink-200 rounded transition-colors"
+        >
+          &larr; {t("previous")}
+        </Link>
+      )}
+      <span className="px-4 py-2 text-sm text-ink-600">
+        {page} / {totalPages}
+      </span>
+      {page < totalPages && (
+        <Link
+          href={`/${locale}/drafts?page=${page + 1}`}
+          className="px-4 py-2 text-sm bg-ink-100 hover:bg-ink-200 rounded transition-colors"
+        >
+          {t("next")} &rarr;
+        </Link>
+      )}
+    </div>
+  );
+}
+
+async function DraftCard({ draft, locale }: { draft: DraftItem; locale: string }) {
+  const t = await getTranslations({ locale, namespace: "drafts" });
+
   return (
     <Link href={`/${locale}/drafts/${draft.uuid}`} className="block">
       <div className="card hover:shadow-md transition-shadow">
@@ -146,7 +156,7 @@ function DraftCard({ draft, locale }: { draft: DraftItem; locale: string }) {
               </h3>
               {draft.initiators.length > 0 && (
                 <p className="text-sm text-ink-500 mt-1">
-                  {locale === "et" ? "Algatajad" : "Initiators"}: {draft.initiators.slice(0, 3).join(", ")}
+                  {t("initiators")}: {draft.initiators.slice(0, 3).join(", ")}
                   {draft.initiators.length > 3 && ` +${draft.initiators.length - 3}`}
                 </p>
               )}
@@ -154,7 +164,7 @@ function DraftCard({ draft, locale }: { draft: DraftItem; locale: string }) {
             {draft.submitDate && (
               <div className="text-right shrink-0">
                 <div className="text-xs text-ink-500">
-                  {locale === "et" ? "Esitatud" : "Submitted"}
+                  {t("submitted")}
                 </div>
                 <div className="text-sm text-ink-700">{draft.submitDate}</div>
               </div>

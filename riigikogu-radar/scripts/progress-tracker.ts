@@ -263,8 +263,8 @@ async function checkEmbeddings(): Promise<CategoryResult> {
   // Voting embeddings
   const totalVotings = await votingsCollection.countDocuments({});
   const votingsWithEmbeddings = await votingsCollection.countDocuments({
-    embedding: { $exists: true, $ne: null },
-  });
+    embedding: { $exists: true, $ne: [] },
+  } as Record<string, unknown>);
   const votingsPct = totalVotings > 0
     ? Math.round((votingsWithEmbeddings / totalVotings) * 100)
     : 0;
@@ -545,7 +545,7 @@ function generateRecommendations(categories: CategoryResult[]): string[] {
   }
 
   // Dedupe
-  return [...new Set(recommendations)];
+  return Array.from(new Set(recommendations));
 }
 
 function generateSummary(categories: CategoryResult[], overallScore: number): string[] {

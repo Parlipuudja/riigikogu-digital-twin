@@ -40,23 +40,23 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <div className="text-3xl font-mono font-bold text-rk-700">{mps.length}</div>
-              <div className="text-sm text-ink-500">Total MPs</div>
+              <div className="text-sm text-ink-500">{t("stats.totalMPs")}</div>
             </div>
             <div>
               <div className="text-3xl font-mono font-bold text-rk-700">{parties.length}</div>
-              <div className="text-sm text-ink-500">Parties</div>
+              <div className="text-sm text-ink-500">{t("stats.parties")}</div>
             </div>
             <div>
               <div className="text-3xl font-mono font-bold text-vote-for">
                 {mps.filter(m => m.instruction).length}
               </div>
-              <div className="text-sm text-ink-500">With profiles</div>
+              <div className="text-sm text-ink-500">{t("stats.withProfiles")}</div>
             </div>
             <div>
               <div className="text-3xl font-mono font-bold text-ink-400">
                 {mps.filter(m => !m.instruction).length}
               </div>
-              <div className="text-sm text-ink-500">Pending</div>
+              <div className="text-sm text-ink-500">{t("stats.pending")}</div>
             </div>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
 
                           {!mp.instruction && (
                             <div className="mt-2 text-xs text-ink-400 italic">
-                              Profile pending
+                              {t("profilePending")}
                             </div>
                           )}
                         </div>
@@ -151,7 +151,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
       {mps.length === 0 && (
         <div className="card">
           <div className="card-content text-center py-12">
-            <p className="text-ink-500">No MPs found. Run data sync first.</p>
+            <p className="text-ink-500">{t("noMPsFound")}</p>
           </div>
         </div>
       )}

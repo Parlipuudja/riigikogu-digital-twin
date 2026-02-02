@@ -13,7 +13,7 @@ export async function generateMetadata({
   params: { locale: string; slug: string };
 }) {
   const mp = await getMPBySlug(slug);
-  if (!mp) return { title: "MP Not Found" };
+  if (!mp) return { title: "Saadikut ei leitud" };
 
   const name = mp.info?.fullName || mp.slug;
   const party = mp.info?.party?.name || "";
@@ -86,7 +86,7 @@ export default async function MPDetailPage({
 
           {mp.backtest && (
             <div className="text-sm text-ink-600">
-              Prediction accuracy:{" "}
+              {t("predictionAccuracy")}:{" "}
               <span className="font-mono font-medium text-rk-700">
                 {mp.backtest.accuracy?.overall || 0}%
               </span>
@@ -125,13 +125,13 @@ export default async function MPDetailPage({
                     <div className="text-2xl font-mono font-bold text-vote-for">
                       {stats.distribution.FOR}
                     </div>
-                    <div className="text-xs text-ink-500">FOR</div>
+                    <div className="text-xs text-ink-500">{t("for")}</div>
                   </div>
                   <div>
                     <div className="text-2xl font-mono font-bold text-vote-against">
                       {stats.distribution.AGAINST}
                     </div>
-                    <div className="text-xs text-ink-500">AGAINST</div>
+                    <div className="text-xs text-ink-500">{t("against")}</div>
                   </div>
                 </div>
 
@@ -159,7 +159,7 @@ export default async function MPDetailPage({
             <section className="card">
               <div className="card-header">
                 <h2 className="text-lg font-semibold">{t("politicalPosition")}</h2>
-                <p className="text-xs text-ink-500 mt-1">AI-analyzed from voting patterns and speeches</p>
+                <p className="text-xs text-ink-500 mt-1">{t("politicalPositionDesc")}</p>
               </div>
               <div className="card-content">
                 <PoliticalPositionChart
@@ -201,7 +201,7 @@ export default async function MPDetailPage({
                 <MPPredictionForm mpSlug={mp.slug} mpName={name} locale={locale} />
               ) : (
                 <p className="text-sm text-ink-500">
-                  Profile not yet generated. Cannot make predictions.
+                  {t("profileNotGenerated")}
                 </p>
               )}
             </div>

@@ -9,7 +9,17 @@
     "back": "Tagasi",
     "viewAll": "Vaata kõiki",
     "export": "Ekspordi",
-    "share": "Jaga"
+    "share": "Jaga",
+    "notFound": "Ei leitud",
+    "for": "poolt",
+    "against": "vastu",
+    "abstained": "erapooletud",
+    "previous": "Eelmine",
+    "next": "Järgmine",
+    "total": "kokku",
+    "tested": "Testitud",
+    "pending": "Ootel",
+    "noDataFound": "Andmeid ei leitud"
   },
   "nav": {
     "home": "Avaleht",
@@ -29,13 +39,17 @@
     "predict": {
       "title": "Analüüsi eelnõu",
       "placeholder": "Sisesta eelnõu pealkiri või kirjeldus...",
-      "button": "Analüüsi"
+      "button": "Analüüsi",
+      "analyzing": "Analüüsin..."
     },
     "upcoming": {
-      "title": "Tulevased hääletused"
+      "title": "Tulevased hääletused",
+      "noDrafts": "Eelnõusid ei leitud."
     },
     "recent": {
-      "title": "Hiljutised prognoosid"
+      "title": "Hiljutised prognoosid",
+      "noBacktests": "Tagasitestimisi pole veel tehtud.",
+      "mpsTested": "saadikut testitud"
     },
     "accuracy": {
       "title": "Mudeli täpsus",
@@ -59,7 +73,15 @@
       "attendance": "Osalus",
       "partyLoyalty": "Erakonna lojaalsus",
       "accuracy": "täpsus"
-    }
+    },
+    "stats": {
+      "totalMPs": "Saadikuid kokku",
+      "parties": "Erakondi",
+      "withProfiles": "Profiiliga",
+      "pending": "Ootel"
+    },
+    "profilePending": "Profiil ootel",
+    "noMPsFound": "Saadikuid ei leitud. Käivita esmalt andmete sünkroonimine."
   },
   "mp": {
     "votingSummary": "Hääletuste kokkuvõte",
@@ -69,6 +91,7 @@
     "againstParty": "Erakonna vastu",
     "dissentTopics": "Eriarvamusel teemad",
     "politicalPosition": "Poliitiline positsioon",
+    "politicalPositionDesc": "AI-analüüs hääletusmustrite ja kõnede põhjal",
     "economic": "Majanduspoliitika",
     "social": "Sotsiaalpoliitika",
     "eu": "EL integratsioon",
@@ -83,20 +106,41 @@
     "increase": "Suurenda",
     "keyIssues": "Peamised teemad",
     "recentVotes": "Hiljutised hääletused",
-    "predictVote": "Prognoosi selle saadiku häält"
+    "predictVote": "Prognoosi selle saadiku häält",
+    "predictionAccuracy": "Prognoosi täpsus",
+    "notFound": "Saadikut ei leitud",
+    "profileNotGenerated": "Profiil pole veel loodud. Prognoose ei saa teha.",
+    "for": "POOLT",
+    "against": "VASTU"
   },
   "simulation": {
     "title": "Parlamendi simulatsioon",
-    "likelyToPass": "Tõenäoliselt läbib",
-    "likelyToFail": "Tõenäoliselt ei läbi",
+    "subtitle": "Sisesta eelnõu ja vaata, kuidas kogu parlament tõenäoliselt hääletaks.",
+    "billTitle": "Eelnõu pealkiri",
+    "billTitlePlaceholder": "Nt: Tulumaksuseaduse muutmine",
+    "description": "Kirjeldus (valikuline)",
+    "descriptionPlaceholder": "Lühikirjeldus eelnõust...",
+    "simulateButton": "Simuleeri hääletust",
+    "simulating": "Simuleerin parlamendi hääletust...",
+    "analyzing": "Analüüsin kõiki Riigikogu liikmeid... See võib võtta mõni hetk.",
+    "likelyToPass": "TÕENÄOLISELT LÄBIB",
+    "likelyToFail": "TÕENÄOLISELT EI LÄBI",
     "uncertain": "Ebakindel",
     "probability": "tõenäosus",
     "breakdown": "Erakondade lõikes",
+    "party": "Erakond",
+    "stance": "Seisukoht",
+    "votesNeeded": "51 häält vajalik läbimiseks",
     "swingVotes": "Kõikuvad hääled",
+    "swingVotesDesc": "Madala kindlusega ennustused, mis võivad tulemust muuta",
     "confidence": "Kindluse jaotus",
     "high": "Kõrge",
     "medium": "Keskmine",
-    "low": "Madal"
+    "low": "Madal",
+    "unknown": "Teadmata",
+    "supports": "TOETAB",
+    "opposes": "VASTU",
+    "split": "LÕHESTUNUD"
   },
   "prediction": {
     "for": "POOLT",
@@ -109,6 +153,7 @@
   "insights": {
     "title": "Lood ajakirjanikele",
     "subtitle": "AI-tuvastatud mustrid ja anomaaliad",
+    "failedToLoad": "Lugude laadimine ebaõnnestus. Palun proovi hiljem uuesti.",
     "swingVotes": {
       "title": "Potentsiaalsed kõikujad",
       "description": "Madalaima erakonnalojaalsusega saadikud - võivad hääletada ettearvamatult"
@@ -135,7 +180,9 @@
     },
     "partyRebels": {
       "title": "Erakonnast lahknevad",
-      "description": "Saadikud, kes hiljuti hääletasid erakonna enamuse vastu"
+      "description": "Saadikud, kes hiljuti hääletasid erakonna enamuse vastu",
+      "voted": "Hääletas",
+      "whilePartyVoted": "samal ajal kui erakond hääletas"
     },
     "crossPartyAlliances": {
       "title": "Üle-erakondlikud hääletusblokid",
@@ -146,11 +193,29 @@
     "attendance": "osalus",
     "votes": "hääletust",
     "margin": "vahe",
-    "agreement": "kokkulangevus"
+    "agreement": "kokkulangevus",
+    "totalVotes": "hääletust kokku",
+    "exportData": "Ekspordi andmed",
+    "exportMPs": "Ekspordi saadikud (CSV)",
+    "exportVotings": "Ekspordi hääletused (CSV)",
+    "rawJsonApi": "Toores JSON API"
   },
   "drafts": {
     "title": "Eelnõud",
-    "subtitle": "Sirvi Riigikogu seaduseelnõusid ja ettepanekuid"
+    "subtitle": "Sirvi Riigikogu seaduseelnõusid ja ettepanekuid",
+    "total": "eelnõu kokku",
+    "noDrafts": "Eelnõusid ei leitud.",
+    "initiators": "Algatajad",
+    "submitted": "Esitatud",
+    "summary": "Kokkuvõte",
+    "simulateVote": "Simuleeri hääletust",
+    "simulateVoteDesc": "Kasuta meie AI-d, et ennustada, kuidas Riigikogu selle eelnõu üle hääletaks.",
+    "simulate": "Simuleeri",
+    "relatedVotings": "Seotud hääletused",
+    "details": "Üksikasjad",
+    "phase": "Faas",
+    "proceeding": "Menetlus",
+    "viewOnRiigikogu": "Vaata Riigikogu lehel"
   },
   "footer": {
     "about": "Meist",

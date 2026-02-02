@@ -9,10 +9,11 @@ export async function generateMetadata({
 }: {
   params: { locale: string; uuid: string };
 }) {
+  const t = await getTranslations({ locale, namespace: "common" });
   const draft = await getDraft(uuid);
 
   if (!draft) {
-    return { title: "Not Found" };
+    return { title: t("notFound") };
   }
 
   return {
@@ -49,6 +50,7 @@ export default async function DraftDetailPage({
   params: { locale: string; uuid: string };
 }) {
   const t = await getTranslations({ locale, namespace: "drafts" });
+  const tPred = await getTranslations({ locale, namespace: "prediction" });
   const draft = await getDraft(uuid);
 
   if (!draft) {
@@ -96,7 +98,7 @@ export default async function DraftDetailPage({
             <section className="card">
               <div className="card-header">
                 <h2 className="text-lg font-semibold text-ink-900">
-                  {locale === "et" ? "Kokkuvõte" : "Summary"}
+                  {t("summary")}
                 </h2>
               </div>
               <div className="card-content">
@@ -109,18 +111,16 @@ export default async function DraftDetailPage({
           <section className="card bg-rk-50 border-rk-200">
             <div className="card-content">
               <h3 className="font-semibold text-ink-900 mb-2">
-                {locale === "et" ? "Simuleeri hääletust" : "Simulate Vote"}
+                {t("simulateVote")}
               </h3>
               <p className="text-sm text-ink-600 mb-4">
-                {locale === "et"
-                  ? "Kasuta meie AI-d, et ennustada, kuidas Riigikogu selle eelnõu üle hääletaks."
-                  : "Use our AI to predict how the Riigikogu would vote on this draft."}
+                {t("simulateVoteDesc")}
               </p>
               <Link
-                href={`/${locale}/simulate?draft=${encodeURIComponent(draft.title)}`}
+                href={`/${locale}/simulate?q=${encodeURIComponent(draft.title)}`}
                 className="inline-flex items-center px-4 py-2 bg-rk-700 text-white rounded hover:bg-rk-800 transition-colors"
               >
-                {locale === "et" ? "Simuleeri →" : "Simulate →"}
+                {t("simulate")} &rarr;
               </Link>
             </div>
           </section>
@@ -130,7 +130,7 @@ export default async function DraftDetailPage({
             <section className="card">
               <div className="card-header">
                 <h2 className="text-lg font-semibold text-ink-900">
-                  {locale === "et" ? "Seotud hääletused" : "Related Votings"}
+                  {t("relatedVotings")}
                 </h2>
               </div>
               <div className="card-content">
@@ -143,13 +143,13 @@ export default async function DraftDetailPage({
                       </div>
                       <div className="flex gap-4 mt-2 text-sm">
                         <span className="text-vote-for">
-                          {locale === "et" ? "Poolt" : "For"}: {voting.inFavor || voting.votesFor || 0}
+                          {tPred("for")}: {voting.inFavor || voting.votesFor || 0}
                         </span>
                         <span className="text-vote-against">
-                          {locale === "et" ? "Vastu" : "Against"}: {voting.against || voting.votesAgainst || 0}
+                          {tPred("against")}: {voting.against || voting.votesAgainst || 0}
                         </span>
                         <span className="text-vote-abstain">
-                          {locale === "et" ? "Erapooletuid" : "Abstained"}: {voting.abstained || voting.votesAbstain || 0}
+                          {tPred("abstain")}: {voting.abstained || voting.votesAbstain || 0}
                         </span>
                       </div>
                     </li>
@@ -166,14 +166,14 @@ export default async function DraftDetailPage({
           <section className="card">
             <div className="card-header">
               <h2 className="text-lg font-semibold text-ink-900">
-                {locale === "et" ? "Üksikasjad" : "Details"}
+                {t("details")}
               </h2>
             </div>
             <div className="card-content space-y-4">
               {draft.phase && (
                 <div>
                   <div className="text-xs text-ink-500 uppercase tracking-wide">
-                    {locale === "et" ? "Faas" : "Phase"}
+                    {t("phase")}
                   </div>
                   <div className="text-ink-900">{draft.phase}</div>
                 </div>
@@ -182,7 +182,7 @@ export default async function DraftDetailPage({
               {draft.submitDate && (
                 <div>
                   <div className="text-xs text-ink-500 uppercase tracking-wide">
-                    {locale === "et" ? "Esitatud" : "Submitted"}
+                    {t("submitted")}
                   </div>
                   <div className="text-ink-900">{draft.submitDate}</div>
                 </div>
@@ -191,7 +191,7 @@ export default async function DraftDetailPage({
               {draft.proceedingDate && (
                 <div>
                   <div className="text-xs text-ink-500 uppercase tracking-wide">
-                    {locale === "et" ? "Menetlus" : "Proceeding"}
+                    {t("proceeding")}
                   </div>
                   <div className="text-ink-900">{draft.proceedingDate}</div>
                 </div>
@@ -204,7 +204,7 @@ export default async function DraftDetailPage({
             <section className="card">
               <div className="card-header">
                 <h2 className="text-lg font-semibold text-ink-900">
-                  {locale === "et" ? "Algatajad" : "Initiators"}
+                  {t("initiators")}
                 </h2>
               </div>
               <div className="card-content">
@@ -228,7 +228,7 @@ export default async function DraftDetailPage({
                 rel="noopener noreferrer"
                 className="text-sm text-rk-700 hover:text-rk-500 flex items-center gap-1"
               >
-                {locale === "et" ? "Vaata Riigikogu lehel" : "View on Riigikogu website"}
+                {t("viewOnRiigikogu")}
                 <span>↗</span>
               </a>
             </div>

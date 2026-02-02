@@ -25,12 +25,12 @@ interface InsightData {
 
 async function getInsights(): Promise<InsightData | null> {
   try {
+    // Use absolute URL for server-side fetch
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/v1/insights`, {
       next: { revalidate: 300 },
-      cache: "no-store"
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -48,7 +48,7 @@ export default async function InsightsPage({ params: { locale } }: { params: { l
     return (
       <div className="page-container py-8">
         <h1 className="mb-4">{t("title")}</h1>
-        <p className="text-ink-500">Failed to load insights. Please try again later.</p>
+        <p className="text-ink-500">{t("failedToLoad")}</p>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default async function InsightsPage({ params: { locale } }: { params: { l
                       </Link>
                       <span className="text-ink-500 text-sm ml-2">({rebel.party})</span>
                       <p className="text-sm text-ink-600 mt-1">
-                        Voted <span className={rebel.mpDecision === "FOR" ? "text-vote-for font-medium" : "text-vote-against font-medium"}>{rebel.mpDecision}</span> while party voted {rebel.partyMajority}
+                        {t("partyRebels.voted")} <span className={rebel.mpDecision === "FOR" ? "text-vote-for font-medium" : "text-vote-against font-medium"}>{rebel.mpDecision}</span> {t("partyRebels.whilePartyVoted")} {rebel.partyMajority}
                       </p>
                       <p className="text-xs text-ink-400 mt-1">{rebel.voteTitle} • {rebel.voteDate}</p>
                     </div>
@@ -244,10 +244,10 @@ export default async function InsightsPage({ params: { locale } }: { params: { l
                   <div key={i} className="p-3 bg-paper-100 rounded-lg">
                     <p className="font-medium mb-2">{party.party}</p>
                     <div className="flex gap-4 text-sm">
-                      <span><span className="text-vote-for font-mono">{party.forPercent}%</span> for</span>
-                      <span><span className="text-vote-against font-mono">{party.againstPercent}%</span> against</span>
+                      <span><span className="text-vote-for font-mono">{party.forPercent}%</span> {t("votes")}</span>
+                      <span><span className="text-vote-against font-mono">{party.againstPercent}%</span> {t("votes")}</span>
                     </div>
-                    <p className="text-xs text-ink-400 mt-1">{party.totalVotes.toLocaleString()} total votes</p>
+                    <p className="text-xs text-ink-400 mt-1">{party.totalVotes.toLocaleString()} {t("totalVotes")}</p>
                   </div>
                 ))}
               </div>
@@ -258,16 +258,16 @@ export default async function InsightsPage({ params: { locale } }: { params: { l
 
       {/* Export section */}
       <div className="mt-8 p-4 bg-paper-100 rounded-lg">
-        <h3 className="font-medium mb-2">Export Data</h3>
+        <h3 className="font-medium mb-2">{t("exportData")}</h3>
         <div className="flex gap-4">
           <a href="/api/v1/export/mps?format=csv" className="btn btn-secondary text-sm">
-            Export MPs (CSV)
+            {t("exportMPs")}
           </a>
           <a href="/api/v1/export/votings?format=csv&limit=500" className="btn btn-secondary text-sm">
-            Export Votings (CSV)
+            {t("exportVotings")}
           </a>
           <a href="/api/v1/insights" target="_blank" className="btn btn-secondary text-sm">
-            Raw JSON API
+            {t("rawJsonApi")}
           </a>
         </div>
       </div>

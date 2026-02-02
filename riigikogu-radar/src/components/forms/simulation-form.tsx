@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { VoteBadge } from "@/components/data/vote-badge";
-import { PartyBadge, getPartyCode } from "@/components/data/party-badge";
+import { PartyBadge } from "@/components/data/party-badge";
 import { ConfidenceBar } from "@/components/data/confidence-bar";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { SimulationResult, VoteDecision, PartyCode } from "@/types";
@@ -13,6 +14,7 @@ interface SimulationFormProps {
 }
 
 export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
+  const t = useTranslations("simulation");
   const [billTitle, setBillTitle] = useState(initialQuery || "");
   const [billDescription, setBillDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -21,10 +23,11 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
 
   // Auto-submit if initialQuery provided
   useEffect(() => {
-    if (initialQuery && !result && !isLoading) {
+    if (initialQuery) {
       handleSubmit();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -65,14 +68,14 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         <div className="card-content space-y-4">
           <div>
             <label htmlFor="billTitle" className="input-label">
-              {locale === "et" ? "Eelnõu pealkiri" : "Bill title"}
+              {t("billTitle")}
             </label>
             <input
               id="billTitle"
               type="text"
               value={billTitle}
               onChange={(e) => setBillTitle(e.target.value)}
-              placeholder={locale === "et" ? "Nt: Tulumaksuseaduse muutmine" : "E.g., Tax Reform Act"}
+              placeholder={t("billTitlePlaceholder")}
               className="input"
               disabled={isLoading}
             />
@@ -80,13 +83,13 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
 
           <div>
             <label htmlFor="billDescription" className="input-label">
-              {locale === "et" ? "Kirjeldus (valikuline)" : "Description (optional)"}
+              {t("description")}
             </label>
             <textarea
               id="billDescription"
               value={billDescription}
               onChange={(e) => setBillDescription(e.target.value)}
-              placeholder={locale === "et" ? "Lühikirjeldus eelnõust..." : "Brief description of the bill..."}
+              placeholder={t("descriptionPlaceholder")}
               rows={3}
               className="input resize-none"
               disabled={isLoading}
@@ -101,10 +104,10 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <LoadingSpinner />
-                {locale === "et" ? "Simuleerin parlamendi hääletust..." : "Simulating parliament vote..."}
+                {t("simulating")}
               </span>
             ) : (
-              locale === "et" ? "Simuleeri hääletust" : "Simulate vote"
+              t("simulateButton")
             )}
           </button>
         </div>
@@ -126,11 +129,7 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         <div className="card mb-8">
           <div className="card-content text-center py-12">
             <LoadingSpinner className="w-8 h-8 mx-auto mb-4 text-rk-500" />
-            <p className="text-ink-600">
-              {locale === "et"
-                ? "Analüüsin kõiki Riigikogu liikmeid... See võib võtta mõni minut."
-                : "Analyzing all MPs... This may take a few minutes."}
-            </p>
+            <p className="text-ink-600">{t("analyzing")}</p>
           </div>
         </div>
       )}
@@ -142,6 +141,7 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
 }
 
 function SimulationResults({ result, locale }: { result: SimulationResult; locale: string }) {
+  const t = useTranslations("simulation");
   const isLikelyToPass = result.passageProbability >= 50;
 
   return (
@@ -154,9 +154,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
               isLikelyToPass ? "text-vote-for" : "text-vote-against"
             }`}
           >
-            {isLikelyToPass
-              ? locale === "et" ? "TÕENÄOLISELT LÄBIB" : "LIKELY TO PASS"
-              : locale === "et" ? "TÕENÄOLISELT EI LÄBI" : "LIKELY TO FAIL"}
+            {isLikelyToPass ? t("likelyToPass") : t("likelyToFail")}
           </div>
 
           <div className="text-5xl font-mono font-bold text-ink-900 mb-4">
@@ -200,9 +198,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                 style={{ width: `${(result.totalAbstain / 101) * 100}%` }}
               />
             </div>
-            <div className="text-xs text-ink-400 mt-1">
-              {locale === "et" ? "51 häält vajalik läbimiseks" : "51 votes needed to pass"}
-            </div>
+            <div className="text-xs text-ink-400 mt-1">{t("votesNeeded")}</div>
           </div>
         </div>
       </div>
@@ -210,19 +206,17 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
       {/* Party breakdown */}
       <div className="card">
         <div className="card-header">
-          <h2 className="text-lg font-semibold">
-            {locale === "et" ? "Erakondade lõikes" : "Breakdown by party"}
-          </h2>
+          <h2 className="text-lg font-semibold">{t("breakdown")}</h2>
         </div>
         <div className="card-content">
           <table className="data-table">
             <thead>
               <tr>
-                <th>{locale === "et" ? "Erakond" : "Party"}</th>
+                <th>{t("party")}</th>
                 <th className="text-center">FOR</th>
                 <th className="text-center">AGAINST</th>
                 <th className="text-center">ABSTAIN</th>
-                <th className="text-right">{locale === "et" ? "Seisukoht" : "Stance"}</th>
+                <th className="text-right">{t("stance")}</th>
               </tr>
             </thead>
             <tbody>
@@ -239,7 +233,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                   <td className="text-center font-mono text-vote-against">{party.predictedAgainst}</td>
                   <td className="text-center font-mono text-vote-abstain">{party.predictedAbstain}</td>
                   <td className="text-right">
-                    <StanceBadge stance={party.stance} locale={locale} />
+                    <StanceBadge stance={party.stance} />
                   </td>
                 </tr>
               ))}
@@ -252,14 +246,8 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
       {result.swingVotes.length > 0 && (
         <div className="card">
           <div className="card-header">
-            <h2 className="text-lg font-semibold">
-              {locale === "et" ? "Kõikuvad hääled" : "Swing votes"}
-            </h2>
-            <p className="text-xs text-ink-500 mt-1">
-              {locale === "et"
-                ? "Madala kindlusega ennustused, mis võivad tulemust muuta"
-                : "Low-confidence predictions that could change the outcome"}
-            </p>
+            <h2 className="text-lg font-semibold">{t("swingVotes")}</h2>
+            <p className="text-xs text-ink-500 mt-1">{t("swingVotesDesc")}</p>
           </div>
           <div className="card-content">
             <div className="space-y-3">
@@ -285,9 +273,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
       {/* Confidence distribution */}
       <div className="card">
         <div className="card-header">
-          <h2 className="text-lg font-semibold">
-            {locale === "et" ? "Kindluse jaotus" : "Confidence distribution"}
-          </h2>
+          <h2 className="text-lg font-semibold">{t("confidence")}</h2>
         </div>
         <div className="card-content">
           <div className="grid grid-cols-4 gap-4 text-center">
@@ -296,7 +282,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                 {result.confidenceDistribution.high}
               </div>
               <div className="text-xs text-ink-500">
-                {locale === "et" ? "Kõrge" : "High"} (&gt;80%)
+                {t("high")} (&gt;80%)
               </div>
             </div>
             <div>
@@ -304,7 +290,7 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                 {result.confidenceDistribution.medium}
               </div>
               <div className="text-xs text-ink-500">
-                {locale === "et" ? "Keskmine" : "Medium"} (50-80%)
+                {t("medium")} (50-80%)
               </div>
             </div>
             <div>
@@ -312,16 +298,14 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                 {result.confidenceDistribution.low}
               </div>
               <div className="text-xs text-ink-500">
-                {locale === "et" ? "Madal" : "Low"} (&lt;50%)
+                {t("low")} (&lt;50%)
               </div>
             </div>
             <div>
               <div className="text-2xl font-mono font-bold text-ink-400">
                 {result.confidenceDistribution.unknown}
               </div>
-              <div className="text-xs text-ink-500">
-                {locale === "et" ? "Teadmata" : "Unknown"}
-              </div>
+              <div className="text-xs text-ink-500">{t("unknown")}</div>
             </div>
           </div>
         </div>
@@ -330,20 +314,21 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
   );
 }
 
-function StanceBadge({ stance, locale }: { stance: string; locale: string }) {
-  const labels: Record<string, { et: string; en: string; color: string }> = {
-    SUPPORTS: { et: "TOETAB", en: "SUPPORTS", color: "text-vote-for bg-vote-for-light" },
-    OPPOSES: { et: "VASTU", en: "OPPOSES", color: "text-vote-against bg-vote-against-light" },
-    SPLIT: { et: "LÕHESTUNUD", en: "SPLIT", color: "text-vote-abstain bg-vote-abstain-light" },
-    UNKNOWN: { et: "TEADMATA", en: "UNKNOWN", color: "text-ink-500 bg-ink-100" },
+function StanceBadge({ stance }: { stance: string }) {
+  const t = useTranslations("simulation");
+
+  const config: Record<string, { key: string; color: string }> = {
+    SUPPORTS: { key: "supports", color: "text-vote-for bg-vote-for-light" },
+    OPPOSES: { key: "opposes", color: "text-vote-against bg-vote-against-light" },
+    SPLIT: { key: "split", color: "text-vote-abstain bg-vote-abstain-light" },
+    UNKNOWN: { key: "unknown", color: "text-ink-500 bg-ink-100" },
   };
 
-  const config = labels[stance] || labels.UNKNOWN;
+  const stanceConfig = config[stance] || config.UNKNOWN;
 
   return (
-    <span className={`px-2 py-0.5 text-xs font-medium rounded ${config.color}`}>
-      {locale === "et" ? config.et : config.en}
+    <span className={`px-2 py-0.5 text-xs font-medium rounded ${stanceConfig.color}`}>
+      {t(stanceConfig.key)}
     </span>
   );
 }
-

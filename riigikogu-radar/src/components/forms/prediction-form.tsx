@@ -48,7 +48,7 @@ export function PredictionForm() {
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <LoadingSpinner />
-                Analyzing...
+                {t("analyzing")}
               </span>
             ) : (
               t("button")
