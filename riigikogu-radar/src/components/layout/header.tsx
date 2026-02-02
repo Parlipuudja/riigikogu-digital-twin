@@ -45,12 +45,6 @@ export function Header() {
             {/* Right side */}
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
-              <Link
-                href={`/${locale}/login`}
-                className="text-sm text-rk-200 hover:text-white transition-colors"
-              >
-                {t("login")}
-              </Link>
             </div>
           </div>
         </div>

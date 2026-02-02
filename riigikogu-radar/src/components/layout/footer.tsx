@@ -51,7 +51,7 @@ export function Footer() {
           <p className="text-xs text-ink-400 max-w-3xl">
             {locale === "et" ? (
               <>
-                Riigikogu Radar on sltumatu analüüsitööriist, mis ei ole seotud Riigikogu ega Eesti Vabariigi valitsusega.
+                Riigikogu Radar on sõltumatu analüüsitööriist, mis ei ole seotud Riigikogu ega Eesti Vabariigi valitsusega.
                 Prognoosid põhinevad avalikult kättesaadavatel andmetel ja masinõppel.
                 Tulemused on informatiivsed ega kujuta endast ametlikku seisukohta.
               </>

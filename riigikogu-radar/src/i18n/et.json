@@ -148,6 +148,10 @@
     "margin": "vahe",
     "agreement": "kokkulangevus"
   },
+  "drafts": {
+    "title": "Eelnõud",
+    "subtitle": "Sirvi Riigikogu seaduseelnõusid ja ettepanekuid"
+  },
   "footer": {
     "about": "Meist",
     "methodology": "Metoodika",

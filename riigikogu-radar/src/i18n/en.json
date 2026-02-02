@@ -148,6 +148,10 @@
     "margin": "margin",
     "agreement": "agreement"
   },
+  "drafts": {
+    "title": "Legislative Drafts",
+    "subtitle": "Browse bills and legislative proposals in the Riigikogu"
+  },
   "footer": {
     "about": "About",
     "methodology": "Methodology",

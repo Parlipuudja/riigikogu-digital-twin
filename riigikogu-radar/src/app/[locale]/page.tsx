@@ -1,7 +1,8 @@
-import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { PredictionForm } from "@/components/forms/prediction-form";
+import { getCollection } from "@/lib/data/mongodb";
+import type { Draft, MPProfile } from "@/types";
 
 export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
   const t = await getTranslations({ locale, namespace: "home" });
@@ -12,31 +13,132 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
-export default function HomePage() {
+async function getUpcomingDrafts(): Promise<{ id: string; title: string; date: string }[]> {
+  try {
+    const collection = await getCollection<Draft>("drafts");
+    const drafts = await collection
+      .find({})
+      .sort({ proceedingDate: -1 })
+      .limit(5)
+      .toArray();
+
+    return drafts.map((d) => ({
+      id: d.uuid,
+      title: `${d.title} (${d.number})`,
+      date: d.proceedingDate || d.submitDate || "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function getAccuracyStats(): Promise<{ overall: number; for: number; against: number; backtested: number }> {
+  try {
+    const collection = await getCollection<MPProfile>("mps");
+    const mps = await collection
+      .find({
+        status: "active",
+        "backtest.accuracy": { $exists: true },
+      })
+      .toArray();
+
+    if (mps.length === 0) {
+      return { overall: 0, for: 0, against: 0, backtested: 0 };
+    }
+
+    let totalCorrect = 0;
+    let totalSamples = 0;
+    let forCorrect = 0;
+    let forTotal = 0;
+    let againstCorrect = 0;
+    let againstTotal = 0;
+
+    for (const mp of mps) {
+      const bt = mp.backtest;
+      if (!bt?.accuracy || !bt.sampleSize) continue;
+
+      const sampleSize = bt.sampleSize;
+      totalCorrect += Math.round((bt.accuracy.overall / 100) * sampleSize);
+      totalSamples += sampleSize;
+
+      const forData = bt.accuracy.byDecision?.FOR;
+      if (forData && forData.total > 0) {
+        forCorrect += forData.correct;
+        forTotal += forData.total;
+      }
+
+      const againstData = bt.accuracy.byDecision?.AGAINST;
+      if (againstData && againstData.total > 0) {
+        againstCorrect += againstData.correct;
+        againstTotal += againstData.total;
+      }
+    }
+
+    return {
+      overall: totalSamples > 0 ? Math.round((totalCorrect / totalSamples) * 1000) / 10 : 0,
+      for: forTotal > 0 ? Math.round((forCorrect / forTotal) * 1000) / 10 : 0,
+      against: againstTotal > 0 ? Math.round((againstCorrect / againstTotal) * 1000) / 10 : 0,
+      backtested: mps.length,
+    };
+  } catch {
+    return { overall: 0, for: 0, against: 0, backtested: 0 };
+  }
+}
+
+async function getRecentBacktests(): Promise<{ id: string; name: string; accuracy: number; date: string }[]> {
+  try {
+    const collection = await getCollection<MPProfile>("mps");
+    const mps = await collection
+      .find({
+        status: "active",
+        "backtest.lastRun": { $exists: true },
+      })
+      .sort({ "backtest.lastRun": -1 })
+      .limit(5)
+      .toArray();
+
+    return mps.map((mp) => ({
+      id: mp.slug,
+      name: mp.info?.fullName || mp.slug,
+      accuracy: mp.backtest?.accuracy?.overall || 0,
+      date: mp.backtest?.lastRun ? new Date(mp.backtest.lastRun).toLocaleDateString("et-EE") : "",
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage({ params: { locale } }: { params: { locale: string } }) {
+  const [upcomingDrafts, accuracy, recentBacktests] = await Promise.all([
+    getUpcomingDrafts(),
+    getAccuracyStats(),
+    getRecentBacktests(),
+  ]);
+
   return (
     <div className="page-container py-12">
       {/* Hero section */}
-      <HeroSection />
+      <HeroSection locale={locale} />
 
       {/* Main content grid */}
       <div className="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column - Upcoming votes */}
         <div className="lg:col-span-1">
-          <UpcomingVotes />
+          <UpcomingVotes locale={locale} drafts={upcomingDrafts} />
         </div>
 
         {/* Right column - Recent predictions & Accuracy */}
         <div className="lg:col-span-2 space-y-8">
-          <RecentPredictions />
-          <AccuracyPanel />
+          <RecentBacktests locale={locale} backtests={recentBacktests} />
+          <AccuracyPanel locale={locale} accuracy={accuracy} />
         </div>
       </div>
     </div>
   );
 }
 
-function HeroSection() {
-  const t = useTranslations("home");
+async function HeroSection({ locale }: { locale: string }) {
+  const t = await getTranslations({ locale, namespace: "home" });
 
   return (
     <section className="text-center">
@@ -55,15 +157,8 @@ function HeroSection() {
   );
 }
 
-function UpcomingVotes() {
-  const t = useTranslations("home.upcoming");
-
-  // TODO: Fetch from API
-  const upcomingVotes = [
-    { id: "142-se", title: "Tulumaksuseaduse muutmine (142 SE)", date: "5. veebruar" },
-    { id: "156-se", title: "Isikuandmete kaitse seadus (156 SE)", date: "8. veebruar" },
-    { id: "161-se", title: "Riigikaitse seaduse muutmine (161 SE)", date: "12. veebruar" },
-  ];
+async function UpcomingVotes({ locale, drafts }: { locale: string; drafts: { id: string; title: string; date: string }[] }) {
+  const t = await getTranslations({ locale, namespace: "home.upcoming" });
 
   return (
     <section className="card">
@@ -71,30 +166,34 @@ function UpcomingVotes() {
         <h2 className="text-lg font-semibold text-ink-900">{t("title")}</h2>
       </div>
       <div className="card-content">
-        {upcomingVotes.length > 0 ? (
+        {drafts.length > 0 ? (
           <ul className="space-y-4">
-            {upcomingVotes.map((vote) => (
-              <li key={vote.id}>
+            {drafts.map((draft) => (
+              <li key={draft.id}>
                 <Link
-                  href={`/drafts/${vote.id}`}
+                  href={`/${locale}/drafts/${draft.id}`}
                   className="block group"
                 >
                   <div className="text-sm font-medium text-ink-900 group-hover:text-rk-700">
-                    {vote.title}
+                    {draft.title}
                   </div>
-                  <div className="text-xs text-ink-500 mt-0.5">
-                    {vote.date}
-                  </div>
+                  {draft.date && (
+                    <div className="text-xs text-ink-500 mt-0.5">
+                      {draft.date}
+                    </div>
+                  )}
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-500">No upcoming votes scheduled.</p>
+          <p className="text-sm text-ink-500">
+            {locale === "et" ? "Eelnõusid ei leitud." : "No drafts found."}
+          </p>
         )}
 
         <Link
-          href="/drafts"
+          href={`/${locale}/drafts`}
           className="block mt-4 text-sm text-rk-700 hover:text-rk-500"
         >
           {t("title")} &rarr;
@@ -104,24 +203,8 @@ function UpcomingVotes() {
   );
 }
 
-function RecentPredictions() {
-  const t = useTranslations("home.recent");
-
-  // TODO: Fetch from API
-  const recentPredictions = [
-    {
-      id: "1",
-      title: "Tulumaksuseaduse muutmine (138 SE)",
-      probability: 78,
-      date: "1. veebruar",
-    },
-    {
-      id: "2",
-      title: "Keskkonnaseaduse muutmine (135 SE)",
-      probability: 34,
-      date: "30. jaanuar",
-    },
-  ];
+async function RecentBacktests({ locale, backtests }: { locale: string; backtests: { id: string; name: string; accuracy: number; date: string }[] }) {
+  const t = await getTranslations({ locale, namespace: "home.recent" });
 
   return (
     <section className="card">
@@ -129,80 +212,84 @@ function RecentPredictions() {
         <h2 className="text-lg font-semibold text-ink-900">{t("title")}</h2>
       </div>
       <div className="card-content">
-        <div className="space-y-4">
-          {recentPredictions.map((prediction) => (
-            <div
-              key={prediction.id}
-              className="flex items-center justify-between py-2 border-b border-ink-100 last:border-0"
-            >
-              <div>
-                <div className="text-sm font-medium text-ink-900">
-                  {prediction.title}
+        {backtests.length > 0 ? (
+          <div className="space-y-4">
+            {backtests.map((bt) => (
+              <div
+                key={bt.id}
+                className="flex items-center justify-between py-2 border-b border-ink-100 last:border-0"
+              >
+                <div>
+                  <Link
+                    href={`/${locale}/mps/${bt.id}`}
+                    className="text-sm font-medium text-ink-900 hover:text-rk-700"
+                  >
+                    {bt.name}
+                  </Link>
+                  <div className="text-xs text-ink-500 mt-0.5">
+                    {locale === "et" ? "Testitud" : "Tested"}: {bt.date}
+                  </div>
                 </div>
-                <div className="text-xs text-ink-500 mt-0.5">
-                  Predicted: {prediction.date}
+                <div className="text-right">
+                  <div
+                    className={`text-lg font-mono font-semibold ${
+                      bt.accuracy >= 70 ? "text-conf-high" : "text-conf-low"
+                    }`}
+                  >
+                    {bt.accuracy}%
+                  </div>
+                  <div className="text-xs text-ink-500">
+                    {locale === "et" ? "täpsus" : "accuracy"}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div
-                  className={`text-lg font-mono font-semibold ${
-                    prediction.probability >= 50 ? "text-conf-high" : "text-conf-low"
-                  }`}
-                >
-                  {prediction.probability}%
-                </div>
-                <div className="text-xs text-ink-500">
-                  {prediction.probability >= 50 ? "likely to pass" : "likely to fail"}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-500">
+            {locale === "et" ? "Tagasitestimisi pole veel tehtud." : "No backtests completed yet."}
+          </p>
+        )}
       </div>
     </section>
   );
 }
 
-function AccuracyPanel() {
-  const t = useTranslations("home.accuracy");
-
-  // TODO: Fetch from API
-  const accuracy = {
-    overall: 73.2,
-    for: 81,
-    against: 68,
-  };
+async function AccuracyPanel({ locale, accuracy }: { locale: string; accuracy: { overall: number; for: number; against: number; backtested: number } }) {
+  const t = await getTranslations({ locale, namespace: "home.accuracy" });
 
   return (
     <section className="card">
       <div className="card-header flex items-center justify-between">
         <h2 className="text-lg font-semibold text-ink-900">{t("title")}</h2>
-        <span className="text-xs text-ink-500">{t("last30")}</span>
+        <span className="text-xs text-ink-500">
+          {accuracy.backtested} {locale === "et" ? "saadikut testitud" : "MPs tested"}
+        </span>
       </div>
       <div className="card-content">
         <div className="grid grid-cols-3 gap-8">
           <div className="text-center">
             <div className="text-3xl font-mono font-bold text-rk-700">
-              {accuracy.overall}%
+              {accuracy.overall > 0 ? `${accuracy.overall}%` : "—"}
             </div>
             <div className="text-xs text-ink-500 mt-1">{t("overall")}</div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-mono font-bold text-vote-for">
-              {accuracy.for}%
+              {accuracy.for > 0 ? `${accuracy.for}%` : "—"}
             </div>
             <div className="text-xs text-ink-500 mt-1">{t("for")}</div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-mono font-bold text-vote-against">
-              {accuracy.against}%
+              {accuracy.against > 0 ? `${accuracy.against}%` : "—"}
             </div>
             <div className="text-xs text-ink-500 mt-1">{t("against")}</div>
           </div>
         </div>
 
         <Link
-          href="/accuracy"
+          href={`/${locale}/accuracy`}
           className="block mt-6 text-sm text-center text-rk-700 hover:text-rk-500"
         >
           {t("methodology")} &rarr;
