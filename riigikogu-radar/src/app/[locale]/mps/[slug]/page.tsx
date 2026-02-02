@@ -5,6 +5,7 @@ import { getMPBySlug } from "@/lib/data/mps";
 import { PartyBadge, getPartyCode } from "@/components/data/party-badge";
 import { MPPredictionForm } from "@/components/forms/mp-prediction-form";
 import { PoliticalPositionChart } from "@/components/charts/political-position";
+import { getPhotoProxyUrl } from "@/lib/utils/photo";
 
 export async function generateMetadata({
   params: { locale, slug },
@@ -23,29 +24,8 @@ export async function generateMetadata({
   };
 }
 
-export const dynamic = "force-dynamic";
-
-// Helper to extract photo UUID and create proxy URL
-function getPhotoProxyUrl(photo: unknown): string | undefined {
-  let url: string | undefined;
-
-  if (typeof photo === "string") {
-    url = photo;
-  } else if (photo && typeof photo === "object") {
-    const photoObj = photo as { _links?: { download?: { href?: string } } };
-    url = photoObj._links?.download?.href;
-  }
-
-  if (!url) return undefined;
-
-  // Extract UUID from Riigikogu API URL and use our proxy
-  const match = url.match(/\/files\/([a-f0-9-]{36})\/download/i);
-  if (match) {
-    return `/api/photos/${match[1]}`;
-  }
-
-  return url; // Fallback to original URL
-}
+// ISR: Revalidate every 30 minutes
+export const revalidate = 1800;
 
 export default async function MPDetailPage({
   params: { locale, slug },

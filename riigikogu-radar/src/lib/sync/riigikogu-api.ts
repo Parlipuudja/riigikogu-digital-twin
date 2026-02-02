@@ -524,10 +524,8 @@ export async function searchMembers(query: string): Promise<ApiResponse<MPSearch
   return { data: results };
 }
 
-/**
- * Get full member details including photo and committee memberships
- */
-export async function getFullMemberDetails(memberUuid: string): Promise<ApiResponse<{
+/** Full member details result type */
+interface FullMemberDetails {
   uuid: string;
   firstName: string;
   lastName: string;
@@ -536,11 +534,16 @@ export async function getFullMemberDetails(memberUuid: string): Promise<ApiRespo
   photoUrl: string | null;
   committees: { name: string; role: string }[];
   previousTerms: number[];
-}>> {
+}
+
+/**
+ * Get full member details including photo and committee memberships
+ */
+export async function getFullMemberDetails(memberUuid: string): Promise<ApiResponse<FullMemberDetails | null>> {
   const { data: member, error } = await getMemberDetails(memberUuid);
 
   if (error || !member) {
-    return { data: null as any, error };
+    return { data: null, error };
   }
 
   // Extract committee memberships (current ones)
@@ -677,11 +680,11 @@ export async function getAllPlenaryMembers(): Promise<ApiResponse<MemberInfo[]>>
  * Returns voting with complete vote breakdown for all MPs
  * Transforms API response to expected format
  */
-export async function getVotingDetailsFull(votingUuid: string): Promise<ApiResponse<VotingDetail>> {
+export async function getVotingDetailsFull(votingUuid: string): Promise<ApiResponse<VotingDetail | null>> {
   const response = await fetchApi<VotingDetailFull>(`/votings/${votingUuid}`, { lang: 'et' });
 
   if (response.error || !response.data) {
-    return { data: null as any, error: response.error };
+    return { data: null, error: response.error };
   }
 
   const apiData = response.data;

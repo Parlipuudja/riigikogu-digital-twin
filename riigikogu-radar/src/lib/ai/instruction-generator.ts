@@ -2,8 +2,8 @@
  * Instruction Generator - Analyzes MP data and generates AI instruction templates
  */
 
-import Anthropic from '@anthropic-ai/sdk';
 import { getCollection } from '../data/mongodb';
+import { getAnthropicClient, extractTextContent, DEFAULT_MODEL } from './client';
 import type {
   MPInfo,
   MPInstructionFull,
@@ -16,22 +16,6 @@ import type {
   MPDecisionFactors,
   VoteDecision,
 } from '@/types';
-
-// Lazy initialization to support dotenv in scripts
-let anthropic: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!anthropic) {
-    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error("ANTHROPIC_API_KEY environment variable is not set");
-    }
-    anthropic = new Anthropic({ apiKey });
-  }
-  return anthropic;
-}
-
-const MODEL = 'claude-sonnet-4-20250514';
 
 // XV Riigikogu start date
 const CONVOCATION_START = '2023-04-01';
@@ -351,8 +335,8 @@ Respond in JSON format:
   }
 }`;
 
-  const response = await getClient().messages.create({
-    model: MODEL,
+  const response = await getAnthropicClient().messages.create({
+    model: DEFAULT_MODEL,
     max_tokens: 2048,
     messages: [
       {
@@ -362,12 +346,12 @@ Respond in JSON format:
     ],
   });
 
-  const textContent = response.content.find(c => c.type === 'text');
-  if (!textContent || textContent.type !== 'text') {
+  const textContent = extractTextContent(response);
+  if (!textContent) {
     throw new Error('No text response from Claude');
   }
 
-  const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Could not parse JSON from response');
   }

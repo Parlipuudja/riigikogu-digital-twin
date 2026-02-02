@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { getMPBySlug } from "@/lib/data/mps";
-import type { ApiResponse, MPDetailResponse } from "@/types";
+import { apiSuccess, apiError, handleApiError } from "@/lib/utils/api-response";
+import type { MPDetailResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,51 +12,21 @@ export async function GET(
     const mp = await getMPBySlug(params.slug);
 
     if (!mp) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: {
-            code: "NOT_FOUND",
-            message: `MP with slug "${params.slug}" not found`,
-          },
-          meta: {
-            requestId: crypto.randomUUID(),
-            timestamp: new Date().toISOString(),
-          },
-        },
-        { status: 404 }
-      );
+      return apiError("NOT_FOUND", `MP with slug "${params.slug}" not found`, 404);
     }
 
-    const response: ApiResponse<MPDetailResponse> = {
-      success: true,
-      data: {
+    return apiSuccess<MPDetailResponse>(
+      {
         mp,
         // TODO: Add recent votes
       },
-      meta: {
-        requestId: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-      },
-    };
-
-    return NextResponse.json(response);
-  } catch (error) {
-    console.error("Error fetching MP:", error);
-
-    return NextResponse.json(
       {
-        success: false,
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Failed to fetch MP",
-        },
-        meta: {
-          requestId: crypto.randomUUID(),
-          timestamp: new Date().toISOString(),
-        },
-      },
-      { status: 500 }
+        // Cache for 5 minutes, allow stale for 30 minutes
+        cacheMaxAge: 300,
+        cacheStaleWhileRevalidate: 1800,
+      }
     );
+  } catch (error) {
+    return handleApiError(error, "fetching MP");
   }
 }

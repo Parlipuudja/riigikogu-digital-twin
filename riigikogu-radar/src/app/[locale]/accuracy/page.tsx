@@ -106,7 +106,7 @@ export default async function AccuracyPage({ params: { locale } }: { params: { l
               </p>
               <p>
                 <strong>Limitations:</strong> The model cannot predict unexpected political shifts and
-                doesn't account for non-public coalition agreements.
+                does not account for non-public coalition agreements.
               </p>
             </div>
           )}

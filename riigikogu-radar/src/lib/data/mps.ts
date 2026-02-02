@@ -4,6 +4,8 @@
 
 import { getCollection } from "./mongodb";
 import { collectMPData, generateMPInstruction } from "../ai/instruction-generator";
+import { generateSlug } from "../utils/slug";
+import { extractPhotoUrl } from "../utils/photo";
 import type { MP, MPStatus, MPProfile } from "@/types";
 
 /**
@@ -134,16 +136,7 @@ export async function createMPsFromMembers(): Promise<{ created: number; existin
     }
 
     // Create slug from name
-    const slug = member.fullName
-      .toLowerCase()
-      .replace(/õ/g, "o")
-      .replace(/ä/g, "a")
-      .replace(/ö/g, "o")
-      .replace(/ü/g, "u")
-      .replace(/š/g, "s")
-      .replace(/ž/g, "z")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+    const slug = generateSlug(member.fullName);
 
     // Create stub profile
     const profile: Omit<MPProfile, "_id"> = {
@@ -190,16 +183,7 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
   let existing = await mpsCollection.findOne({ uuid });
   if (!existing) {
     // Create slug from name
-    const slug = member.fullName
-      .toLowerCase()
-      .replace(/õ/g, "o")
-      .replace(/ä/g, "a")
-      .replace(/ö/g, "o")
-      .replace(/ü/g, "u")
-      .replace(/š/g, "s")
-      .replace(/ž/g, "z")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+    const slug = generateSlug(member.fullName);
 
     const stub: Omit<MPProfile, "_id"> = {
       uuid,
@@ -215,13 +199,6 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
   // Collect voting and speech data
   const mpData = await collectMPData(uuid);
 
-  // Extract photo URL from various formats
-  const extractPhotoUrl = (photo: typeof member.photoUrl): string | null => {
-    if (!photo) return null;
-    if (typeof photo === "string") return photo;
-    return photo._links?.download?.href || null;
-  };
-
   // Build member details for instruction generator
   // Note: faction uses 'value' field in API data, fallback to 'name' for compatibility
   const factionName = member.faction?.value || member.faction?.name || "Unknown";
@@ -235,7 +212,7 @@ export async function regenerateMPProfile(uuid: string): Promise<MPProfile> {
       name: factionName,
       nameEn: member.faction?.nameEn || factionName,
     },
-    photoUrl: extractPhotoUrl(member.photoUrl),
+    photoUrl: extractPhotoUrl(member.photoUrl) || null,
     committees: (member.committees || member.committeeMemberships || []).map(cm => ({
       name: cm.committee?.name || "Unknown",
       role: typeof cm.role === "object" ? cm.role.value || "Member" : cm.role || "Member",

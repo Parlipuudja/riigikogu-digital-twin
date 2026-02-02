@@ -1,22 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
+import { getAnthropicClient, extractTextContent, DEFAULT_MODEL } from "./client";
 import type { VoteDecision } from "@/types";
-
-// Lazy initialization to support dotenv in scripts
-let anthropic: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!anthropic) {
-    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
-    if (!apiKey) {
-      throw new Error("ANTHROPIC_API_KEY environment variable is not set");
-    }
-    anthropic = new Anthropic({ apiKey });
-  }
-  return anthropic;
-}
-
-const MODEL = "claude-sonnet-4-20250514";
 
 // ============================================================================
 // Types
@@ -62,8 +46,9 @@ const PredictionResponseSchema = z.object({
 /**
  * Safely extract and parse JSON from Claude's response
  * Fixed: Uses proper JSON boundary detection instead of greedy regex
+ * @internal Exported for testing
  */
-function extractJson(text: string): unknown {
+export function extractJson(text: string): unknown {
   // Find the first { and match to its closing }
   const startIndex = text.indexOf("{");
   if (startIndex === -1) {
@@ -195,8 +180,8 @@ export async function predictVote(
 ): Promise<PredictionOutput> {
   const prompt = buildPrompt(input, instructionTemplate, mpName);
 
-  const response = await getClient().messages.create({
-    model: MODEL,
+  const response = await getAnthropicClient().messages.create({
+    model: DEFAULT_MODEL,
     max_tokens: 1024,
     messages: [
       {
@@ -206,12 +191,12 @@ export async function predictVote(
     ],
   });
 
-  const textContent = response.content.find((c) => c.type === "text");
-  if (!textContent || textContent.type !== "text") {
+  const text = extractTextContent(response);
+  if (!text) {
     throw new Error("No text response from Claude");
   }
 
-  return parsePredictionResponse(textContent.text);
+  return parsePredictionResponse(text);
 }
 
 // ============================================================================
@@ -222,8 +207,8 @@ export async function predictVote(
  * Translate text to Estonian using Claude
  */
 export async function translateToEstonian(text: string): Promise<string> {
-  const response = await getClient().messages.create({
-    model: MODEL,
+  const response = await getAnthropicClient().messages.create({
+    model: DEFAULT_MODEL,
     max_tokens: 1024,
     messages: [
       {
@@ -233,12 +218,12 @@ export async function translateToEstonian(text: string): Promise<string> {
     ],
   });
 
-  const textContent = response.content.find((c) => c.type === "text");
-  if (!textContent || textContent.type !== "text") {
+  const responseText = extractTextContent(response);
+  if (!responseText) {
     return text;
   }
 
-  return textContent.text.trim();
+  return responseText.trim();
 }
 
 /**
@@ -248,8 +233,8 @@ export async function complete(
   prompt: string,
   maxTokens: number = 2048
 ): Promise<string> {
-  const response = await getClient().messages.create({
-    model: MODEL,
+  const response = await getAnthropicClient().messages.create({
+    model: DEFAULT_MODEL,
     max_tokens: maxTokens,
     messages: [
       {
@@ -259,10 +244,10 @@ export async function complete(
     ],
   });
 
-  const textContent = response.content.find((c) => c.type === "text");
-  if (!textContent || textContent.type !== "text") {
+  const text = extractTextContent(response);
+  if (!text) {
     throw new Error("No text response from Claude");
   }
 
-  return textContent.text;
+  return text;
 }

@@ -2,6 +2,8 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { getActiveMPs } from "@/lib/data/mps";
 import { PartyBadge, getPartyCode } from "@/components/data/party-badge";
+import { getPhotoProxyUrl } from "@/lib/utils/photo";
+import { normalizeVotingStats, type VotingStatsLegacy } from "@/lib/utils/api-response";
 import type { MPProfile } from "@/types";
 
 export async function generateMetadata({ params: { locale } }: { params: { locale: string } }) {
@@ -11,29 +13,8 @@ export async function generateMetadata({ params: { locale } }: { params: { local
   };
 }
 
-export const dynamic = "force-dynamic";
-
-// Helper to extract photo UUID and create proxy URL
-function getPhotoProxyUrl(photo: unknown): string | undefined {
-  let url: string | undefined;
-
-  if (typeof photo === "string") {
-    url = photo;
-  } else if (photo && typeof photo === "object") {
-    const photoObj = photo as { _links?: { download?: { href?: string } } };
-    url = photoObj._links?.download?.href;
-  }
-
-  if (!url) return undefined;
-
-  // Extract UUID from Riigikogu API URL and use our proxy
-  const match = url.match(/\/files\/([a-f0-9-]{36})\/download/i);
-  if (match) {
-    return `/api/photos/${match[1]}`;
-  }
-
-  return url; // Fallback to original URL
-}
+// ISR: Revalidate every 30 minutes
+export const revalidate = 1800;
 
 export default async function MPsPage({ params: { locale } }: { params: { locale: string } }) {
   const t = await getTranslations({ locale, namespace: "mps" });
@@ -95,13 +76,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
               .map((mp) => {
                 const name = mp.info?.fullName || mp.slug;
                 const photoUrl = getPhotoProxyUrl(mp.info?.photoUrl);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const rawStats = mp.info?.votingStats as any;
-                const stats = rawStats ? {
-                  totalVotes: rawStats.totalVotes ?? rawStats.total ?? 0,
-                  attendance: rawStats.attendance ?? rawStats.attendancePercent ?? 0,
-                  partyAlignment: rawStats.partyAlignment ?? rawStats.partyLoyaltyPercent ?? 0,
-                } : null;
+                const stats = normalizeVotingStats(mp.info?.votingStats as VotingStatsLegacy | undefined);
                 const accuracy = mp.backtest?.accuracy?.overall;
 
                 return (
@@ -153,7 +128,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
                               </div>
                               <div className="flex justify-between">
                                 <span>{t("card.partyLoyalty")}:</span>
-                                <span className="font-mono">{Math.round(stats.partyAlignment)}%</span>
+                                <span className="font-mono">{Math.round(stats.partyAlignmentRate)}%</span>
                               </div>
                             </div>
                           )}
