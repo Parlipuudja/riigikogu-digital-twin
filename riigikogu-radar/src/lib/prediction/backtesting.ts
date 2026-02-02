@@ -19,9 +19,19 @@ import type {
   BacktestProgress,
 } from '@/types';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY?.trim(),
-});
+// Lazy initialization to support dotenv in scripts
+let anthropic: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!anthropic) {
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY environment variable is not set");
+    }
+    anthropic = new Anthropic({ apiKey });
+  }
+  return anthropic;
+}
 
 const MODEL = 'claude-sonnet-4-20250514';
 
@@ -154,7 +164,7 @@ async function makeBacktestPrediction(
 ): Promise<{ prediction: VoteDecision; confidence: number }> {
   const prompt = buildBacktestPrompt(context, billTitle);
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 256,
     messages: [{ role: 'user', content: prompt }],

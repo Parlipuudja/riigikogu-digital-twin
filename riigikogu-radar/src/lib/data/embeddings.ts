@@ -6,9 +6,10 @@
 import { getCollection } from "./mongodb";
 import { generateEmbedding, generateEmbeddingsBatch } from "../ai/voyage";
 
-// Rate limiting
-const BATCH_SIZE = 20;
-const DELAY_MS = 500;
+// Rate limiting - Voyage AI free tier is 3 RPM
+// So we need ~20 seconds between requests to stay under limit
+const BATCH_SIZE = 10;
+const DELAY_MS = 25000; // 25 seconds to be safe
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

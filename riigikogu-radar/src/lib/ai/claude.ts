@@ -2,9 +2,19 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { VoteDecision } from "@/types";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY?.trim(),
-});
+// Lazy initialization to support dotenv in scripts
+let anthropic: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!anthropic) {
+    const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY environment variable is not set");
+    }
+    anthropic = new Anthropic({ apiKey });
+  }
+  return anthropic;
+}
 
 const MODEL = "claude-sonnet-4-20250514";
 
@@ -185,7 +195,7 @@ export async function predictVote(
 ): Promise<PredictionOutput> {
   const prompt = buildPrompt(input, instructionTemplate, mpName);
 
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [
@@ -212,7 +222,7 @@ export async function predictVote(
  * Translate text to Estonian using Claude
  */
 export async function translateToEstonian(text: string): Promise<string> {
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [
@@ -238,7 +248,7 @@ export async function complete(
   prompt: string,
   maxTokens: number = 2048
 ): Promise<string> {
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: maxTokens,
     messages: [

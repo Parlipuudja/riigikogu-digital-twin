@@ -1,9 +1,18 @@
 import { MongoClient, Db, Collection, Document, ServerApiVersion } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/riigikogu";
-
 let client: MongoClient | null = null;
 let db: Db | null = null;
+
+/**
+ * Get the MongoDB URI (read at runtime to support dotenv)
+ */
+function getUri(): string {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error("MONGODB_URI environment variable is not set");
+  }
+  return uri;
+}
 
 /**
  * Get the MongoDB client instance with connection caching
@@ -13,7 +22,7 @@ export async function getClient(): Promise<MongoClient> {
     return client;
   }
 
-  client = new MongoClient(uri, {
+  client = new MongoClient(getUri(), {
     serverApi: {
       version: ServerApiVersion.v1,
       strict: false, // Allow $vectorSearch aggregation
