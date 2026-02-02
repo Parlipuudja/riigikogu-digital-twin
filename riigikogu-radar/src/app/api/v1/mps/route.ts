@@ -51,7 +51,8 @@ export async function GET(request: Request) {
     });
 
     // Get unique parties from the loaded MPs
-    const parties = [...new Set(mps.map((mp) => mp.info?.party?.name).filter(Boolean))] as string[];
+    const partyNames = mps.map((mp) => mp.info?.party?.name).filter((p): p is string => Boolean(p));
+    const parties = Array.from(new Set(partyNames));
 
     const response: ApiResponse<MPListResponse & { parties: string[] }> = {
       success: true,
