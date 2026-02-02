@@ -3,17 +3,18 @@
 ## Quick Connect
 
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135
+ssh rk
+# Or manually:
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192
 ```
 
 ## Server Details
 
 | Property | Value |
 |----------|-------|
-| **IP Address** | 13.63.58.135 |
-| **DNS** | ec2-13-63-58-135.eu-north-1.compute.amazonaws.com |
+| **IP Address** | 16.171.122.192 (Elastic IP - won't change) |
 | **Region** | eu-north-1 (Stockholm) |
-| **Instance** | t3.small |
+| **Instance** | t3.small (2GB RAM + 2GB swap) |
 | **User** | ubuntu |
 | **Key file** | `~/.ssh/riigikogu-radar.pem` |
 
@@ -37,7 +38,7 @@ chmod 600 ~/.ssh/riigikogu-radar.pem
 ### 2. Add Shell Alias (Optional)
 
 ```bash
-echo 'alias rk="ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135"' >> ~/.bashrc
+echo 'alias rk="ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -47,42 +48,42 @@ Now just type `rk` to connect.
 
 ### Connect
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192
 ```
 
 ### Run Claude Code
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "cd riigikogu-radar/riigikogu-radar && claude"
 ```
 
 ### Check Backtest Progress
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "tail -20 ~/logs/backtest.log"
 ```
 
 ### Check Sync Logs
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "tail -50 ~/logs/sync.log"
 ```
 
 ### Run Manual Sync
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "cd riigikogu-radar/riigikogu-radar && npx tsx scripts/sync-api.ts all"
 ```
 
 ### Check Database Stats
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "cd riigikogu-radar/riigikogu-radar && npx tsx scripts/db-stats.ts"
 ```
 
 ### Pull Latest Code
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 \
   "cd riigikogu-radar/riigikogu-radar && git pull"
 ```
 
@@ -96,7 +97,7 @@ ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 \
 
 View cron jobs:
 ```bash
-ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@13.63.58.135 "crontab -l"
+ssh -i ~/.ssh/riigikogu-radar.pem ubuntu@16.171.122.192 "crontab -l"
 ```
 
 ## Project Location
