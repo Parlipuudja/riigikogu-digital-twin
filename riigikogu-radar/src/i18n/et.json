@@ -16,6 +16,7 @@
     "mps": "Saadikud",
     "drafts": "Eelnõud",
     "simulate": "Simulatsioon",
+    "insights": "Lood",
     "accuracy": "Täpsus",
     "about": "Meist",
     "login": "Logi sisse"
@@ -104,6 +105,48 @@
     "absent": "PUUDUB",
     "confidence": "Kindlus",
     "reasoning": "Põhjendus"
+  },
+  "insights": {
+    "title": "Lood ajakirjanikele",
+    "subtitle": "AI-tuvastatud mustrid ja anomaaliad",
+    "swingVotes": {
+      "title": "Potentsiaalsed kõikujad",
+      "description": "Madalaima erakonnalojaalsusega saadikud - võivad hääletada ettearvamatult"
+    },
+    "predictableMPs": {
+      "title": "Kõige prognoositavamad saadikud",
+      "description": "Kõrgeima prognooside täpsusega saadikud"
+    },
+    "unpredictableMPs": {
+      "title": "Kõige ettearvamatumad saadikud",
+      "description": "Madalaima prognooside täpsusega saadikud"
+    },
+    "lowAttendance": {
+      "title": "Madala osalusega saadikud",
+      "description": "Saadikud, kelle osalus on alla 70%"
+    },
+    "partyBreakdown": {
+      "title": "Erakondade hääletusmustrid",
+      "description": "Koondatud hääletusstatistika erakondade lõikes"
+    },
+    "closeVotes": {
+      "title": "Vastuolulised hääletused",
+      "description": "Hiljutised hääletused märkimisväärse vastuhäältega (>30%)"
+    },
+    "partyRebels": {
+      "title": "Erakonnast lahknevad",
+      "description": "Saadikud, kes hiljuti hääletasid erakonna enamuse vastu"
+    },
+    "crossPartyAlliances": {
+      "title": "Üle-erakondlikud hääletusblokid",
+      "description": "Eri erakondade saadikud, kes hääletavad koos >80% ajast"
+    },
+    "accuracy": "täpsus",
+    "loyalty": "lojaalsus",
+    "attendance": "osalus",
+    "votes": "hääletust",
+    "margin": "vahe",
+    "agreement": "kokkulangevus"
   },
   "footer": {
     "about": "Meist",

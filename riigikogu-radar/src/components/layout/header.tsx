@@ -15,6 +15,7 @@ export function Header() {
     { href: `/${locale}/mps`, label: t("mps") },
     { href: `/${locale}/drafts`, label: t("drafts") },
     { href: `/${locale}/simulate`, label: t("simulate") },
+    { href: `/${locale}/insights`, label: t("insights") },
     { href: `/${locale}/accuracy`, label: t("accuracy") },
     { href: `/${locale}/about`, label: t("about") },
   ];

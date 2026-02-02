@@ -16,6 +16,7 @@
     "mps": "MPs",
     "drafts": "Drafts",
     "simulate": "Simulate",
+    "insights": "Story Leads",
     "accuracy": "Accuracy",
     "about": "About",
     "login": "Log in"
@@ -104,6 +105,48 @@
     "absent": "ABSENT",
     "confidence": "Confidence",
     "reasoning": "Reasoning"
+  },
+  "insights": {
+    "title": "Story Leads",
+    "subtitle": "AI-detected patterns and anomalies for journalists",
+    "swingVotes": {
+      "title": "Potential Swing Voters",
+      "description": "MPs with lowest party loyalty - may vote unpredictably"
+    },
+    "predictableMPs": {
+      "title": "Most Predictable MPs",
+      "description": "MPs with highest prediction accuracy based on backtesting"
+    },
+    "unpredictableMPs": {
+      "title": "Most Unpredictable MPs",
+      "description": "MPs with lowest prediction accuracy - hardest to forecast"
+    },
+    "lowAttendance": {
+      "title": "Low Attendance MPs",
+      "description": "MPs with attendance below 70%"
+    },
+    "partyBreakdown": {
+      "title": "Party Voting Patterns",
+      "description": "Aggregate voting breakdown by party"
+    },
+    "closeVotes": {
+      "title": "Controversial Votes",
+      "description": "Recent votes with significant opposition (>30%)"
+    },
+    "partyRebels": {
+      "title": "Party Rebels",
+      "description": "MPs who recently voted against their party's clear majority"
+    },
+    "crossPartyAlliances": {
+      "title": "Cross-Party Voting Blocs",
+      "description": "MPs from different parties who vote together >80% of the time"
+    },
+    "accuracy": "accuracy",
+    "loyalty": "loyalty",
+    "attendance": "attendance",
+    "votes": "votes",
+    "margin": "margin",
+    "agreement": "agreement"
   },
   "footer": {
     "about": "About",
