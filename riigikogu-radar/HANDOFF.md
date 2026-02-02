@@ -67,19 +67,26 @@ Currently testing: Aleksei Jevgrafov (and will continue through 10 MPs)
 ## What's Next (Priority Order)
 
 ### Week of Feb 3-8
-1. **Complete backtests** for all 101 MPs (runs weekly via cron)
-2. **Resume embeddings** for remaining stenograms:
-   ```bash
-   cd ~/riigikogu-radar/riigikogu-radar
-   npx tsx scripts/generate-embeddings.ts
-   ```
+1. **Complete backtests** for all 101 MPs (runs weekly via cron, currently 5/101)
+2. **Complete stenogram embeddings** (currently 0%, running in background)
 3. **Journalist validation** - Get 3-5 journalists using the system
+4. **Deploy latest UI** to production (just pushed to GitHub)
 
 ### Future Enhancements
-- Natural language query UI (search bar on homepage)
+- Natural language query UI (search bar on homepage) - API ready
 - Email alerts for significant predictions
-- Swing vote detection improvements
 - Vote outcome tracking (compare predictions vs actual)
+- Interactive political compass visualization
+
+## Daily Progress Protocol
+
+At the start of each session, run:
+```bash
+npx tsx scripts/progress-tracker.ts      # MVP alignment report
+npx tsx scripts/user-test.ts             # Functional test suite
+```
+
+Reports are archived in `reports/progress-YYYY-MM-DD.json`
 
 ## Key Files & Locations
 
