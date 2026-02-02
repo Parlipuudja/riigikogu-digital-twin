@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getActiveMPs } from "@/lib/data/mps";
 import { getCollection } from "@/lib/data/mongodb";
 
+// Revalidate every 5 minutes (300 seconds)
+export const revalidate = 300;
+export const dynamic = "force-dynamic";
+
 interface Voting {
   uuid: string;
   title: string;
