@@ -24,11 +24,11 @@ export async function GET() {
     const mps = await getActiveMPs();
     const votingsCollection = await getCollection<Voting>("votings");
 
-    // Get recent votings for analysis
+    // Get recent votings for analysis (100 votings for better loyalty calculation)
     const recentVotings = await votingsCollection
       .find({})
       .sort({ votingTime: -1 })
-      .limit(50)
+      .limit(100)
       .toArray();
 
     // Calculate actual party loyalty for each MP from voting data
@@ -76,12 +76,13 @@ export async function GET() {
 
     // Insight 1: Low party loyalty MPs (potential swing votes)
     // Calculate from actual voting data
+    // In Estonian parliament, party discipline is high, so we use 90% as threshold
     const swingVotes = mps
       .filter((mp) => {
         const loyalty = mpPartyLoyalty.get(mp.uuid);
         if (!loyalty || loyalty.total < 20) return false; // Need enough votes
         const loyaltyPercent = Math.round((loyalty.withParty / loyalty.total) * 100);
-        return loyaltyPercent < 85; // Below 85% party loyalty
+        return loyaltyPercent < 92; // Below 92% party loyalty (high bar for Estonian parliament)
       })
       .map((mp) => {
         const loyalty = mpPartyLoyalty.get(mp.uuid)!;
