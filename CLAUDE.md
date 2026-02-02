@@ -29,7 +29,9 @@ We are building an independent parliamentary intelligence system following the t
 
 ## Working Directory
 
-All commands should be run from: `/home/parli/AllMine/StigRästa/riigikogu-radar`
+All commands should be run from: `/home/ubuntu/riigikogu-radar/riigikogu-radar`
+
+(Note: On the AWS instance, use `/home/ubuntu/riigikogu-radar/riigikogu-radar`)
 
 ## Commands
 
@@ -164,6 +166,7 @@ Always:
 - Deploy to production after significant changes
 - Track accuracy metrics
 - Prioritize journalist-facing features
+- **VERIFY ON PRODUCTION**: If something works, it MUST work on production (seosetu.ee) too. Always test against production after deploying.
 
 Avoid:
 - Over-engineering (YAGNI)
