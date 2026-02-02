@@ -83,7 +83,13 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
               .map((mp) => {
                 const name = mp.info?.fullName || mp.slug;
                 const photoUrl = getPhotoUrl(mp.info?.photoUrl);
-                const stats = mp.info?.votingStats;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const rawStats = mp.info?.votingStats as any;
+                const stats = rawStats ? {
+                  totalVotes: rawStats.totalVotes ?? rawStats.total ?? 0,
+                  attendance: rawStats.attendance ?? rawStats.attendancePercent ?? 0,
+                  partyAlignment: rawStats.partyAlignment ?? rawStats.partyLoyaltyPercent ?? 0,
+                } : null;
 
                 return (
                   <Link
