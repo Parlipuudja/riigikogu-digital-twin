@@ -1,10 +1,51 @@
 /**
  * Embeddings generation for database collections
  * Uses Voyage AI voyage-multilingual-2 model for Estonian language support
+ *
+ * HARD LIMITS to prevent runaway costs:
+ * - Max 2000 items total across all collections
+ * - Max 1 hour runtime
+ * - Max 500 API calls per run
  */
 
 import { getCollection } from "./mongodb";
 import { generateEmbedding, generateEmbeddingsBatch } from "../ai/voyage";
+
+// ============================================================================
+// HARD LIMITS - These prevent runaway API costs
+// ============================================================================
+const MAX_ITEMS_PER_COLLECTION = 500;    // Max items to process per collection
+const MAX_TOTAL_API_CALLS = 500;         // Max API calls per script run
+const MAX_RUNTIME_MS = 60 * 60 * 1000;   // 1 hour max runtime
+const MAX_TOKENS_ESTIMATE = 5_000_000;   // ~5M tokens max (well under 50M free tier)
+
+// Track global usage
+let totalApiCalls = 0;
+let estimatedTokens = 0;
+const scriptStartTime = Date.now();
+
+function checkLimits(itemCount: number = 0): void {
+  const runtime = Date.now() - scriptStartTime;
+
+  if (runtime > MAX_RUNTIME_MS) {
+    throw new Error(`HARD LIMIT: Max runtime of ${MAX_RUNTIME_MS / 60000} minutes exceeded`);
+  }
+
+  if (totalApiCalls >= MAX_TOTAL_API_CALLS) {
+    throw new Error(`HARD LIMIT: Max API calls (${MAX_TOTAL_API_CALLS}) reached`);
+  }
+
+  if (estimatedTokens >= MAX_TOKENS_ESTIMATE) {
+    throw new Error(`HARD LIMIT: Estimated token usage (${estimatedTokens}) exceeds safety limit`);
+  }
+}
+
+function trackApiCall(textLength: number): void {
+  totalApiCalls++;
+  // Rough estimate: ~1 token per 4 characters
+  estimatedTokens += Math.ceil(textLength / 4);
+  checkLimits();
+}
 
 // Rate limiting - Voyage AI free tier is 3 RPM
 // So we need ~20 seconds between requests to stay under limit
@@ -20,6 +61,8 @@ function delay(ms: number): Promise<void> {
  * Embeds voting title + description for semantic search
  */
 export async function generateVoteEmbeddings(): Promise<number> {
+  checkLimits(); // Check before starting
+
   const collection = await getCollection<{
     uuid: string;
     title: string;
@@ -27,10 +70,10 @@ export async function generateVoteEmbeddings(): Promise<number> {
     embedding?: number[];
   }>("votings");
 
-  // Find votings without embeddings
+  // Find votings without embeddings (with hard limit)
   const votings = await collection
     .find({ embedding: { $exists: false } })
-    .limit(500)
+    .limit(MAX_ITEMS_PER_COLLECTION)
     .toArray();
 
   if (votings.length === 0) {
@@ -52,6 +95,10 @@ export async function generateVoteEmbeddings(): Promise<number> {
     });
 
     try {
+      checkLimits(); // Check limits before each API call
+      const totalTextLength = texts.reduce((sum, t) => sum + t.length, 0);
+      trackApiCall(totalTextLength);
+
       const embeddings = await generateEmbeddingsBatch(texts, "document");
 
       // Update each document with its embedding
@@ -63,8 +110,11 @@ export async function generateVoteEmbeddings(): Promise<number> {
         count++;
       }
 
-      console.log(`  Processed ${count}/${votings.length} votings`);
+      console.log(`  Processed ${count}/${votings.length} votings (API calls: ${totalApiCalls}, ~${Math.round(estimatedTokens/1000)}K tokens)`);
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('HARD LIMIT')) {
+        throw error; // Re-throw hard limit errors
+      }
       console.error(`Error generating embeddings for batch:`, error);
     }
 
@@ -79,6 +129,8 @@ export async function generateVoteEmbeddings(): Promise<number> {
  * Embeds speaker text for similarity search
  */
 export async function generateSpeechEmbeddings(): Promise<number> {
+  checkLimits(); // Check before starting
+
   const collection = await getCollection<{
     uuid: string;
     sessionDate: string;
@@ -90,10 +142,10 @@ export async function generateSpeechEmbeddings(): Promise<number> {
     embedding?: number[];
   }>("stenograms");
 
-  // Find stenograms without embeddings
+  // Find stenograms without embeddings (with hard limit)
   const stenograms = await collection
     .find({ embedding: { $exists: false } })
-    .limit(200)
+    .limit(Math.min(200, MAX_ITEMS_PER_COLLECTION))
     .toArray();
 
   if (stenograms.length === 0) {
@@ -106,6 +158,8 @@ export async function generateSpeechEmbeddings(): Promise<number> {
 
   for (const stenogram of stenograms) {
     try {
+      checkLimits(); // Check limits before each API call
+
       // Combine all speaker texts into one document
       const combinedText = stenogram.speakers
         .map((s) => {
@@ -115,6 +169,7 @@ export async function generateSpeechEmbeddings(): Promise<number> {
         .join("\n\n")
         .slice(0, 8000);
 
+      trackApiCall(combinedText.length);
       const embedding = await generateEmbedding(combinedText);
 
       await collection.updateOne(
@@ -124,9 +179,12 @@ export async function generateSpeechEmbeddings(): Promise<number> {
       count++;
 
       if (count % 10 === 0) {
-        console.log(`  Processed ${count}/${stenograms.length} stenograms`);
+        console.log(`  Processed ${count}/${stenograms.length} stenograms (API calls: ${totalApiCalls}, ~${Math.round(estimatedTokens/1000)}K tokens)`);
       }
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('HARD LIMIT')) {
+        throw error; // Re-throw hard limit errors
+      }
       console.error(`Error generating embedding for stenogram ${stenogram.uuid}:`, error);
     }
 
@@ -141,6 +199,8 @@ export async function generateSpeechEmbeddings(): Promise<number> {
  * Embeds title + summary/text for semantic search
  */
 export async function generateBillEmbeddings(): Promise<number> {
+  checkLimits(); // Check before starting
+
   const collection = await getCollection<{
     uuid: string;
     title: string;
@@ -149,10 +209,10 @@ export async function generateBillEmbeddings(): Promise<number> {
     embedding?: number[];
   }>("drafts");
 
-  // Find drafts without embeddings
+  // Find drafts without embeddings (with hard limit)
   const drafts = await collection
     .find({ embedding: { $exists: false } })
-    .limit(500)
+    .limit(MAX_ITEMS_PER_COLLECTION)
     .toArray();
 
   if (drafts.length === 0) {
@@ -179,6 +239,10 @@ export async function generateBillEmbeddings(): Promise<number> {
     });
 
     try {
+      checkLimits(); // Check limits before each API call
+      const totalTextLength = texts.reduce((sum, t) => sum + t.length, 0);
+      trackApiCall(totalTextLength);
+
       const embeddings = await generateEmbeddingsBatch(texts, "document");
 
       for (let j = 0; j < batch.length; j++) {
@@ -189,8 +253,11 @@ export async function generateBillEmbeddings(): Promise<number> {
         count++;
       }
 
-      console.log(`  Processed ${count}/${drafts.length} drafts`);
+      console.log(`  Processed ${count}/${drafts.length} drafts (API calls: ${totalApiCalls}, ~${Math.round(estimatedTokens/1000)}K tokens)`);
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('HARD LIMIT')) {
+        throw error; // Re-throw hard limit errors
+      }
       console.error(`Error generating embeddings for batch:`, error);
     }
 
@@ -198,4 +265,19 @@ export async function generateBillEmbeddings(): Promise<number> {
   }
 
   return count;
+}
+
+/**
+ * Get current usage stats (for monitoring)
+ */
+export function getEmbeddingUsageStats(): {
+  apiCalls: number;
+  estimatedTokens: number;
+  runtimeMs: number;
+} {
+  return {
+    apiCalls: totalApiCalls,
+    estimatedTokens,
+    runtimeMs: Date.now() - scriptStartTime,
+  };
 }
