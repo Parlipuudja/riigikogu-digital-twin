@@ -59,7 +59,9 @@ async function regenerate() {
       console.log(`[${i + 1}/${members.length}] ${member.fullName}...`);
       try {
         const updated = await regenerateMPProfile(member.uuid);
-        const votes = updated.info?.votingStats?.totalVotes || 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stats = updated.info?.votingStats as any;
+        const votes = stats?.totalVotes ?? stats?.total ?? 0;
         console.log(`  ✓ Done - ${votes} votes analyzed`);
         success++;
       } catch (error: unknown) {
@@ -83,7 +85,9 @@ async function regenerate() {
 
     console.log(`Regenerating ${mp.info?.fullName || slug}...`);
     const updated = await regenerateMPProfile(mp.uuid);
-    console.log(`Done - ${updated.info?.votingStats?.totalVotes || 0} votes analyzed`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const singleStats = updated.info?.votingStats as any;
+    console.log(`Done - ${singleStats?.totalVotes ?? singleStats?.total ?? 0} votes analyzed`);
     console.log(`Prompt template length: ${updated.instruction?.promptTemplate?.length || 0}`);
     console.log('\nPrompt template:');
     console.log(updated.instruction?.promptTemplate || 'N/A');
@@ -103,7 +107,9 @@ async function regenerate() {
       console.log(`Regenerating: ${name}...`);
       try {
         const updated = await regenerateMPProfile(mp.uuid);
-        const votes = updated.info?.votingStats?.totalVotes || 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const regenStats = updated.info?.votingStats as any;
+        const votes = regenStats?.totalVotes ?? regenStats?.total ?? 0;
         console.log(`  Done - ${votes} votes analyzed`);
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
