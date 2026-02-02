@@ -56,7 +56,8 @@
       "memberSince": "Member since",
       "votes": "Votes",
       "attendance": "Attendance",
-      "partyLoyalty": "Party loyalty"
+      "partyLoyalty": "Party loyalty",
+      "accuracy": "accuracy"
     }
   },
   "mp": {

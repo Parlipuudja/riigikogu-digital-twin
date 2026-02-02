@@ -56,7 +56,8 @@
       "memberSince": "Liige alates",
       "votes": "Hääletused",
       "attendance": "Osalus",
-      "partyLoyalty": "Erakonna lojaalsus"
+      "partyLoyalty": "Erakonna lojaalsus",
+      "accuracy": "täpsus"
     }
   },
   "mp": {

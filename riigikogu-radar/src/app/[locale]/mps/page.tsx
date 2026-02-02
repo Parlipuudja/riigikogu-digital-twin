@@ -13,14 +13,26 @@ export async function generateMetadata({ params: { locale } }: { params: { local
 
 export const dynamic = "force-dynamic";
 
-// Helper to extract photo URL from various formats
-function getPhotoUrl(photo: unknown): string | undefined {
-  if (typeof photo === "string") return photo;
-  if (photo && typeof photo === "object") {
+// Helper to extract photo UUID and create proxy URL
+function getPhotoProxyUrl(photo: unknown): string | undefined {
+  let url: string | undefined;
+
+  if (typeof photo === "string") {
+    url = photo;
+  } else if (photo && typeof photo === "object") {
     const photoObj = photo as { _links?: { download?: { href?: string } } };
-    return photoObj._links?.download?.href;
+    url = photoObj._links?.download?.href;
   }
-  return undefined;
+
+  if (!url) return undefined;
+
+  // Extract UUID from Riigikogu API URL and use our proxy
+  const match = url.match(/\/files\/([a-f0-9-]{36})\/download/i);
+  if (match) {
+    return `/api/photos/${match[1]}`;
+  }
+
+  return url; // Fallback to original URL
 }
 
 export default async function MPsPage({ params: { locale } }: { params: { locale: string } }) {
@@ -82,7 +94,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
               .sort((a, b) => (a.info?.fullName || a.slug).localeCompare(b.info?.fullName || b.slug))
               .map((mp) => {
                 const name = mp.info?.fullName || mp.slug;
-                const photoUrl = getPhotoUrl(mp.info?.photoUrl);
+                const photoUrl = getPhotoProxyUrl(mp.info?.photoUrl);
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const rawStats = mp.info?.votingStats as any;
                 const stats = rawStats ? {
@@ -90,6 +102,7 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
                   attendance: rawStats.attendance ?? rawStats.attendancePercent ?? 0,
                   partyAlignment: rawStats.partyAlignment ?? rawStats.partyLoyaltyPercent ?? 0,
                 } : null;
+                const accuracy = mp.backtest?.accuracy?.overall;
 
                 return (
                   <Link
@@ -99,13 +112,14 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
                   >
                     <div className="card-content">
                       <div className="flex items-start gap-4">
-                        {/* Photo placeholder */}
-                        <div className="w-16 h-20 bg-ink-100 rounded flex-shrink-0 flex items-center justify-center text-ink-400">
+                        {/* Photo */}
+                        <div className="w-16 h-20 bg-ink-100 rounded flex-shrink-0 flex items-center justify-center text-ink-400 overflow-hidden">
                           {photoUrl ? (
                             <img
                               src={photoUrl}
                               alt={name}
-                              className="w-full h-full object-cover rounded"
+                              className="w-full h-full object-cover object-top rounded"
+                              loading="lazy"
                             />
                           ) : (
                             <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
@@ -118,6 +132,14 @@ export default async function MPsPage({ params: { locale } }: { params: { locale
                           <h3 className="text-base font-medium text-ink-900 truncate">
                             {name}
                           </h3>
+
+                          {/* Prediction accuracy badge */}
+                          {accuracy !== undefined && (
+                            <div className="mt-1 inline-flex items-center gap-1 text-xs bg-rk-50 text-rk-700 px-2 py-0.5 rounded">
+                              <span className="font-mono font-medium">{accuracy}%</span>
+                              <span className="text-rk-500">{t("card.accuracy")}</span>
+                            </div>
+                          )}
 
                           {stats && (
                             <div className="mt-2 space-y-1 text-xs text-ink-500">

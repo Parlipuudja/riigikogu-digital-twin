@@ -25,6 +25,28 @@ export async function generateMetadata({
 
 export const dynamic = "force-dynamic";
 
+// Helper to extract photo UUID and create proxy URL
+function getPhotoProxyUrl(photo: unknown): string | undefined {
+  let url: string | undefined;
+
+  if (typeof photo === "string") {
+    url = photo;
+  } else if (photo && typeof photo === "object") {
+    const photoObj = photo as { _links?: { download?: { href?: string } } };
+    url = photoObj._links?.download?.href;
+  }
+
+  if (!url) return undefined;
+
+  // Extract UUID from Riigikogu API URL and use our proxy
+  const match = url.match(/\/files\/([a-f0-9-]{36})\/download/i);
+  if (match) {
+    return `/api/photos/${match[1]}`;
+  }
+
+  return url; // Fallback to original URL
+}
+
 export default async function MPDetailPage({
   params: { locale, slug },
 }: {
@@ -43,7 +65,7 @@ export default async function MPDetailPage({
   const name = mp.info?.fullName || mp.slug;
   const party = mp.info?.party?.name || "";
   const partyCode = mp.info?.party?.code || "other";
-  const photoUrl = mp.info?.photoUrl;
+  const photoUrl = getPhotoProxyUrl(mp.info?.photoUrl);
   const stats = mp.info?.votingStats;
 
   return (
@@ -60,12 +82,13 @@ export default async function MPDetailPage({
       {/* Header */}
       <header className="flex flex-col md:flex-row gap-6 mb-8">
         {/* Photo */}
-        <div className="w-32 h-40 bg-ink-100 rounded flex-shrink-0 flex items-center justify-center text-ink-400">
+        <div className="w-32 h-40 bg-ink-100 rounded flex-shrink-0 flex items-center justify-center text-ink-400 overflow-hidden">
           {photoUrl ? (
             <img
               src={photoUrl}
               alt={name}
-              className="w-full h-full object-cover rounded"
+              className="w-full h-full object-cover object-top rounded"
+              loading="lazy"
             />
           ) : (
             <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
