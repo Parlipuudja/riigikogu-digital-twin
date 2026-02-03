@@ -3,12 +3,12 @@
   "critical": [],
   "high": [
     {
-      "id": "no-provider-fallback",
-      "title": "No automatic fallback when primary AI fails",
-      "impact": "Single point of failure for all AI features",
+      "id": "failover-not-enabled",
+      "title": "Failover implemented but not enabled in production",
+      "impact": "Failover exists but won't activate without config",
       "blocked": ["reliability"],
-      "resolution": "Implement automatic provider failover chain",
-      "owner": "development"
+      "resolution": "Set ENABLE_AI_FAILOVER=true and add OPENAI_API_KEY or GEMINI_API_KEY in Vercel",
+      "owner": "user"
     },
     {
       "id": "credentials-in-repo",
