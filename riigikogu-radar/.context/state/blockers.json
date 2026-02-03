@@ -1,0 +1,41 @@
+{
+  "lastUpdated": "2026-02-03T09:30:00Z",
+  "critical": [
+    {
+      "id": "anthropic-credits",
+      "title": "Anthropic API credits exhausted",
+      "impact": "All AI predictions fail",
+      "blocked": ["predictions", "simulations", "profile-generation", "backtesting"],
+      "resolution": "Add credits or switch to alternative provider (OpenAI/Gemini)",
+      "owner": "user"
+    }
+  ],
+  "high": [
+    {
+      "id": "no-provider-fallback",
+      "title": "No automatic fallback when primary AI fails",
+      "impact": "Single point of failure for all AI features",
+      "blocked": ["reliability"],
+      "resolution": "Implement automatic provider failover chain",
+      "owner": "development"
+    },
+    {
+      "id": "credentials-in-repo",
+      "title": "API credentials committed to repository",
+      "impact": "Security vulnerability",
+      "blocked": ["security"],
+      "resolution": "Rotate credentials, remove from repo, use Vercel secrets only",
+      "owner": "user"
+    }
+  ],
+  "medium": [
+    {
+      "id": "silent-degradation",
+      "title": "App serves degraded results without warning",
+      "impact": "Users receive low-quality data unknowingly",
+      "blocked": ["trust"],
+      "resolution": "Add clear UI indicators when running in degraded mode",
+      "owner": "development"
+    }
+  ]
+}
