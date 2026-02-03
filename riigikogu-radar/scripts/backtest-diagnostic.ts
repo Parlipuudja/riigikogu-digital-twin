@@ -6,6 +6,9 @@
  * Compares identifiable vs anonymized prompts and pre vs post-cutoff accuracy.
  */
 
+import { config } from "dotenv";
+config({ path: ".env" });
+
 import { getCollection, closeConnection } from "../src/lib/data/mongodb";
 import { getProvider } from "../src/lib/ai/providers";
 import type { Voting, VotingVoter, MPProfile, VoteDecision } from "../src/types";

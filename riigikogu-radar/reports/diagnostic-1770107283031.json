@@ -1,0 +1,11 @@
+{
+  "mode": "temporal",
+  "identifiableCorrect": 0,
+  "identifiableTotal": 0,
+  "identifiableAccuracy": 0,
+  "anonymizedCorrect": 0,
+  "anonymizedTotal": 0,
+  "anonymizedAccuracy": 0,
+  "postCutoffAccuracy": 73.33333333333333,
+  "valueAdd": 0
+}

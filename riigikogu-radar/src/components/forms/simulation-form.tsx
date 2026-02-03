@@ -16,6 +16,7 @@ interface SimulationFormProps {
 type ProgressStage = "submitting" | "loading" | "analyzing" | "predicting" | "calculating";
 
 const POLL_INTERVAL_MS = 2000;
+const STALE_TIMEOUT_MS = 45000; // 45 seconds without progress = stale
 
 export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
   const t = useTranslations("simulation");
@@ -30,6 +31,8 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
   const [jobId, setJobId] = useState<string | null>(null);
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
   const abortController = useRef<AbortController | null>(null);
+  const lastProgressUpdate = useRef<number>(Date.now());
+  const lastCompletedMPs = useRef<number>(0);
 
   // Auto-submit if initialQuery provided
   useEffect(() => {
@@ -78,6 +81,14 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
       const total = jobData.progress.totalMPs;
       const percent = Math.round((completed / total) * 100);
 
+      // Check for stale job (no progress for too long)
+      if (completed > lastCompletedMPs.current) {
+        lastProgressUpdate.current = Date.now();
+        lastCompletedMPs.current = completed;
+      } else if (Date.now() - lastProgressUpdate.current > STALE_TIMEOUT_MS) {
+        throw new Error("Simulation appears stuck. Please try again.");
+      }
+
       setProgressPercent(percent);
       setProgressStage(getStageFromProgress(completed, total));
       setProgressText(`${completed}/${total} ${t("mpsProcessed")}`);
@@ -117,6 +128,21 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     }
   }, [t]);
 
+  const handleCancel = useCallback(() => {
+    if (pollInterval.current) {
+      clearInterval(pollInterval.current);
+      pollInterval.current = null;
+    }
+    if (abortController.current) {
+      abortController.current.abort();
+    }
+    setIsLoading(false);
+    setJobId(null);
+    setProgressPercent(0);
+    setProgressText("");
+    setError("Simulation cancelled");
+  }, []);
+
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!billTitle.trim() || isLoading) return;
@@ -127,6 +153,10 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
     setProgressStage("submitting");
     setProgressPercent(0);
     setProgressText("");
+
+    // Reset stale tracking
+    lastProgressUpdate.current = Date.now();
+    lastCompletedMPs.current = 0;
 
     try {
       // Submit simulation request
@@ -162,20 +192,6 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
       setError(err instanceof Error ? err.message : "An error occurred");
       setIsLoading(false);
     }
-  };
-
-  const handleCancel = () => {
-    // Stop polling
-    if (pollInterval.current) {
-      clearInterval(pollInterval.current);
-      pollInterval.current = null;
-    }
-    if (abortController.current) {
-      abortController.current.abort();
-    }
-    setIsLoading(false);
-    setJobId(null);
-    setProgressPercent(0);
   };
 
   return (
