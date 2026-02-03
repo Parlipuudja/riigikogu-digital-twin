@@ -14,12 +14,30 @@ import type { ApiResponse, CreateSimulationJobResponse, StoredSimulation } from 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10; // Fast return - processing happens via self-invocation
 
+// Feature flag: Disable expensive 101-MP simulation
+const SIMULATION_DISABLED = true;
+
 /**
  * POST /api/v1/simulate
  * Creates a simulation job and starts async processing
  */
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
+
+  // Check if simulation is disabled
+  if (SIMULATION_DISABLED) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "FEATURE_DISABLED",
+          message: "Parliament simulation is temporarily disabled to conserve API resources. Use individual MP predictions instead.",
+        },
+        meta: { requestId, timestamp: new Date().toISOString() },
+      },
+      { status: 503 }
+    );
+  }
 
   try {
     // Ensure indexes exist (idempotent)
