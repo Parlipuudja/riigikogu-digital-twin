@@ -86,6 +86,7 @@
   "mp": {
     "votingSummary": "Hääletuste kokkuvõte",
     "totalVotes": "Hääletusi kokku",
+    "attendance": "Osalus",
     "partyLoyalty": "Erakonna lojaalsus",
     "votesWithParty": "Hääled erakonnaga",
     "againstParty": "Erakonna vastu",

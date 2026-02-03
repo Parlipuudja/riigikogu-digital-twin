@@ -119,7 +119,7 @@ export default async function MPDetailPage({
                     <div className="text-2xl font-mono font-bold text-ink-900">
                       {stats.attendancePercent}%
                     </div>
-                    <div className="text-xs text-ink-500">{t("card.attendance")}</div>
+                    <div className="text-xs text-ink-500">{t("attendance")}</div>
                   </div>
                   <div>
                     <div className="text-2xl font-mono font-bold text-vote-for">

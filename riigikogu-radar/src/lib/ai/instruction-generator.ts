@@ -98,9 +98,47 @@ export async function collectMPData(mpUuid: string): Promise<MPDataCollection> {
     }
   }
 
-  // Calculate party voting patterns (for party loyalty calculation)
-  // This would ideally compare with party majority votes, but for now we'll estimate
+  // Calculate party loyalty by comparing MP votes to party majority
   const partyVotingPatterns = new Map<string, { total: number; sameAsParty: number }>();
+
+  for (const voting of votingDocs) {
+    // Calculate party majority for this vote
+    const partyVotes = new Map<string, { for: number; against: number; abstain: number }>();
+    for (const voter of voting.voters) {
+      if (voter.decision === 'ABSENT') continue;
+      const party = voter.faction || 'Unknown';
+      const stats = partyVotes.get(party) || { for: 0, against: 0, abstain: 0 };
+      if (voter.decision === 'FOR') stats.for++;
+      else if (voter.decision === 'AGAINST') stats.against++;
+      else if (voter.decision === 'ABSTAIN') stats.abstain++;
+      partyVotes.set(party, stats);
+    }
+
+    // Determine party majority decision
+    const partyMajorities = new Map<string, string>();
+    const partyVotesEntries = Array.from(partyVotes.entries());
+    for (const [party, stats] of partyVotesEntries) {
+      const maxVotes = Math.max(stats.for, stats.against, stats.abstain);
+      if (maxVotes === stats.for) partyMajorities.set(party, 'FOR');
+      else if (maxVotes === stats.against) partyMajorities.set(party, 'AGAINST');
+      else partyMajorities.set(party, 'ABSTAIN');
+    }
+
+    // Check if this MP voted with their party majority
+    const mpVote = voting.voters.find(v => v.memberUuid === mpUuid);
+    if (mpVote && mpVote.decision !== 'ABSENT') {
+      const party = mpVote.faction || 'Unknown';
+      const partyMajority = partyMajorities.get(party);
+      if (partyMajority) {
+        const current = partyVotingPatterns.get(party) || { total: 0, sameAsParty: 0 };
+        current.total++;
+        if (mpVote.decision === partyMajority) {
+          current.sameAsParty++;
+        }
+        partyVotingPatterns.set(party, current);
+      }
+    }
+  }
 
   return { votes, speeches, partyVotingPatterns };
 }
@@ -108,7 +146,10 @@ export async function collectMPData(mpUuid: string): Promise<MPDataCollection> {
 /**
  * Calculate voting statistics
  */
-function calculateVotingStats(votes: MPDataCollection['votes']): MPVotingStats {
+function calculateVotingStats(
+  votes: MPDataCollection['votes'],
+  partyVotingPatterns: MPDataCollection['partyVotingPatterns']
+): MPVotingStats {
   const distribution = {
     FOR: 0,
     AGAINST: 0,
@@ -127,9 +168,19 @@ function calculateVotingStats(votes: MPDataCollection['votes']): MPVotingStats {
   const attended = total - distribution.ABSENT;
   const attendancePercent = total > 0 ? Math.round((attended / total) * 100) : 0;
 
-  // Party loyalty would need comparison with party majority votes
-  // For now, estimate based on voting patterns
-  const partyLoyaltyPercent = 85; // Default estimate
+  // Calculate party loyalty from actual voting patterns
+  let totalVotesWithPartyData = 0;
+  let votesWithParty = 0;
+  const partyPatternValues = Array.from(partyVotingPatterns.values());
+  for (const stats of partyPatternValues) {
+    totalVotesWithPartyData += stats.total;
+    votesWithParty += stats.sameAsParty;
+  }
+
+  // Use real loyalty if we have data, otherwise default to 85%
+  const partyLoyaltyPercent = totalVotesWithPartyData > 0
+    ? Math.round((votesWithParty / totalVotesWithPartyData) * 100)
+    : 85;
 
   return {
     total,
@@ -452,8 +503,8 @@ export async function generateMPInstruction(
   },
   mpData: MPDataCollection
 ): Promise<{ info: MPInfo; instruction: MPInstructionFull }> {
-  // Calculate statistics
-  const votingStats = calculateVotingStats(mpData.votes);
+  // Calculate statistics (with real party loyalty from voting patterns)
+  const votingStats = calculateVotingStats(mpData.votes, mpData.partyVotingPatterns);
 
   // Extract policy areas
   const policyAreas = extractPolicyAreas(mpData.votes, mpData.speeches);

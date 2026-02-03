@@ -86,6 +86,7 @@
   "mp": {
     "votingSummary": "Voting summary",
     "totalVotes": "Total votes",
+    "attendance": "Attendance",
     "partyLoyalty": "Party loyalty",
     "votesWithParty": "Votes with party",
     "againstParty": "Against party",
