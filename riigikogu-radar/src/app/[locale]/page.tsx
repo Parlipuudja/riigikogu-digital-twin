@@ -85,7 +85,7 @@ async function getAccuracyStats(): Promise<{ overall: number; for: number; again
   }
 }
 
-async function getRecentBacktests(): Promise<{ id: string; name: string; accuracy: number; date: string }[]> {
+async function getRecentBacktests(): Promise<{ id: string; name: string; accuracy: number; date: string; postCutoff: boolean; sampleSize: number }[]> {
   try {
     const collection = await getCollection<MPProfile>("mps");
     const mps = await collection
@@ -102,6 +102,8 @@ async function getRecentBacktests(): Promise<{ id: string; name: string; accurac
       name: mp.info?.fullName || mp.slug,
       accuracy: mp.backtest?.accuracy?.overall || 0,
       date: mp.backtest?.lastRun ? new Date(mp.backtest.lastRun).toLocaleDateString("et-EE") : "",
+      postCutoff: mp.backtest?.postCutoffOnly || false,
+      sampleSize: mp.backtest?.sampleSize || 0,
     }));
   } catch {
     return [];
@@ -203,7 +205,7 @@ async function UpcomingVotes({ locale, drafts }: { locale: string; drafts: { id:
   );
 }
 
-async function RecentBacktests({ locale, backtests }: { locale: string; backtests: { id: string; name: string; accuracy: number; date: string }[] }) {
+async function RecentBacktests({ locale, backtests }: { locale: string; backtests: { id: string; name: string; accuracy: number; date: string; postCutoff: boolean; sampleSize: number }[] }) {
   const t = await getTranslations({ locale, namespace: "home.recent" });
   const tCommon = await getTranslations({ locale, namespace: "common" });
   const tMps = await getTranslations({ locale, namespace: "mps" });
@@ -222,14 +224,21 @@ async function RecentBacktests({ locale, backtests }: { locale: string; backtest
                 className="flex items-center justify-between py-2 border-b border-ink-100 last:border-0"
               >
                 <div>
-                  <Link
-                    href={`/${locale}/mps/${bt.id}`}
-                    className="text-sm font-medium text-ink-900 hover:text-rk-700"
-                  >
-                    {bt.name}
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/${locale}/mps/${bt.id}`}
+                      className="text-sm font-medium text-ink-900 hover:text-rk-700"
+                    >
+                      {bt.name}
+                    </Link>
+                    {bt.postCutoff && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-conf-high/10 text-conf-high rounded" title={locale === "et" ? "Testitud ainult peale mudeli treeningandmeid" : "Tested only on data after model training"}>
+                        {locale === "et" ? "OOS" : "OOS"}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-ink-500 mt-0.5">
-                    {tCommon("tested")}: {bt.date}
+                    {tCommon("tested")}: {bt.date} · n={bt.sampleSize}
                   </div>
                 </div>
                 <div className="text-right">

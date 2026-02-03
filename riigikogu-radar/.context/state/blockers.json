@@ -42,6 +42,12 @@
       "title": "Embedding generation process crashed",
       "resolvedAt": "2026-02-03T11:45:00Z",
       "resolution": "Resumed successfully - 500 votings + 200 stenograms, coverage 46%→58%"
+    },
+    {
+      "id": "vector-search-no-index",
+      "title": "MongoDB Atlas Vector Search index missing",
+      "resolvedAt": "2026-02-03T12:14:00Z",
+      "resolution": "Created vector_index on votings collection - RAG now returns similar votes"
     }
   ]
 }

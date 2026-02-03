@@ -1,53 +1,50 @@
 {
-  "lastUpdated": "2026-02-03T11:20:00Z",
-  "overall": "degraded",
+  "lastUpdated": "2026-02-03T12:20:00Z",
+  "overall": "healthy",
   "components": {
     "database": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T11:20:00Z",
+      "lastCheck": "2026-02-03T12:12:32Z",
       "details": {
         "votings": 4333,
         "mps": 101,
-        "sizeMB": 263,
-        "capacityPercent": 55
+        "sizeMB": 268,
+        "capacityPercent": 56
       }
     },
     "anthropicApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T11:15:53Z"
+      "lastCheck": "2026-02-03T12:12:32Z"
     },
     "voyageApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T11:15:53Z"
+      "lastCheck": "2026-02-03T12:12:32Z"
     },
     "embeddings": {
-      "status": "improving",
-      "lastCheck": "2026-02-03T11:45:00Z",
+      "status": "operational",
+      "lastCheck": "2026-02-03T12:12:00Z",
       "details": {
-        "total": 4333,
-        "withEmbeddings": 2492,
-        "coveragePercent": 58,
-        "note": "Generation in progress - 500 votings done, 200 stenograms processing"
+        "votingsCoverage": "57.5%",
+        "stenogramsCoverage": "48.2%",
+        "draftsCoverage": "100%",
+        "vectorIndexStatus": "READY"
       }
     },
-    "backgroundProcesses": {
-      "status": "failed",
-      "lastCheck": "2026-02-03T11:16:00Z",
-      "details": {
-        "fillDatabase": "crashed",
-        "lastLogEntry": "Processed 80/500 votings"
-      }
+    "rag": {
+      "status": "operational",
+      "lastCheck": "2026-02-03T12:16:00Z",
+      "note": "Vector search index created and verified working"
     }
   },
-  "degradedFeatures": [
-    "RAG context quality (46% embedding coverage)"
-  ],
+  "degradedFeatures": [],
   "workingFeatures": [
-    "Vote predictions",
+    "Vote predictions with RAG context",
+    "Parliament simulation",
     "MP browsing",
     "Voting history",
     "Draft browsing",
     "Search",
-    "Export"
+    "Export",
+    "Vector similarity search"
   ]
 }

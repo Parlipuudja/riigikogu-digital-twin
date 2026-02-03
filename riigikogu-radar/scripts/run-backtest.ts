@@ -27,6 +27,7 @@ interface Args {
   full: boolean;
   noStratified: boolean;
   noEarlyStop: boolean;
+  postCutoff: boolean;
 }
 
 function parseArgs(): Args | null {
@@ -48,6 +49,7 @@ function parseArgs(): Args | null {
   const full = args.includes("--full");
   const noStratified = args.includes("--no-stratified");
   const noEarlyStop = args.includes("--no-early-stop") || full;
+  const postCutoff = args.includes("--post-cutoff");
 
   let maxVotes = full ? MAX_VOTES : DEFAULT_VOTES;
   const maxVotesArg = args.find((a) => a.startsWith("--max-votes="));
@@ -55,7 +57,7 @@ function parseArgs(): Args | null {
     maxVotes = Math.min(parseInt(maxVotesArg.split("=")[1], 10), MAX_VOTES);
   }
 
-  return { slug, maxVotes, full, noStratified, noEarlyStop };
+  return { slug, maxVotes, full, noStratified, noEarlyStop, postCutoff };
 }
 
 function printHelp(): void {
@@ -71,6 +73,8 @@ Arguments:
 Options:
   --max-votes=<n>    Sample size (default: ${DEFAULT_VOTES}, max: ${MAX_VOTES})
   --full             Full mode: ${MAX_VOTES} votes, no early stopping
+  --post-cutoff      Only test on votes after model training cutoff (May 2025)
+                     This gives true out-of-sample accuracy with no data leakage
   --no-stratified    Disable stratified sampling
   --no-early-stop    Disable early stopping
   --help, -h         Show this help
@@ -78,6 +82,7 @@ Options:
 Examples:
   npx tsx scripts/run-backtest.ts kaja-kallas
   npx tsx scripts/run-backtest.ts kaja-kallas --full
+  npx tsx scripts/run-backtest.ts kaja-kallas --post-cutoff
   npx tsx scripts/run-backtest.ts kaja-kallas --max-votes=100
 
 For batch operations:
@@ -92,7 +97,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Backtest: ${args.slug}`);
-  console.log(`Settings: ${args.maxVotes} votes, stratified=${!args.noStratified}, early-stop=${!args.noEarlyStop}`);
+  console.log(`Settings: ${args.maxVotes} votes, stratified=${!args.noStratified}, early-stop=${!args.noEarlyStop}${args.postCutoff ? ', POST-CUTOFF (out-of-sample)' : ''}`);
   console.log("─".repeat(50));
 
   // Find MP
@@ -123,6 +128,7 @@ async function main(): Promise<void> {
       maxVotes: args.maxVotes,
       stratifiedSampling: !args.noStratified,
       earlyStop: !args.noEarlyStop,
+      postCutoffOnly: args.postCutoff,
       onProgress: (current, total, result) => {
         resultCount = current;
         if (current % 10 === 0 || current === total) {

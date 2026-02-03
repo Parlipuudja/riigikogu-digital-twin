@@ -89,6 +89,12 @@ export default async function AccuracyPage({ params: { locale } }: { params: { l
                 <strong>Piirangud:</strong> Mudel ei suuda ennustada ootamatuid poliitilisi nihkeid ega
                 arvesta koalitsioonilepingutega, mis pole avalikud.
               </p>
+              <p>
+                <strong>OOS (Out-of-Sample):</strong> Märkega{" "}
+                <span className="px-1 py-0.5 text-[10px] font-medium bg-conf-high/10 text-conf-high rounded">OOS</span>{" "}
+                testid kasutavad ainult hääletusi pärast mudeli treeningandmeid (mai 2025), tagades tõese
+                täpsuse ilma andmeleketa.
+              </p>
             </div>
           ) : (
             <div className="space-y-4 text-ink-700">
@@ -107,6 +113,12 @@ export default async function AccuracyPage({ params: { locale } }: { params: { l
               <p>
                 <strong>Limitations:</strong> The model cannot predict unexpected political shifts and
                 does not account for non-public coalition agreements.
+              </p>
+              <p>
+                <strong>OOS (Out-of-Sample):</strong> Backtests marked with{" "}
+                <span className="px-1 py-0.5 text-[10px] font-medium bg-conf-high/10 text-conf-high rounded">OOS</span>{" "}
+                only use votes after the model&apos;s training cutoff (May 2025), providing true accuracy
+                with no data leakage.
               </p>
             </div>
           )}
@@ -138,7 +150,14 @@ export default async function AccuracyPage({ params: { locale } }: { params: { l
                     const accuracy = mp.backtest?.accuracy?.overall || 0;
                     return (
                       <tr key={mp.slug}>
-                        <td className="font-medium">{mp.info?.fullName || mp.slug}</td>
+                        <td className="font-medium">
+                          <span>{mp.info?.fullName || mp.slug}</span>
+                          {mp.backtest?.postCutoffOnly && (
+                            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-conf-high/10 text-conf-high rounded" title={locale === "et" ? "Out-of-sample test" : "Out-of-sample test"}>
+                              OOS
+                            </span>
+                          )}
+                        </td>
                         <td className="text-ink-500">{mp.info?.party?.name || ""}</td>
                         <td className="text-right font-mono">
                           <span

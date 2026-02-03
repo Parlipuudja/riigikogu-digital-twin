@@ -3,6 +3,7 @@ import { getMessages } from "next-intl/server";
 import { Open_Sans, JetBrains_Mono } from "next/font/google";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { Providers } from "@/components/providers";
 
 const openSans = Open_Sans({
   subsets: ["latin", "latin-ext"],
@@ -28,13 +29,15 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${openSans.variable} ${jetbrainsMono.variable}`}>
       <body className="min-h-screen flex flex-col">
-        <NextIntlClientProvider messages={messages}>
-          <Header />
-          <main className="flex-1">
-            {children}
-          </main>
-          <Footer />
-        </NextIntlClientProvider>
+        <Providers>
+          <NextIntlClientProvider messages={messages}>
+            <Header />
+            <main className="flex-1">
+              {children}
+            </main>
+            <Footer />
+          </NextIntlClientProvider>
+        </Providers>
       </body>
     </html>
   );

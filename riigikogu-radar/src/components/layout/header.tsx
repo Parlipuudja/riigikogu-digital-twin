@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
+import { useSession, signOut } from "next-auth/react";
 import { LanguageSwitcher } from "./language-switcher";
 
 export function Header() {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
+  const { data: session, status } = useSession();
 
   const navItems = [
     { href: `/${locale}`, label: t("home"), exact: true },
@@ -45,6 +47,28 @@ export function Header() {
             {/* Right side */}
             <div className="flex items-center gap-4">
               <LanguageSwitcher />
+              {status === "loading" ? (
+                <div className="w-20 h-8 bg-rk-600/50 rounded animate-pulse" />
+              ) : session ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-rk-200">
+                    {session.user?.name}
+                  </span>
+                  <button
+                    onClick={() => signOut({ callbackUrl: `/${locale}` })}
+                    className="px-3 py-1.5 text-sm font-medium text-rk-200 hover:text-white border border-rk-500 hover:border-rk-400 rounded transition-colors"
+                  >
+                    {locale === "et" ? "Logi välja" : "Log out"}
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href={`/${locale}/login`}
+                  className="px-3 py-1.5 text-sm font-medium text-rk-200 hover:text-white border border-rk-500 hover:border-rk-400 rounded transition-colors"
+                >
+                  {locale === "et" ? "Logi sisse" : "Log in"}
+                </Link>
+              )}
             </div>
           </div>
         </div>
