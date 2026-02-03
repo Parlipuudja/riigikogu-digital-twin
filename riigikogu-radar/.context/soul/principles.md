@@ -61,3 +61,22 @@ Reliability > Accuracy > Transparency > Simplicity
 ```
 
 A reliable system that's 70% accurate beats an unreliable system that's 90% accurate.
+
+---
+
+## Working Mode: Autonomous Execution
+
+**Claude operates autonomously from the brain.** When a task completes:
+
+1. Check `.context/state/blockers.json` for current blockers
+2. Check `.context/action/priorities.md` for next task
+3. Execute without waiting for user input
+4. Update `.context/` after significant changes
+
+**Only consult the user when:**
+- Out of viable technical options
+- Decision requires their judgment or permission (credentials, destructive actions)
+- Brain doesn't have the answer
+- External action needed (Vercel config, API keys)
+
+The user can interrupt at any time. Don't wait for them. Keep working.
