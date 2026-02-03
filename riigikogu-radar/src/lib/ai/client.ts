@@ -15,7 +15,7 @@ import type { AIProvider, CompletionOptions } from "./providers";
 export const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
 /** Cheap model for high-volume predictions (12x cheaper than Sonnet) */
-export const CHEAP_MODEL = "claude-3-5-haiku-20241022";
+export const CHEAP_MODEL = "claude-3-haiku-20240307";
 
 /** Use cheap model for predictions to reduce costs */
 export const USE_CHEAP_MODEL_FOR_PREDICTIONS = true;
