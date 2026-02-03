@@ -1,49 +1,58 @@
 # Current Priorities
 
-*Last updated: 2026-02-03 (afternoon)*
+*Last updated: 2026-02-03 11:20 UTC*
 
-## ✅ Resolved: AI Functionality Restored
+## Status Summary
 
-Anthropic credits added, switched to Haiku for cost efficiency (~90% cheaper).
-Predictions working on production.
+| Metric | Value |
+|--------|-------|
+| Votings | 4,333 |
+| MPs | 101 |
+| DB Size | 263 MB (55%) |
+| Embeddings | 46% (1,992/4,333) |
+| Production | Healthy |
 
-## Active: Database Expansion
+## Critical: Resume Embedding Generation
 
-Filling database to 80% capacity with historical data (2019-2023).
+The fill-database process **crashed** during embedding generation at 80/500 votings.
 
-**Status:**
-- 2022: ✅ 882 votings
-- 2021: ✅ 687 votings
-- 2020: ✅ 495 votings
-- 2019: 🔄 In progress
-- Stenograms: ⏳ Pending
+**Impact:** Embedding coverage dropped from 51% to 46% because new votings were added without embeddings.
 
-Current: 35% → Target: 80%
+**Action:**
+```bash
+npm run embeddings:generate
+```
 
-## Priority 1: Complete Data Foundation
+## Completed: Database Expansion
 
-1. **Finish database fill** — Let background process complete
-2. **Regenerate embeddings** — Run after fill for all new votings
-3. **Verify RAG quality** — Ensure predictions use historical context
+All historical data synced:
+- 2022: 882 votings
+- 2021: 687 votings
+- 2020: 495 votings
+- 2019: 270 votings + 99 stenograms
 
-## Priority 2: Reliability Foundation
+## Priority 1: Fix Embeddings
 
-1. ✅ **Provider failover implemented** — Anthropic → OpenAI → Gemini chain
-2. ✅ **Circuit breakers added** — Exponential backoff (30s → 5min)
-3. **Enable in production** — Set ENABLE_AI_FAILOVER=true + backup API keys
-4. **Graceful degradation** — Show cached/statistical fallbacks when AI unavailable
+1. **Resume embedding generation** — Run `npm run embeddings:generate`
+2. **Monitor completion** — Target: 80%+ coverage
+3. **Verify RAG quality** — Test predictions use historical context
 
-## Priority 3: Trust Building
+## Priority 2: Enable Production Failover
 
-1. **Fix backtesting** — Currently flawed (data leakage concern)
-2. **Honest accuracy reporting** — Show real post-cutoff accuracy
-3. **Methodology documentation** — Already exists at /about#methodology
+1. Failover code exists (Anthropic → OpenAI → Gemini)
+2. Circuit breakers implemented
+3. **Blocked:** Needs `ENABLE_AI_FAILOVER=true` + backup API keys in Vercel
 
-## Priority 4: Journalist Outreach Prep
+## Priority 3: Security
 
-1. **Verify all features work end-to-end**
-2. **Prepare demo scenarios**
-3. **Document API for power users**
+1. **Credentials in repo** — Need to rotate and remove
+2. Owner: User action required
+
+## Priority 4: Trust Building
+
+1. Fix backtesting (data leakage concern)
+2. Honest accuracy reporting
+3. Methodology documentation exists at /about#methodology
 
 ## What We're NOT Prioritizing
 

@@ -1,6 +1,15 @@
 {
-  "lastUpdated": "2026-02-03T11:00:00Z",
-  "critical": [],
+  "lastUpdated": "2026-02-03T11:20:00Z",
+  "critical": [
+    {
+      "id": "embedding-generation-crashed",
+      "title": "Embedding generation process crashed",
+      "impact": "Embeddings at 46% (down from 51%) - RAG quality degraded",
+      "blocked": ["prediction-quality", "rag-context"],
+      "resolution": "Resume embedding generation: npm run embeddings:generate",
+      "owner": "development"
+    }
+  ],
   "high": [
     {
       "id": "failover-not-enabled",
@@ -9,32 +18,33 @@
       "blocked": ["reliability"],
       "resolution": "Set ENABLE_AI_FAILOVER=true and add OPENAI_API_KEY or GEMINI_API_KEY in Vercel",
       "owner": "user"
-    },
-    {
-      "id": "credentials-in-repo",
-      "title": "API credentials committed to repository",
-      "impact": "Security vulnerability",
-      "blocked": ["security"],
-      "resolution": "Rotate credentials, remove from repo, use Vercel secrets only",
-      "owner": "user"
     }
   ],
-  "medium": [
-    {
-      "id": "embeddings-incomplete",
-      "title": "Only 51% of votings have embeddings",
-      "impact": "RAG context limited for predictions",
-      "blocked": ["prediction-quality"],
-      "resolution": "Run embedding generation after database fill completes",
-      "owner": "development"
-    }
-  ],
+  "medium": [],
   "resolved": [
     {
       "id": "anthropic-credits",
       "title": "Anthropic API credits exhausted",
       "resolvedAt": "2026-02-03T09:50:00Z",
       "resolution": "User added credits, switched to Haiku for cost efficiency"
+    },
+    {
+      "id": "embeddings-incomplete",
+      "title": "Only 51% of votings have embeddings",
+      "resolvedAt": "2026-02-03T11:20:00Z",
+      "resolution": "Superseded by embedding-generation-crashed blocker"
+    },
+    {
+      "id": "database-fill-2019",
+      "title": "2019 votings not synced",
+      "resolvedAt": "2026-02-03T11:00:00Z",
+      "resolution": "Completed: 270 votings + 99 stenograms inserted"
+    },
+    {
+      "id": "credentials-in-repo",
+      "title": "API credentials committed to repository",
+      "resolvedAt": "2026-02-03T11:25:00Z",
+      "resolution": "False alarm - .env is gitignored, only placeholders in .env.example"
     }
   ]
 }

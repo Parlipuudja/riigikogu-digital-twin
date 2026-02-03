@@ -1,24 +1,49 @@
 {
-  "lastUpdated": "2026-02-03T10:49:47.661Z",
-  "overall": "healthy",
+  "lastUpdated": "2026-02-03T11:20:00Z",
+  "overall": "degraded",
   "components": {
     "database": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T10:49:47.661Z"
+      "lastCheck": "2026-02-03T11:20:00Z",
+      "details": {
+        "votings": 4333,
+        "mps": 101,
+        "sizeMB": 263,
+        "capacityPercent": 55
+      }
     },
     "anthropicApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T10:49:47.661Z"
+      "lastCheck": "2026-02-03T11:15:53Z"
     },
     "voyageApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T10:49:47.661Z"
+      "lastCheck": "2026-02-03T11:15:53Z"
+    },
+    "embeddings": {
+      "status": "degraded",
+      "lastCheck": "2026-02-03T11:20:00Z",
+      "details": {
+        "total": 4333,
+        "withEmbeddings": 1992,
+        "coveragePercent": 46,
+        "note": "Generation process crashed at 80/500"
+      }
+    },
+    "backgroundProcesses": {
+      "status": "failed",
+      "lastCheck": "2026-02-03T11:16:00Z",
+      "details": {
+        "fillDatabase": "crashed",
+        "lastLogEntry": "Processed 80/500 votings"
+      }
     }
   },
-  "degradedFeatures": [],
+  "degradedFeatures": [
+    "RAG context quality (46% embedding coverage)"
+  ],
   "workingFeatures": [
     "Vote predictions",
-    "Parliament simulation",
     "MP browsing",
     "Voting history",
     "Draft browsing",

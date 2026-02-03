@@ -41,3 +41,11 @@
 **Why it failed:** Users receive predictions without the historical context that makes them valuable, but don't know it.
 
 **Lesson:** Always tell users when the system is degraded.
+
+## 6. Unmonitored Background Processes (2026-02-03)
+
+**What we tried:** Running `fill-database.sh` in background without monitoring.
+
+**Why it failed:** Process crashed at 80/500 embeddings. No alerts, no automatic restart. Discovered hours later during manual brain assessment.
+
+**Lesson:** Long-running processes need health checks, logging to persistent storage, and ideally automatic restart on failure. At minimum, check `ps aux` before assuming a background job is still running.
