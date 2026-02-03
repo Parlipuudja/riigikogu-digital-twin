@@ -1,50 +1,52 @@
 # Current Priorities
 
-*Last updated: 2026-02-03*
+*Last updated: 2026-02-03 (afternoon)*
 
-## Blocking Priority: Restore AI Functionality
+## ✅ Resolved: AI Functionality Restored
 
-**Nothing else matters until the core features work.**
+Anthropic credits added, switched to Haiku for cost efficiency (~90% cheaper).
+Predictions working on production.
 
-The Anthropic API is out of credits. Options:
-1. Add Anthropic credits (user action)
-2. Switch to OpenAI as primary provider
-3. Switch to Gemini as primary provider
+## Active: Database Expansion
 
-The multi-provider abstraction exists (`src/lib/ai/provider.ts`). It needs to be:
-1. Connected to the prediction engine
-2. Configured with working credentials
-3. Deployed to production
+Filling database to 80% capacity with historical data (2019-2023).
 
-## Priority 1: Reliability Foundation
+**Status:**
+- 2022: ✅ 882 votings
+- 2021: ✅ 687 votings
+- 2020: ✅ 495 votings
+- 2019: 🔄 In progress
+- Stenograms: ⏳ Pending
 
-Once AI is working, focus on making it STAY working:
+Current: 35% → Target: 80%
 
-1. **Implement provider failover** — If primary fails, try secondary, then tertiary
+## Priority 1: Complete Data Foundation
+
+1. **Finish database fill** — Let background process complete
+2. **Regenerate embeddings** — Run after fill for all new votings
+3. **Verify RAG quality** — Ensure predictions use historical context
+
+## Priority 2: Reliability Foundation
+
+1. **Implement provider failover** — If Anthropic fails, try OpenAI/Gemini
 2. **Add circuit breakers** — Don't hammer failing APIs
 3. **Graceful degradation** — Show cached/statistical fallbacks when AI unavailable
-4. **Clear error states** — Users should know when features are degraded
 
-## Priority 2: Trust Building
+## Priority 3: Trust Building
 
-Before seeking users, ensure the system deserves trust:
+1. **Fix backtesting** — Currently flawed (data leakage concern)
+2. **Honest accuracy reporting** — Show real post-cutoff accuracy
+3. **Methodology documentation** — Already exists at /about#methodology
 
-1. **Honest accuracy reporting** — Show 73% (post-cutoff), not 87% (with leakage)
-2. **Methodology documentation** — Public page explaining how predictions work
-3. **Confidence intervals** — Every prediction shows uncertainty
-4. **Source citations** — Every claim traceable to data
+## Priority 4: Journalist Outreach Prep
 
-## Priority 3: Unique Value
-
-What can we provide that journalists can't get elsewhere?
-
-1. **Pattern detection over time** — "Party X cohesion dropped 12% this quarter"
-2. **Anomaly alerts** — "MP Y voting pattern changed significantly"
-3. **Historical similarity** — "Similar bills passed/failed with these patterns"
+1. **Verify all features work end-to-end**
+2. **Prepare demo scenarios**
+3. **Document API for power users**
 
 ## What We're NOT Prioritizing
 
-- New features (reliability first)
+- Full parliament simulation (disabled, too expensive)
+- Mobile interface (desktop first for journalists)
+- Neo4j migration (MongoDB sufficient)
 - Performance optimization (correctness first)
-- Mobile interface (core functionality first)
-- Neo4j migration (MongoDB is fine for now)

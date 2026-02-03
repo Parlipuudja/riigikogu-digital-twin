@@ -14,3 +14,29 @@ Syncing votings for 2020...
   Rate limited - delay increased to 32.0s
   Rate limited - delay increased to 64.0s
   Rate limited - delay increased to 120.0s
+  Rate limited - delay increased to 120.0s
+  Rate limited - delay increased to 120.0s
+  Rate limited - delay increased to 120.0s
+  Found 495 votings (delay: 108.0s)
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Size check: 180.79MB / 480MB
+  Year 2020 complete: 0 inserted, 495 skipped, 0 errors
+
+=== Syncing votings for 2019 ===
+
+Syncing votings for 2019...
+  Date range: 2019-04-04 to 2019-12-31
+  Found 270 votings (delay: 0.5s)
+  Rate limited - delay increased to 0.9s
+  2019: 1/270 inserted (delay: 0.8s)
+  Rate limited - delay increased to 1.6s
+  Rate limited - delay increased to 1.7s
+  2019: 10/270 inserted (delay: 1.3s)
+  Rate limited - delay increased to 1.6s

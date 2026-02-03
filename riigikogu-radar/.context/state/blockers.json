@@ -1,15 +1,6 @@
 {
-  "lastUpdated": "2026-02-03T09:30:00Z",
-  "critical": [
-    {
-      "id": "anthropic-credits",
-      "title": "Anthropic API credits exhausted",
-      "impact": "All AI predictions fail",
-      "blocked": ["predictions", "simulations", "profile-generation", "backtesting"],
-      "resolution": "Add credits or switch to alternative provider (OpenAI/Gemini)",
-      "owner": "user"
-    }
-  ],
+  "lastUpdated": "2026-02-03T11:00:00Z",
+  "critical": [],
   "high": [
     {
       "id": "no-provider-fallback",
@@ -30,12 +21,20 @@
   ],
   "medium": [
     {
-      "id": "silent-degradation",
-      "title": "App serves degraded results without warning",
-      "impact": "Users receive low-quality data unknowingly",
-      "blocked": ["trust"],
-      "resolution": "Add clear UI indicators when running in degraded mode",
+      "id": "embeddings-incomplete",
+      "title": "Only 51% of votings have embeddings",
+      "impact": "RAG context limited for predictions",
+      "blocked": ["prediction-quality"],
+      "resolution": "Run embedding generation after database fill completes",
       "owner": "development"
+    }
+  ],
+  "resolved": [
+    {
+      "id": "anthropic-credits",
+      "title": "Anthropic API credits exhausted",
+      "resolvedAt": "2026-02-03T09:50:00Z",
+      "resolution": "User added credits, switched to Haiku for cost efficiency"
     }
   ]
 }
