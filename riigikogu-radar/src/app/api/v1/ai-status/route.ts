@@ -4,7 +4,7 @@ import { getProviderStatus, getProviderType } from "@/lib/ai/providers";
 export const dynamic = "force-dynamic";
 
 /**
- * Get AI provider status
+ * Get AI provider status and configuration
  * GET /api/v1/ai-status
  */
 export async function GET() {
