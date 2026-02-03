@@ -1,35 +1,28 @@
 {
-  "lastUpdated": "2026-02-03T09:30:00Z",
-  "overall": "degraded",
+  "lastUpdated": "2026-02-03T10:49:47.661Z",
+  "overall": "healthy",
   "components": {
     "database": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T09:16:00Z"
+      "lastCheck": "2026-02-03T10:49:47.661Z"
     },
     "anthropicApi": {
-      "status": "failed",
-      "error": "Credit balance too low",
-      "lastCheck": "2026-02-03T09:16:20Z"
+      "status": "healthy",
+      "lastCheck": "2026-02-03T10:49:47.661Z"
     },
     "voyageApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T09:00:00Z"
-    },
-    "vercelDeployment": {
-      "status": "healthy",
-      "lastDeployment": "2026-02-03T09:15:00Z"
+      "lastCheck": "2026-02-03T10:49:47.661Z"
     }
   },
-  "degradedFeatures": [
-    "Vote predictions (requires Anthropic)",
-    "Parliament simulation (requires Anthropic)",
-    "MP profile generation (requires Anthropic)"
-  ],
+  "degradedFeatures": [],
   "workingFeatures": [
-    "MP list and profiles (cached)",
-    "Voting history browsing",
+    "Vote predictions",
+    "Parliament simulation",
+    "MP browsing",
+    "Voting history",
     "Draft browsing",
-    "Search (keyword fallback)",
-    "Export functionality"
+    "Search",
+    "Export"
   ]
 }

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-02-03T06:38:49.023Z",
+  "generatedAt": "2026-02-03T10:49:59.697Z",
   "daysUntilDeadline": 26,
-  "overallScore": 89,
+  "overallScore": 84,
   "categories": [
     {
       "category": "MVP Criteria",
@@ -15,14 +15,14 @@
         {
           "name": "Prediction Accuracy",
           "status": "pass",
-          "value": "87.6%",
+          "value": "88.3%",
           "target": ">70%",
-          "details": "5 MPs tested, 550 predictions"
+          "details": "7 MPs tested, 590 predictions"
         },
         {
           "name": "Data Freshness",
           "status": "pass",
-          "value": "1h 10m",
+          "value": "0m",
           "target": "<24h",
           "details": "Last sync: 2026-02-03"
         },
@@ -46,12 +46,12 @@
         {
           "name": "[P1] Embeddings generated for RAG",
           "status": "warn",
-          "value": "97%"
+          "value": "51%"
         },
         {
           "name": "[P1] Backtests establish accuracy baseline",
           "status": "warn",
-          "value": "5 MPs tested"
+          "value": "7 MPs tested"
         },
         {
           "name": "[P2] Swing vote / anomaly detection",
@@ -87,14 +87,14 @@
         {
           "name": "Database Size",
           "status": "pass",
-          "value": "151.4 MB",
+          "value": "176.5 MB",
           "target": "<512 MB"
         },
         {
           "name": "Votings Records",
           "status": "warn",
-          "value": "1,912",
-          "details": "47.1 MB"
+          "value": "3,743",
+          "details": "70.6 MB"
         },
         {
           "name": "Legislative Drafts",
@@ -120,10 +120,10 @@
       "checks": [
         {
           "name": "Voting Embeddings",
-          "status": "pass",
-          "value": "97%",
+          "status": "warn",
+          "value": "51%",
           "target": "100%",
-          "details": "1,849 / 1,912"
+          "details": "1,912 / 3,743"
         },
         {
           "name": "Stenogram Embeddings",
@@ -133,7 +133,7 @@
           "details": "425 / 425"
         }
       ],
-      "score": 100
+      "score": 75
     },
     {
       "category": "Backtesting",
@@ -141,27 +141,27 @@
         {
           "name": "Backtest Coverage",
           "status": "fail",
-          "value": "5%",
+          "value": "7%",
           "target": "100%",
-          "details": "5 / 101 MPs"
+          "details": "7 / 101 MPs"
         },
         {
           "name": "Average Accuracy",
           "status": "pass",
-          "value": "89%",
+          "value": "92%",
           "target": "≥70%"
         },
         {
           "name": "Accuracy Distribution",
           "status": "info",
-          "value": "High: 4, Med: 1, Low: 0",
-          "details": "≥80%: 4, 70-79%: 1, <70%: 0"
+          "value": "High: 6, Med: 1, Low: 0",
+          "details": "≥80%: 6, 70-79%: 1, <70%: 0"
         },
         {
           "name": "Last Backtest Run",
           "status": "pass",
-          "value": "15h 3m ago",
-          "details": "Aleksei Jevgrafov"
+          "value": "2h 35m ago",
+          "details": "Ando Kiviberg"
         }
       ],
       "score": 63
@@ -236,7 +236,7 @@
   "summary": [
     "👍 Good progress toward MVP goals.",
     "1 critical issue(s) require attention.",
-    "29 checks passing."
+    "28 checks passing."
   ],
   "recommendations": [
     "Run backtests for more MPs: npx tsx scripts/run-backtest.ts"
