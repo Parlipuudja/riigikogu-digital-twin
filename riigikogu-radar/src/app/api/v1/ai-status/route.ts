@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProviderStatus, getProviderType } from "@/lib/ai/providers";
+import { getProviderStatus, getProviderType, getCircuitBreakerStatus, getAvailableProviders } from "@/lib/ai/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -10,27 +10,35 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const status = getProviderStatus();
   const activeProvider = getProviderType();
+  const circuitBreaker = getCircuitBreakerStatus();
+  const availableProviders = getAvailableProviders();
+  const failoverEnabled = process.env.ENABLE_AI_FAILOVER === "true";
 
   return NextResponse.json({
     success: true,
     data: {
       activeProvider,
       providers: status,
+      failover: {
+        enabled: failoverEnabled,
+        availableProviders,
+        circuitBreaker,
+      },
       configuration: {
         anthropic: {
           envVar: "ANTHROPIC_API_KEY",
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-haiku-20240307",
         },
         openai: {
           envVar: "OPENAI_API_KEY",
-          model: "gpt-4o",
+          model: "gpt-4o-mini",
         },
         gemini: {
           envVar: "GEMINI_API_KEY or GOOGLE_API_KEY",
-          model: "gemini-1.5-pro",
+          model: "gemini-1.5-flash",
         },
       },
-      switchProvider: "Set AI_PROVIDER environment variable to 'anthropic', 'openai', or 'gemini'",
+      switchProvider: "Set AI_PROVIDER env var, or enable ENABLE_AI_FAILOVER=true for automatic fallback",
     },
     meta: {
       timestamp: new Date().toISOString(),

@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { getAnthropicClient, extractTextContent, DEFAULT_MODEL, CHEAP_MODEL, USE_CHEAP_MODEL_FOR_PREDICTIONS } from "./client";
+import { completeWithFailover } from "./providers";
 import type { VoteDecision } from "@/types";
 
 /** Model to use for vote predictions */
 const PREDICTION_MODEL = USE_CHEAP_MODEL_FOR_PREDICTIONS ? CHEAP_MODEL : DEFAULT_MODEL;
+
+/** Enable automatic failover to alternative providers */
+const ENABLE_FAILOVER = process.env.ENABLE_AI_FAILOVER === "true";
 
 // ============================================================================
 // Types
@@ -175,6 +179,8 @@ Respond ONLY with valid JSON in this exact format:
 
 /**
  * Predict vote using MP-specific instruction template
+ *
+ * Supports automatic failover to alternative providers when ENABLE_AI_FAILOVER=true
  */
 export async function predictVote(
   input: PredictionInput,
@@ -183,20 +189,30 @@ export async function predictVote(
 ): Promise<PredictionOutput> {
   const prompt = buildPrompt(input, instructionTemplate, mpName);
 
-  const response = await getAnthropicClient().messages.create({
-    model: PREDICTION_MODEL,
-    max_tokens: 512, // Reduced from 1024 - predictions are structured JSON
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
+  let text: string;
 
-  const text = extractTextContent(response);
-  if (!text) {
-    throw new Error("No text response from Claude");
+  if (ENABLE_FAILOVER) {
+    // Use failover mechanism - tries Anthropic, then OpenAI, then Gemini
+    const result = await completeWithFailover(prompt, { maxTokens: 512 });
+    text = result.text;
+  } else {
+    // Direct Anthropic call (default, most cost-effective with Haiku)
+    const response = await getAnthropicClient().messages.create({
+      model: PREDICTION_MODEL,
+      max_tokens: 512,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    });
+
+    const responseText = extractTextContent(response);
+    if (!responseText) {
+      throw new Error("No text response from Claude");
+    }
+    text = responseText;
   }
 
   return parsePredictionResponse(text);
