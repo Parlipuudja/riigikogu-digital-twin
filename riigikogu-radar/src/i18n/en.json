@@ -155,7 +155,9 @@
     "abstain": "ABSTAIN",
     "absent": "ABSENT",
     "confidence": "Confidence",
-    "reasoning": "Reasoning"
+    "reasoning": "Reasoning",
+    "passageProbability": "passage probability",
+    "partyBreakdown": "By party"
   },
   "insights": {
     "title": "Story Leads",
@@ -222,7 +224,9 @@
     "details": "Details",
     "phase": "Phase",
     "proceeding": "Proceeding",
-    "viewOnRiigikogu": "View on Riigikogu website"
+    "viewOnRiigikogu": "View on Riigikogu website",
+    "simulationResult": "Simulation Result",
+    "viewFullSimulation": "View full simulation"
   },
   "footer": {
     "about": "About",

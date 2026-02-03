@@ -10,6 +10,7 @@ export interface SimulationJobRequest {
   billTitle: string;
   billDescription?: string;
   billFullText?: string;
+  draftUuid?: string;  // Link to draft if simulating a real draft
 }
 
 export interface SimulationJobProgress {
@@ -111,4 +112,28 @@ export interface SimulationJobStatusResponse {
   result?: SimulationJobResult;
   errors?: SimulationJobError[];
   error?: string;  // Error message if status = failed
+}
+
+/**
+ * Permanent storage for completed simulations
+ * Unlike SimulationJob which has 24h TTL, this persists indefinitely
+ */
+export interface StoredSimulation {
+  _id: string;  // UUID
+
+  // Bill identification
+  billHash: string;  // Hash of normalized bill content for deduplication
+  billTitle: string;
+  billDescription?: string;
+  billFullText?: string;
+
+  // Optional link to a real draft
+  draftUuid?: string;
+
+  // The simulation result
+  result: SimulationJobResult;
+
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
 }

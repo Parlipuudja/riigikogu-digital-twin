@@ -14,6 +14,7 @@ import {
   incrementContinuation,
   startProcessing,
 } from "./job-manager";
+import { saveSimulation } from "./history";
 import type {
   SimulationJob,
   SimulationJobResult,
@@ -233,6 +234,11 @@ export async function startProcessingJob(
       // All done - calculate final result
       const result = calculateResult(updatedJob, updatedJob.predictions);
       await completeJob(job._id, result);
+
+      // Save to permanent history (with optional draft link)
+      await saveSimulation(job.request, result, job.request.draftUuid).catch((err) => {
+        console.error(`Failed to save simulation to history:`, err);
+      });
     }
   } catch (error) {
     console.error(`Processing failed for job ${job._id}:`, error);
@@ -308,6 +314,11 @@ export async function continueProcessingJob(
       // All done - calculate final result
       const result = calculateResult(updatedJob, updatedJob.predictions);
       await completeJob(jobId, result);
+
+      // Save to permanent history (with optional draft link)
+      await saveSimulation(updatedJob.request, result, updatedJob.request.draftUuid).catch((err) => {
+        console.error(`Failed to save simulation to history:`, err);
+      });
     }
   } catch (error) {
     console.error(`Continuation failed for job ${jobId}:`, error);

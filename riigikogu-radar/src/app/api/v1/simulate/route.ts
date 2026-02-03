@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getActiveMPs } from "@/lib/data/mps";
-import { createJob, startProcessingJob, ensureIndexes } from "@/lib/simulation";
+import {
+  createJob,
+  ensureIndexes,
+  findExistingSimulation,
+  generateBillHash,
+  ensureSimulationIndexes,
+} from "@/lib/simulation";
 import { SimulateRequestSchema } from "@/lib/utils/validation";
-import type { ApiResponse, CreateSimulationJobResponse } from "@/types";
+import type { ApiResponse, CreateSimulationJobResponse, StoredSimulation } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10; // Fast return - processing happens via self-invocation
@@ -38,6 +44,40 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure history indexes exist (idempotent)
+    await ensureSimulationIndexes();
+
+    // Check for existing simulation (deduplication)
+    const billHash = generateBillHash(
+      validation.data.billTitle,
+      validation.data.billDescription,
+      validation.data.billFullText
+    );
+
+    // Get draftUuid from request if provided
+    const draftUuid = validation.data.draftUuid;
+
+    const existingSimulation = await findExistingSimulation(billHash, draftUuid);
+
+    if (existingSimulation) {
+      // Return cached result immediately
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            cached: true,
+            simulationId: existingSimulation._id,
+            result: existingSimulation.result,
+          },
+          meta: {
+            requestId,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { status: 200 }
+      );
+    }
+
     // Get all active MPs to determine total count
     const mps = await getActiveMPs();
 
@@ -55,12 +95,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create the job
+    // Create the job (no cached result found)
     const job = await createJob(
       {
         billTitle: validation.data.billTitle,
         billDescription: validation.data.billDescription,
         billFullText: validation.data.billFullText,
+        draftUuid: validation.data.draftUuid,
       },
       mps.length
     );

@@ -21,3 +21,13 @@ export {
   startProcessingJob,
   continueProcessingJob,
 } from "./processor";
+
+export {
+  findExistingSimulation,
+  findSimulationByDraft,
+  saveSimulation,
+  linkSimulationToDraft,
+  getRecentSimulations,
+  generateBillHash,
+  ensureSimulationIndexes,
+} from "./history";

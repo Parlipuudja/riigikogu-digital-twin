@@ -10,7 +10,9 @@ export const PredictRequestSchema = z.object({
   billFullText: z.string().max(100000).optional(),
 });
 
-export const SimulateRequestSchema = PredictRequestSchema;
+export const SimulateRequestSchema = PredictRequestSchema.extend({
+  draftUuid: z.string().uuid().optional(),
+});
 
 export type PredictRequest = z.infer<typeof PredictRequestSchema>;
 export type SimulateRequest = z.infer<typeof SimulateRequestSchema>;

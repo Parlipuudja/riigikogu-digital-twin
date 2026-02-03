@@ -10,6 +10,7 @@ import type { SimulationResult, VoteDecision, PartyCode, SimulationJobStatusResp
 
 interface SimulationFormProps {
   initialQuery?: string;
+  draftUuid?: string;
   locale: string;
 }
 
@@ -18,7 +19,7 @@ type ProgressStage = "submitting" | "loading" | "analyzing" | "predicting" | "ca
 const POLL_INTERVAL_MS = 2000;
 const STALE_TIMEOUT_MS = 45000; // 45 seconds without progress = stale
 
-export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
+export function SimulationForm({ initialQuery, draftUuid, locale }: SimulationFormProps) {
   const t = useTranslations("simulation");
   const [billTitle, setBillTitle] = useState(initialQuery || "");
   const [billDescription, setBillDescription] = useState("");
@@ -166,6 +167,7 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
         body: JSON.stringify({
           billTitle: billTitle.trim(),
           billDescription: billDescription.trim() || undefined,
+          draftUuid: draftUuid || undefined,
         }),
       });
 
@@ -173,6 +175,14 @@ export function SimulationForm({ initialQuery, locale }: SimulationFormProps) {
 
       if (!data.success) {
         throw new Error(data.error?.message || "Simulation failed");
+      }
+
+      // Check if we got a cached result
+      if (data.data.cached && data.data.result) {
+        setProgressPercent(100);
+        setResult(data.data.result as SimulationResult);
+        setIsLoading(false);
+        return;
       }
 
       // Start polling for results

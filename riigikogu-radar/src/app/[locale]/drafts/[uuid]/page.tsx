@@ -2,7 +2,8 @@ import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCollection } from "@/lib/data/mongodb";
-import type { Draft, Voting } from "@/types";
+import { findSimulationByDraft, generateBillHash, findExistingSimulation } from "@/lib/simulation";
+import type { Draft, Voting, StoredSimulation } from "@/types";
 
 export async function generateMetadata({
   params: { locale, uuid },
@@ -44,6 +45,20 @@ async function getRelatedVotings(draftUuid: string): Promise<Voting[]> {
   }
 }
 
+async function getSimulation(draftUuid: string, draftTitle: string): Promise<StoredSimulation | null> {
+  try {
+    // First try by draft UUID (most specific)
+    const byDraft = await findSimulationByDraft(draftUuid);
+    if (byDraft) return byDraft;
+
+    // Fall back to bill hash (in case simulated via simulate page with same title)
+    const billHash = generateBillHash(draftTitle);
+    return findExistingSimulation(billHash);
+  } catch {
+    return null;
+  }
+}
+
 export default async function DraftDetailPage({
   params: { locale, uuid },
 }: {
@@ -58,6 +73,7 @@ export default async function DraftDetailPage({
   }
 
   const relatedVotings = await getRelatedVotings(uuid);
+  const simulation = await getSimulation(uuid, draft.title);
   const status = typeof draft.status === "object" ? draft.status.value : draft.status;
 
   return (
@@ -107,23 +123,121 @@ export default async function DraftDetailPage({
             </section>
           )}
 
-          {/* Simulate Vote */}
-          <section className="card bg-rk-50 border-rk-200">
-            <div className="card-content">
-              <h3 className="font-semibold text-ink-900 mb-2">
-                {t("simulateVote")}
-              </h3>
-              <p className="text-sm text-ink-600 mb-4">
-                {t("simulateVoteDesc")}
-              </p>
-              <Link
-                href={`/${locale}/simulate?q=${encodeURIComponent(draft.title)}`}
-                className="inline-flex items-center px-4 py-2 bg-rk-700 text-white rounded hover:bg-rk-800 transition-colors"
-              >
-                {t("simulate")} &rarr;
-              </Link>
-            </div>
-          </section>
+          {/* Simulation Results or Simulate Button */}
+          {simulation ? (
+            <section className="card">
+              <div className="card-header">
+                <h2 className="text-lg font-semibold text-ink-900">
+                  {t("simulationResult")}
+                </h2>
+                <span className="text-xs text-ink-500">
+                  {new Date(simulation.result.simulatedAt).toLocaleDateString(locale === "et" ? "et-EE" : "en-US")}
+                </span>
+              </div>
+              <div className="card-content">
+                {/* Passage Probability */}
+                <div className="mb-6">
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <span className="text-3xl font-bold text-ink-900">
+                      {simulation.result.passageProbability}%
+                    </span>
+                    <span className="text-sm text-ink-600">
+                      {tPred("passageProbability")}
+                    </span>
+                  </div>
+                  <div className="w-full bg-ink-200 rounded-full h-3">
+                    <div
+                      className={`h-3 rounded-full ${
+                        simulation.result.passageProbability >= 50
+                          ? "bg-vote-for"
+                          : "bg-vote-against"
+                      }`}
+                      style={{ width: `${simulation.result.passageProbability}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Vote Counts */}
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-vote-for">
+                      {simulation.result.totalFor}
+                    </div>
+                    <div className="text-xs text-ink-600">{tPred("for")}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-vote-against">
+                      {simulation.result.totalAgainst}
+                    </div>
+                    <div className="text-xs text-ink-600">{tPred("against")}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-vote-abstain">
+                      {simulation.result.totalAbstain}
+                    </div>
+                    <div className="text-xs text-ink-600">{tPred("abstain")}</div>
+                  </div>
+                </div>
+
+                {/* Party Breakdown */}
+                {simulation.result.partyBreakdown.length > 0 && (
+                  <div className="border-t border-ink-100 pt-4">
+                    <h4 className="text-sm font-semibold text-ink-700 mb-3">
+                      {tPred("partyBreakdown")}
+                    </h4>
+                    <div className="space-y-2">
+                      {simulation.result.partyBreakdown.map((party) => (
+                        <div
+                          key={party.partyCode}
+                          className="flex items-center justify-between text-sm"
+                        >
+                          <span className="text-ink-700">{party.party}</span>
+                          <span
+                            className={`font-medium ${
+                              party.stance === "SUPPORTS"
+                                ? "text-vote-for"
+                                : party.stance === "OPPOSES"
+                                ? "text-vote-against"
+                                : "text-ink-500"
+                            }`}
+                          >
+                            {party.predictedFor}-{party.predictedAgainst}-{party.predictedAbstain}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Link to full simulation */}
+                <div className="mt-4 pt-4 border-t border-ink-100">
+                  <Link
+                    href={`/${locale}/simulate?q=${encodeURIComponent(draft.title)}`}
+                    className="text-sm text-rk-700 hover:text-rk-500"
+                  >
+                    {t("viewFullSimulation")} &rarr;
+                  </Link>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="card bg-rk-50 border-rk-200">
+              <div className="card-content">
+                <h3 className="font-semibold text-ink-900 mb-2">
+                  {t("simulateVote")}
+                </h3>
+                <p className="text-sm text-ink-600 mb-4">
+                  {t("simulateVoteDesc")}
+                </p>
+                <Link
+                  href={`/${locale}/simulate?q=${encodeURIComponent(draft.title)}&draftUuid=${draft.uuid}`}
+                  className="inline-flex items-center px-4 py-2 bg-rk-700 text-white rounded hover:bg-rk-800 transition-colors"
+                >
+                  {t("simulate")} &rarr;
+                </Link>
+              </div>
+            </section>
+          )}
 
           {/* Related Votings */}
           {relatedVotings.length > 0 && (

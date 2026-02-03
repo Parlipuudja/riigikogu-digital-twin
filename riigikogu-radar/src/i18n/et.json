@@ -155,7 +155,9 @@
     "abstain": "ERAPOOLETU",
     "absent": "PUUDUB",
     "confidence": "Kindlus",
-    "reasoning": "Põhjendus"
+    "reasoning": "Põhjendus",
+    "passageProbability": "läbimise tõenäosus",
+    "partyBreakdown": "Erakondade lõikes"
   },
   "insights": {
     "title": "Lood ajakirjanikele",
@@ -222,7 +224,9 @@
     "details": "Üksikasjad",
     "phase": "Faas",
     "proceeding": "Menetlus",
-    "viewOnRiigikogu": "Vaata Riigikogu lehel"
+    "viewOnRiigikogu": "Vaata Riigikogu lehel",
+    "simulationResult": "Simulatsiooni tulemus",
+    "viewFullSimulation": "Vaata täielikku simulatsiooni"
   },
   "footer": {
     "about": "Meist",
