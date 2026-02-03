@@ -18,6 +18,8 @@
 
 **Lesson:** Always test on data the model couldn't have seen. Be honest about real-world performance.
 
+**Resolution (2026-02-03):** Added `postCutoffOnly` option to backtesting. Stats API now shows disclaimer when accuracy includes pre-cutoff votes. True out-of-sample testing uses votes after May 2025 (Claude's training cutoff).
+
 ## 3. Single-Provider AI Dependency (Ongoing)
 
 **What we tried:** Hardcoding Anthropic as the only AI provider.

@@ -23,6 +23,15 @@ import type {
 // COST-OPTIMIZED DEFAULTS (75% savings vs original 200 votes)
 // ============================================================================
 
+/**
+ * Claude's training data cutoff date.
+ * Votes AFTER this date are truly out-of-sample and can be used for
+ * honest accuracy claims. Votes before may have data leakage.
+ *
+ * Claude Opus 4.5 / Sonnet 4: May 2025
+ */
+export const MODEL_TRAINING_CUTOFF = new Date('2025-05-01');
+
 // Minimum votes required before starting backtest
 const MIN_TRAINING_VOTES = 20;
 // Default test votes per MP (statistical sampling: 90% confidence, ±8% margin)
@@ -65,6 +74,12 @@ export interface BacktestOptions {
   earlyStop?: boolean;
   /** Use cheaper model for screening (e.g., 'haiku') */
   screeningModel?: string;
+  /**
+   * Only test on votes after MODEL_TRAINING_CUTOFF.
+   * These are truly out-of-sample votes with no data leakage risk.
+   * Use this for honest accuracy reporting.
+   */
+  postCutoffOnly?: boolean;
   onProgress?: (current: number, total: number, result: BacktestResultItem) => void;
 }
 
@@ -331,7 +346,8 @@ export function buildConfusionMatrix(results: BacktestResultItem[]): BacktestCon
  */
 export async function saveBacktestResults(
   mpUuid: string,
-  results: BacktestResultItem[]
+  results: BacktestResultItem[],
+  options: { postCutoffOnly?: boolean } = {}
 ): Promise<BacktestData> {
   const mpsCollection = await getCollection<MPProfile>('mps');
 
@@ -345,6 +361,9 @@ export async function saveBacktestResults(
     confusionMatrix,
     // Store only the most recent results (capped)
     results: results.slice(-MAX_STORED_RESULTS),
+    // Track if this is a post-cutoff (out-of-sample) backtest
+    postCutoffOnly: options.postCutoffOnly || false,
+    cutoffDate: options.postCutoffOnly ? MODEL_TRAINING_CUTOFF.toISOString() : undefined,
   };
 
   await mpsCollection.updateOne(
@@ -413,6 +432,7 @@ export async function runBacktest(
     delayMs = API_DELAY_MS,
     stratifiedSampling = true,  // Enable by default for better distribution
     earlyStop = true,  // Enable by default for cost savings
+    postCutoffOnly = false,  // When true, only test on votes after MODEL_TRAINING_CUTOFF
     onProgress,
   } = options;
 
@@ -431,14 +451,22 @@ export async function runBacktest(
   // Get all votings where MP voted (excluding ABSENT)
   const votingsCollection = await getCollection<Voting>('votings');
 
-  const votings = await votingsCollection.find({
+  // Build query - optionally filter to post-cutoff only
+  const votingQuery: Record<string, unknown> = {
     'voters': {
       $elemMatch: {
         memberUuid: mpUuid,
         decision: { $in: ['FOR', 'AGAINST', 'ABSTAIN'] }
       }
     }
-  }).sort({ votingTime: 1 }).toArray();
+  };
+
+  if (postCutoffOnly) {
+    votingQuery.votingTime = { $gte: MODEL_TRAINING_CUTOFF.toISOString() };
+    console.log(`Post-cutoff mode: only testing votes after ${MODEL_TRAINING_CUTOFF.toISOString().split('T')[0]}`);
+  }
+
+  const votings = await votingsCollection.find(votingQuery).sort({ votingTime: 1 }).toArray();
 
   if (votings.length < minTrainingVotes + 1) {
     throw new Error(`Not enough votes for backtesting. Need at least ${minTrainingVotes + 1}, found ${votings.length}`);
@@ -550,7 +578,7 @@ export async function runBacktest(
     }
 
     // Save final results to MP profile
-    const backtestData = await saveBacktestResults(mpUuid, results);
+    const backtestData = await saveBacktestResults(mpUuid, results, { postCutoffOnly });
 
     // Clear progress on successful completion
     await clearBacktestProgress(mpUuid);

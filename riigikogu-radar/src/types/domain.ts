@@ -524,6 +524,13 @@ export interface BacktestData {
   accuracy: BacktestAccuracy;
   confusionMatrix: BacktestConfusionMatrix;
   results: BacktestResultItem[];
+  /**
+   * If true, this backtest only used votes after the model's training cutoff,
+   * making it a true out-of-sample accuracy measure with no data leakage.
+   */
+  postCutoffOnly?: boolean;
+  /** The cutoff date used (if postCutoffOnly is true) */
+  cutoffDate?: string;
 }
 
 /**

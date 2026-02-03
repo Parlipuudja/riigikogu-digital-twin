@@ -9,6 +9,11 @@ interface StatsResponse {
     overall: number;
     for: number;
     against: number;
+    /**
+     * Whether this accuracy is from post-cutoff (out-of-sample) data only.
+     * Post-cutoff accuracy is the honest measure with no data leakage risk.
+     */
+    isPostCutoffOnly?: boolean;
   };
   coverage: {
     totalMPs: number;
@@ -16,6 +21,10 @@ interface StatsResponse {
     avgSampleSize: number;
   };
   lastUpdated: string | null;
+  /**
+   * Disclaimer about accuracy measurement methodology
+   */
+  disclaimer?: string;
 }
 
 export async function GET() {
@@ -63,6 +72,7 @@ export async function GET() {
     let againstTotal = 0;
     let latestRun: Date | null = null;
     let totalSampleSize = 0;
+    let postCutoffCount = 0;
 
     for (const mp of mps) {
       const bt = mp.backtest;
@@ -70,6 +80,11 @@ export async function GET() {
 
       const sampleSize = bt.sampleSize;
       totalSampleSize += sampleSize;
+
+      // Track if this is post-cutoff data
+      if (bt.postCutoffOnly) {
+        postCutoffCount++;
+      }
 
       // Overall accuracy
       totalCorrect += Math.round((bt.accuracy.overall / 100) * sampleSize);
@@ -98,11 +113,15 @@ export async function GET() {
       }
     }
 
+    // Determine if all backtests are post-cutoff (truly out-of-sample)
+    const allPostCutoff = postCutoffCount === mps.length && mps.length > 0;
+
     const stats: StatsResponse = {
       accuracy: {
         overall: totalSamples > 0 ? Math.round((totalCorrect / totalSamples) * 100 * 10) / 10 : 0,
         for: forTotal > 0 ? Math.round((forCorrect / forTotal) * 100 * 10) / 10 : 0,
         against: againstTotal > 0 ? Math.round((againstCorrect / againstTotal) * 100 * 10) / 10 : 0,
+        isPostCutoffOnly: allPostCutoff,
       },
       coverage: {
         totalMPs,
@@ -110,6 +129,9 @@ export async function GET() {
         avgSampleSize: mps.length > 0 ? Math.round(totalSampleSize / mps.length) : 0,
       },
       lastUpdated: latestRun?.toISOString() || null,
+      disclaimer: allPostCutoff
+        ? undefined
+        : "Accuracy includes votes before model training cutoff (May 2025). True out-of-sample accuracy may differ.",
     };
 
     return apiSuccess<StatsResponse>(stats, {

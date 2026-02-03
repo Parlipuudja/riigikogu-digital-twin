@@ -50,9 +50,10 @@ All historical data synced:
 
 ## Priority 4: Trust Building
 
-1. Fix backtesting (data leakage concern)
-2. Honest accuracy reporting
+1. ~~Fix backtesting (data leakage concern)~~ — **Done:** Added `postCutoffOnly` option, stats shows disclaimer
+2. ~~Honest accuracy reporting~~ — **Done:** Stats API flags when data may have leakage
 3. Methodology documentation exists at /about#methodology
+4. **Next:** Re-run backtests with `postCutoffOnly: true` to get clean accuracy numbers
 
 ## What We're NOT Prioritizing
 
