@@ -23,12 +23,13 @@ import { runBacktest, getBacktestStatus } from '../src/lib/prediction/backtestin
 import type { MPProfile, BacktestResultItem } from '../src/types';
 
 // ============================================================================
-// HARD LIMITS - These prevent runaway API costs
+// COST-OPTIMIZED LIMITS
 // ============================================================================
 const MAX_MPS_PER_RUN = 10;              // Max MPs to process in one run
-const MAX_VOTES_PER_MP = 200;            // Max votes per MP (absolute cap)
+const DEFAULT_VOTES_PER_MP = 50;         // Cost-efficient default (75% savings)
+const MAX_VOTES_PER_MP = 200;            // Max votes per MP (hard cap)
 const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000; // 4 hours max runtime
-const MAX_TOTAL_API_CALLS = 2500;        // Max Claude API calls per run
+const MAX_TOTAL_API_CALLS = 2500;        // Max API calls per run
 
 // Track global usage
 let totalApiCalls = 0;
@@ -57,13 +58,19 @@ function parseArgs(): {
   maxVotes: number;
   resume: boolean;
   help: boolean;
+  noStratified: boolean;
+  noEarlyStop: boolean;
+  full: boolean;
 } {
   const args = process.argv.slice(2);
   const result = {
     mpSlug: undefined as string | undefined,
-    maxVotes: MAX_VOTES_PER_MP, // Use hard limit as default
+    maxVotes: DEFAULT_VOTES_PER_MP, // Cost-efficient default
     resume: false,
     help: false,
+    noStratified: false,
+    noEarlyStop: false,
+    full: false,
   };
 
   for (const arg of args) {
@@ -71,6 +78,15 @@ function parseArgs(): {
       result.help = true;
     } else if (arg === '--resume') {
       result.resume = true;
+    } else if (arg === '--no-stratified') {
+      result.noStratified = true;
+    } else if (arg === '--no-early-stop') {
+      result.noEarlyStop = true;
+    } else if (arg === '--full') {
+      // Full mode: 200 votes, no early stopping
+      result.maxVotes = MAX_VOTES_PER_MP;
+      result.noEarlyStop = true;
+      result.full = true;
     } else if (arg.startsWith('--mp=')) {
       result.mpSlug = arg.slice(5);
     } else if (arg.startsWith('--max-votes=')) {
@@ -90,6 +106,11 @@ function printHelp(): void {
   console.log(`
 Backtest CLI - Run accuracy backtests for digital MP profiles
 
+COST-OPTIMIZED DEFAULTS:
+  - Default: ${DEFAULT_VOTES_PER_MP} votes/MP (75% savings vs full 200)
+  - Stratified sampling for representative distribution
+  - Early stopping when accuracy stabilizes
+
 HARD LIMITS (to prevent runaway costs):
   - Max ${MAX_MPS_PER_RUN} MPs per run (unless --mp=specific)
   - Max ${MAX_VOTES_PER_MP} votes per MP
@@ -101,26 +122,36 @@ Usage:
 
 Options:
   --mp=<slug>        Run backtest for specific MP (by slug)
-  --max-votes=<n>    Maximum test votes per MP (hard limit: ${MAX_VOTES_PER_MP})
+  --max-votes=<n>    Maximum test votes per MP (default: ${DEFAULT_VOTES_PER_MP}, max: ${MAX_VOTES_PER_MP})
+  --full             Full mode: 200 votes, no early stopping (original behavior)
+  --no-stratified    Disable stratified sampling (sequential instead)
+  --no-early-stop    Disable early stopping (always run all votes)
   --resume           Resume interrupted backtests only
   --help, -h         Show this help message
 
 Examples:
-  npx tsx scripts/run-backtest.ts                    # Up to ${MAX_MPS_PER_RUN} active MPs
-  npx tsx scripts/run-backtest.ts --mp=tonis-lukas   # Single MP (no MP limit)
-  npx tsx scripts/run-backtest.ts --max-votes=50     # Quick test
+  npx tsx scripts/run-backtest.ts                    # Cost-efficient: ~50 votes/MP
+  npx tsx scripts/run-backtest.ts --mp=tonis-lukas   # Single MP
+  npx tsx scripts/run-backtest.ts --full             # Full 200 votes (original)
+  npx tsx scripts/run-backtest.ts --max-votes=100    # Custom sample size
   npx tsx scripts/run-backtest.ts --resume           # Resume paused
+
+Cost Comparison:
+  Default (50 votes):   ~$0.24/MP  →  ~$25/month (101 MPs)
+  Full (200 votes):     ~$0.96/MP  →  ~$100/month (101 MPs)
 `);
 }
 
 async function runBacktestForMP(
   mp: MPProfile,
-  maxVotes: number
+  maxVotes: number,
+  options: { stratifiedSampling: boolean; earlyStop: boolean }
 ): Promise<void> {
   const name = mp.info?.fullName || mp.slug;
   console.log(`\n${'='.repeat(60)}`);
   console.log(`Starting backtest for: ${name}`);
   console.log(`UUID: ${mp.uuid}`);
+  console.log(`Max votes: ${maxVotes} | Stratified: ${options.stratifiedSampling} | Early stop: ${options.earlyStop}`);
   console.log(`${'='.repeat(60)}`);
 
   const startTime = Date.now();
@@ -129,6 +160,8 @@ async function runBacktestForMP(
   try {
     const results = await runBacktest(mp.uuid, {
       maxVotes,
+      stratifiedSampling: options.stratifiedSampling,
+      earlyStop: options.earlyStop,
       onProgress: (current, total, result) => {
         incrementApiCalls(); // Track each API call
 
@@ -254,14 +287,20 @@ async function main(): Promise<void> {
   }
 
   console.log(`\nProcessing ${mpsToRun.length} MP(s)...`);
-  console.log(`Hard limits: ${MAX_VOTES_PER_MP} votes/MP, ${MAX_TOTAL_API_CALLS} total API calls, ${MAX_RUNTIME_MS / (60 * 60 * 1000)}h runtime`);
+  console.log(`Settings: ${args.maxVotes} votes/MP, stratified=${!args.noStratified}, early-stop=${!args.noEarlyStop}`);
+  console.log(`Hard limits: ${MAX_VOTES_PER_MP} max votes/MP, ${MAX_TOTAL_API_CALLS} total API calls, ${MAX_RUNTIME_MS / (60 * 60 * 1000)}h runtime`);
+
+  const backTestOptions = {
+    stratifiedSampling: !args.noStratified,
+    earlyStop: !args.noEarlyStop,
+  };
 
   // Process each MP
   for (const mp of mpsToRun) {
     try {
       checkHardLimits(); // Check before starting each MP
       runningResults = []; // Reset for each MP
-      await runBacktestForMP(mp, args.maxVotes);
+      await runBacktestForMP(mp, args.maxVotes, backTestOptions);
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('HARD LIMIT')) {
         console.error(`\n${error.message}`);

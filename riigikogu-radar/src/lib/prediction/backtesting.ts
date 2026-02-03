@@ -6,7 +6,7 @@
  */
 
 import { getCollection } from '../data/mongodb';
-import { getAnthropicClient, extractTextContent, DEFAULT_MODEL } from '../ai/client';
+import { getProvider } from '../ai/providers';
 import type {
   VoteDecision,
   Voting,
@@ -19,14 +19,25 @@ import type {
   BacktestProgress,
 } from '@/types';
 
+// ============================================================================
+// COST-OPTIMIZED DEFAULTS (75% savings vs original 200 votes)
+// ============================================================================
+
 // Minimum votes required before starting backtest
 const MIN_TRAINING_VOTES = 20;
-// Maximum test votes per MP
+// Default test votes per MP (statistical sampling: 90% confidence, ±8% margin)
+const DEFAULT_TEST_VOTES = 50;
+// Maximum test votes per MP (hard cap)
 const MAX_TEST_VOTES = 200;
-// Delay between API calls (ms)
-const API_DELAY_MS = 2000;
+// Delay between API calls (ms) - reduced for faster runs
+const API_DELAY_MS = 1500;
 // Max results to store in profile
 const MAX_STORED_RESULTS = 100;
+
+// Early stopping configuration
+const EARLY_STOP_MIN_SAMPLES = 30;  // Minimum samples before checking
+const EARLY_STOP_STABILITY_WINDOW = 10;  // Window to check stability
+const EARLY_STOP_VARIANCE_THRESHOLD = 0.05;  // Stop if variance < 5%
 
 export interface BackdatedContext {
   mpName: string;
@@ -48,6 +59,12 @@ export interface BacktestOptions {
   maxVotes?: number;
   minTrainingVotes?: number;
   delayMs?: number;
+  /** Enable stratified sampling (proportional FOR/AGAINST/ABSTAIN) */
+  stratifiedSampling?: boolean;
+  /** Enable early stopping when accuracy stabilizes */
+  earlyStop?: boolean;
+  /** Use cheaper model for screening (e.g., 'haiku') */
+  screeningModel?: string;
   onProgress?: (current: number, total: number, result: BacktestResultItem) => void;
 }
 
@@ -140,26 +157,18 @@ IMPORTANT: Only respond with a valid JSON object, no other text:
 }
 
 /**
- * Make a single backtest prediction using Claude
+ * Make a single backtest prediction using AI provider
  */
 async function makeBacktestPrediction(
   context: BackdatedContext,
   billTitle: string
 ): Promise<{ prediction: VoteDecision; confidence: number }> {
   const prompt = buildBacktestPrompt(context, billTitle);
+  const provider = getProvider();
 
-  const response = await getAnthropicClient().messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: 256,
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const response = await provider.complete(prompt, { maxTokens: 256 });
 
-  const textContent = extractTextContent(response);
-  if (!textContent) {
-    throw new Error('No text response from Claude');
-  }
-
-  const jsonMatch = textContent.match(/\{[\s\S]*\}/);
+  const jsonMatch = response.text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error('Could not parse JSON from response');
   }
@@ -169,6 +178,81 @@ async function makeBacktestPrediction(
     prediction: result.prediction as VoteDecision,
     confidence: Math.min(100, Math.max(0, result.confidence)),
   };
+}
+
+/**
+ * Check if early stopping criteria is met
+ * Returns true if accuracy has stabilized (variance below threshold)
+ */
+function shouldEarlyStop(results: BacktestResultItem[]): boolean {
+  if (results.length < EARLY_STOP_MIN_SAMPLES) return false;
+
+  // Get last N results for stability check
+  const recentResults = results.slice(-EARLY_STOP_STABILITY_WINDOW);
+  const accuracies: number[] = [];
+
+  // Calculate rolling accuracy for each point in the window
+  for (let i = EARLY_STOP_MIN_SAMPLES; i <= results.length; i++) {
+    const subset = results.slice(0, i);
+    const correct = subset.filter(r => r.correct).length;
+    accuracies.push(correct / subset.length);
+  }
+
+  if (accuracies.length < EARLY_STOP_STABILITY_WINDOW) return false;
+
+  // Check variance of recent accuracies
+  const recentAccuracies = accuracies.slice(-EARLY_STOP_STABILITY_WINDOW);
+  const mean = recentAccuracies.reduce((a, b) => a + b, 0) / recentAccuracies.length;
+  const variance = recentAccuracies.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / recentAccuracies.length;
+
+  return variance < EARLY_STOP_VARIANCE_THRESHOLD;
+}
+
+/**
+ * Select stratified sample of votings (proportional FOR/AGAINST/ABSTAIN)
+ */
+function selectStratifiedSample(
+  votings: Voting[],
+  mpUuid: string,
+  sampleSize: number,
+  startIndex: number
+): number[] {
+  // Categorize votings by MP's decision
+  const forIndices: number[] = [];
+  const againstIndices: number[] = [];
+  const abstainIndices: number[] = [];
+
+  for (let i = startIndex; i < votings.length; i++) {
+    const voter = votings[i].voters.find((v: VotingVoter) => v.memberUuid === mpUuid);
+    if (!voter || voter.decision === 'ABSENT') continue;
+
+    if (voter.decision === 'FOR') forIndices.push(i);
+    else if (voter.decision === 'AGAINST') againstIndices.push(i);
+    else if (voter.decision === 'ABSTAIN') abstainIndices.push(i);
+  }
+
+  const totalAvailable = forIndices.length + againstIndices.length + abstainIndices.length;
+  const actualSample = Math.min(sampleSize, totalAvailable);
+
+  // Calculate proportional allocation
+  const forRatio = forIndices.length / totalAvailable;
+  const againstRatio = againstIndices.length / totalAvailable;
+
+  const forSample = Math.round(actualSample * forRatio);
+  const againstSample = Math.round(actualSample * againstRatio);
+  const abstainSample = actualSample - forSample - againstSample;
+
+  // Random selection from each category
+  const shuffle = <T>(arr: T[]): T[] => arr.sort(() => Math.random() - 0.5);
+
+  const selectedIndices = [
+    ...shuffle(forIndices).slice(0, forSample),
+    ...shuffle(againstIndices).slice(0, againstSample),
+    ...shuffle(abstainIndices).slice(0, abstainSample),
+  ];
+
+  // Sort by voting time order for temporal consistency
+  return selectedIndices.sort((a, b) => a - b);
 }
 
 /**
@@ -313,15 +397,22 @@ function delay(ms: number): Promise<void> {
 
 /**
  * Run backtest for a single MP
+ *
+ * Cost-optimized defaults:
+ * - 50 samples (vs 200) for 75% cost savings
+ * - Stratified sampling for representative distribution
+ * - Early stopping when accuracy stabilizes
  */
 export async function runBacktest(
   mpUuid: string,
   options: BacktestOptions = {}
 ): Promise<BacktestData> {
   const {
-    maxVotes = MAX_TEST_VOTES,
+    maxVotes = DEFAULT_TEST_VOTES,  // Changed from MAX_TEST_VOTES
     minTrainingVotes = MIN_TRAINING_VOTES,
     delayMs = API_DELAY_MS,
+    stratifiedSampling = true,  // Enable by default for better distribution
+    earlyStop = true,  // Enable by default for cost savings
     onProgress,
   } = options;
 
@@ -378,10 +469,28 @@ export async function runBacktest(
   progress.status = 'running';
   await saveBacktestProgress(progress);
 
-  const endIndex = Math.min(votings.length, minTrainingVotes + maxVotes);
+  // Determine which indices to test
+  let indicesToTest: number[];
+
+  if (stratifiedSampling && results.length === 0) {
+    // Use stratified sampling for new backtests
+    indicesToTest = selectStratifiedSample(votings, mpUuid, maxVotes, minTrainingVotes);
+    console.log(`Using stratified sampling: ${indicesToTest.length} votes selected`);
+  } else {
+    // Sequential for resume or when stratified is disabled
+    const endIndex = Math.min(votings.length, minTrainingVotes + maxVotes);
+    indicesToTest = Array.from({ length: endIndex - startIndex }, (_, i) => startIndex + i);
+  }
+
+  const totalToTest = indicesToTest.length;
+  let testedCount = 0;
+  let earlyStopTriggered = false;
 
   try {
-    for (let i = startIndex; i < endIndex; i++) {
+    for (const i of indicesToTest) {
+      // Skip if already processed (for resume)
+      if (i < startIndex) continue;
+
       const voting = votings[i];
       const votingDate = new Date(voting.votingTime);
 
@@ -414,6 +523,7 @@ export async function runBacktest(
       };
 
       results.push(result);
+      testedCount++;
 
       // Update progress
       progress.currentIndex = i + 1;
@@ -423,11 +533,18 @@ export async function runBacktest(
 
       // Callback for progress updates
       if (onProgress) {
-        onProgress(i - minTrainingVotes + 1, endIndex - minTrainingVotes, result);
+        onProgress(testedCount, totalToTest, result);
       }
 
-      // Rate limiting
-      if (i < endIndex - 1) {
+      // Check early stopping criteria
+      if (earlyStop && shouldEarlyStop(results)) {
+        console.log(`Early stopping triggered at ${results.length} samples (accuracy stabilized)`);
+        earlyStopTriggered = true;
+        break;
+      }
+
+      // Rate limiting (skip on last item)
+      if (testedCount < totalToTest) {
         await delay(delayMs);
       }
     }

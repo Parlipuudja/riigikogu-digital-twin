@@ -7,7 +7,7 @@
  */
 
 import { getCollection, closeConnection } from "../src/lib/data/mongodb";
-import { getAIProvider } from "../src/lib/ai/providers";
+import { getProvider } from "../src/lib/ai/providers";
 import type { Voting, VotingVoter, MPProfile, VoteDecision } from "../src/types";
 
 // Model training cutoffs (approximate)
@@ -108,7 +108,7 @@ async function calculatePartyLineBaseline(
 // Make a prediction with the AI provider
 async function makePrediction(prompt: string): Promise<VoteDecision | null> {
   try {
-    const provider = getAIProvider();
+    const provider = getProvider();
     const result = await provider.complete(prompt, { maxTokens: 100 });
     const match = result.text.match(/\{[\s\S]*\}/);
     if (match) {
@@ -139,8 +139,8 @@ async function runDiagnostic(config: DiagnosticConfig): Promise<DiagnosticResult
 
   // Get test MP(s)
   const mpQuery = config.mpSlug
-    ? { slug: config.mpSlug, status: "active" }
-    : { status: "active" };
+    ? { slug: config.mpSlug, status: "active" as const }
+    : { status: "active" as const };
   const mps = await mpsCollection.find(mpQuery).limit(config.mpSlug ? 1 : 5).toArray();
 
   if (mps.length === 0) {
