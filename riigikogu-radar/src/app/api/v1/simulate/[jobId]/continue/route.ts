@@ -47,19 +47,23 @@ export async function POST(
     const protocol = headersList.get("x-forwarded-proto") || "http";
     const baseUrl = `${protocol}://${host}`;
 
-    // Continue processing (this will self-invoke again if needed)
-    continueProcessingJob(jobId, continuationToken, baseUrl).catch((error) => {
+    // Process this batch SYNCHRONOUSLY (must complete within maxDuration)
+    // then self-invoke for next batch if needed
+    try {
+      await continueProcessingJob(jobId, continuationToken, baseUrl);
+    } catch (error) {
       console.error(`Continuation failed for job ${jobId}:`, error);
-    });
+      // Don't throw - job manager already marked it failed
+    }
 
-    // Return immediately - processing continues in background
+    // Return after processing completes
     return NextResponse.json(
       {
         success: true,
-        data: { message: "Continuation started" },
+        data: { message: "Batch processed" },
         meta: { requestId, timestamp: new Date().toISOString() },
       },
-      { status: 202 }
+      { status: 200 }
     );
   } catch (error) {
     console.error("Continuation request error:", error);

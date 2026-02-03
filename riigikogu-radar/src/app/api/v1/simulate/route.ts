@@ -71,10 +71,18 @@ export async function POST(request: Request) {
     const protocol = headersList.get("x-forwarded-proto") || "http";
     const baseUrl = `${protocol}://${host}`;
 
-    // Start processing in background (don't await full completion)
-    // This processes first batch and triggers continuation
-    startProcessingJob(job, baseUrl).catch((error) => {
-      console.error(`Background processing failed for job ${job._id}:`, error);
+    // Trigger first batch via self-invocation (fire-and-forget)
+    // This ensures the response returns immediately while processing starts in a new request
+    const continueUrl = `${baseUrl}/api/v1/simulate/${job._id}/continue`;
+    fetch(continueUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Continuation-Token": job.continuationToken,
+      },
+      body: JSON.stringify({ token: job.continuationToken }),
+    }).catch((err) => {
+      console.error(`Failed to trigger initial processing for job ${job._id}:`, err);
     });
 
     // Return job info immediately
