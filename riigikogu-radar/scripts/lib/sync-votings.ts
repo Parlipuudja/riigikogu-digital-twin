@@ -72,9 +72,11 @@ async function fetchWithDynamicRetry<T>(
 
 /**
  * Get the date range for a year
+ * Extended to include 14th convocation (2019-2023) for historical patterns
  */
 function getYearDateRange(year: number): { startDate: string; endDate: string } {
-  const riigikogusStart = new Date('2023-04-06');
+  // 14th convocation started April 4, 2019 (extended from 15th which started April 6, 2023)
+  const riigikogusStart = new Date('2019-04-04');
   const now = new Date();
 
   let startDate = new Date(year, 0, 1);
@@ -229,7 +231,7 @@ export async function syncAllVotings(): Promise<{ total: number; years: number[]
   const progress = await getProgress('votings');
 
   if (!progress) {
-    await initProgress('votings', today, '2023-04-06');
+    await initProgress('votings', today, '2019-04-04');
   }
 
   await updateStatus('votings', 'running');

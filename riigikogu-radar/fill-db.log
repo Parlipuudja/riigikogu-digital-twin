@@ -1,0 +1,12 @@
+=== Starting database fill process ===
+Target: 80% capacity (~410 MB)
+Tue Feb  3 10:48:30 UTC 2026
+
+=== Syncing votings for 2020 ===
+
+Syncing votings for 2020...
+  Date range: 2020-01-01 to 2020-12-31
+  Rate limited - delay increased to 1.0s
+  Rate limited - delay increased to 2.0s
+  Rate limited - delay increased to 4.0s
+  Rate limited - delay increased to 8.0s

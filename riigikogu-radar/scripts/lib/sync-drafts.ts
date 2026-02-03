@@ -57,7 +57,7 @@ async function fetchWithDynamicRetry<T>(
 }
 
 function getYearDateRange(year: number): { startDate: string; endDate: string } {
-  const riigikogusStart = new Date('2023-04-06');
+  const riigikogusStart = new Date('2019-04-04');
   const now = new Date();
 
   let startDate = new Date(year, 0, 1);
@@ -183,7 +183,7 @@ export async function syncAllDrafts(): Promise<{ total: number; years: number[] 
   const progress = await getProgress('drafts');
 
   if (!progress) {
-    await initProgress('drafts', today, '2023-04-06');
+    await initProgress('drafts', today, '2019-04-04');
   }
 
   await updateStatus('drafts', 'running');
