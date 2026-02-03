@@ -350,12 +350,21 @@ export interface MPNotableVote {
   reasonEn?: string;
 }
 
+export interface MPQuoteReference {
+  excerpt: string;        // 200-400 char direct quote
+  excerptEn?: string;     // English translation
+  speechDate: string;     // When MP said this
+  topic: string;          // What was being debated
+  relevance: number;      // 0-1 relevance score
+}
+
 export interface MPKeyIssue {
   issue: string;
   issueEn?: string;
   stance: string;
   stanceEn?: string;
   confidence: number;
+  quote?: MPQuoteReference;  // Direct quote from MP supporting this stance
 }
 
 export interface PartyLoyalty {

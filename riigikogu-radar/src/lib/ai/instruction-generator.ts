@@ -178,8 +178,9 @@ function calculateVotingStats(
   }
 
   // Use real loyalty if we have data, otherwise default to 85%
+  // Use floor to avoid rounding up (e.g., 99.7% should show as 99%, not 100%)
   const partyLoyaltyPercent = totalVotesWithPartyData > 0
-    ? Math.round((votesWithParty / totalVotesWithPartyData) * 100)
+    ? Math.floor((votesWithParty / totalVotesWithPartyData) * 100)
     : 85;
 
   return {
@@ -419,12 +420,141 @@ Respond in JSON format:
     analysis.decisionFactors
   );
 
+  // Enhance key issues with actual quotes from speeches
+  const enhancedKeyIssues = enhanceKeyIssuesWithQuotes(
+    analysis.politicalProfile.keyIssues,
+    speeches
+  );
+
   return {
-    politicalProfile: analysis.politicalProfile,
+    politicalProfile: {
+      ...analysis.politicalProfile,
+      keyIssues: enhancedKeyIssues,
+    },
     behavioralPatterns: analysis.behavioralPatterns,
     decisionFactors: analysis.decisionFactors,
     promptTemplate,
   };
+}
+
+/**
+ * Extract keywords from text for matching
+ */
+function extractKeywords(text: string): string[] {
+  // Estonian stop words to filter out
+  const stopWords = new Set([
+    'ja', 'et', 'on', 'ei', 'see', 'ka', 'kui', 'mis', 'aga', 'või', 'siis',
+    'ning', 'oma', 'seda', 'ole', 'veel', 'kuid', 'mida', 'nii', 'juba',
+    'eesti', 'saab', 'selle', 'need', 'vaid', 'meie', 'kes', 'kõik', 'olla',
+    'väga', 'ainult', 'peab', 'olema', 'oleks', 'olnud', 'meil', 'neid',
+    'the', 'and', 'is', 'of', 'to', 'in', 'for', 'with', 'on', 'that', 'this'
+  ]);
+
+  return text
+    .toLowerCase()
+    .replace(/[^\w\sõäöü]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !stopWords.has(word));
+}
+
+/**
+ * Find the best quote from speeches matching keywords
+ */
+function findBestQuote(
+  keywords: string[],
+  speeches: Array<{ sessionDate: string; topic: string | null; text: string }>
+): { excerpt: string; speechDate: string; topic: string; relevance: number } | null {
+  if (keywords.length === 0 || speeches.length === 0) return null;
+
+  let bestMatch: {
+    excerpt: string;
+    speechDate: string;
+    topic: string;
+    relevance: number;
+    matchCount: number;
+  } | null = null;
+
+  for (const speech of speeches) {
+    const textLower = speech.text.toLowerCase();
+    const matchingKeywords = keywords.filter(kw => textLower.includes(kw));
+    const matchCount = matchingKeywords.length;
+
+    if (matchCount === 0) continue;
+
+    // Find the best sentence/excerpt containing the most keywords
+    const sentences = speech.text.split(/[.!?]+/).filter(s => s.trim().length > 50);
+
+    for (const sentence of sentences) {
+      const sentenceLower = sentence.toLowerCase();
+      const sentenceMatches = matchingKeywords.filter(kw => sentenceLower.includes(kw)).length;
+
+      if (sentenceMatches > 0) {
+        const relevance = sentenceMatches / keywords.length;
+
+        // Extract a 200-400 char excerpt around the sentence
+        let excerpt = sentence.trim();
+        if (excerpt.length > 400) {
+          excerpt = excerpt.substring(0, 397) + '...';
+        } else if (excerpt.length < 100) {
+          // Too short, skip
+          continue;
+        }
+
+        if (!bestMatch || sentenceMatches > bestMatch.matchCount ||
+            (sentenceMatches === bestMatch.matchCount && relevance > bestMatch.relevance)) {
+          bestMatch = {
+            excerpt,
+            speechDate: speech.sessionDate,
+            topic: speech.topic || 'Täiskogu istung',
+            relevance,
+            matchCount: sentenceMatches,
+          };
+        }
+      }
+    }
+  }
+
+  if (!bestMatch) return null;
+
+  return {
+    excerpt: bestMatch.excerpt,
+    speechDate: bestMatch.speechDate,
+    topic: bestMatch.topic,
+    relevance: bestMatch.relevance,
+  };
+}
+
+/**
+ * Enhance key issues with actual quotes from MP speeches
+ */
+function enhanceKeyIssuesWithQuotes(
+  keyIssues: Array<{
+    issue: string;
+    issueEn?: string;
+    stance: string;
+    stanceEn?: string;
+    confidence: number;
+  }>,
+  speeches: Array<{ sessionDate: string; topic: string | null; text: string }>
+): Array<{
+  issue: string;
+  issueEn?: string;
+  stance: string;
+  stanceEn?: string;
+  confidence: number;
+  quote?: { excerpt: string; speechDate: string; topic: string; relevance: number };
+}> {
+  return keyIssues.map(issue => {
+    // Extract keywords from both issue and stance (Estonian primarily)
+    const issueKeywords = extractKeywords(issue.issue + ' ' + issue.stance);
+    const quote = findBestQuote(issueKeywords, speeches);
+
+    if (quote && quote.relevance >= 0.2) {
+      return { ...issue, quote };
+    }
+
+    return issue;
+  });
 }
 
 /**

@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 10; // Fast return - processing happens via self-invocation
 
 // Feature flag: Disable expensive 101-MP simulation
-const SIMULATION_DISABLED = true;
+// Now using Haiku model (12x cheaper) - safe to enable
+const SIMULATION_DISABLED = false;
 
 /**
  * POST /api/v1/simulate

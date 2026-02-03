@@ -1,6 +1,6 @@
 # Current Priorities
 
-*Last updated: 2026-02-03 13:15 UTC*
+*Last updated: 2026-02-03 14:30 UTC*
 
 ## Status Summary
 
@@ -9,9 +9,10 @@
 | Votings | 4,333 |
 | MPs | 101 |
 | DB Size | ~268 MB |
-| Embeddings | ~75% (votings + stenograms in progress) |
+| Embeddings | ~78% (500 votings + 70/200 stenograms) |
 | Vector Index | READY (queryable) |
 | Production | Healthy |
+| Auth | LIVE |
 
 ## Completed This Session
 
@@ -21,7 +22,7 @@
    - Maris Lauri: **90%** (20 votes)
    - Tõnis Lukas: **87%** (39 votes)
 4. **API leakage audit** - Confirmed clean architecture
-5. **Embedding generation** - 500 votings done, ~50/200 stenograms done
+5. **Embedding generation** - 500 votings + 70/200 stenograms (hit 60min limit)
 6. **UI improvements:**
    - Added login button to header (linked to auth)
    - Added OOS (out-of-sample) indicators on backtest results
@@ -30,25 +31,31 @@
    - Login page at /[locale]/login
    - Session-aware header (login/logout)
    - Credentials provider (admin-only for now)
+8. **Auth environment variables deployed:**
+   - AUTH_SECRET added to Vercel
+   - ADMIN_PASSWORD added to Vercel
+   - Login functional at https://seosetu.ee/et/login
 
 ## In Progress
 
-- **Embedding generation** (task bd72480) - ~50/200 stenograms
+- **Embedding generation** - Can restart to continue from 70/200 stenograms
 
 ## Next Priorities
 
-### Priority 1: Complete Auth Setup
-- [ ] Add AUTH_SECRET to .env
-- [ ] Add ADMIN_PASSWORD to .env
-- [ ] Test login flow locally
-- [ ] Deploy auth changes
+### Priority 0: Bug Fixes
+- [x] **Party loyalty fixed at 85%** - Fixed via fix-party-loyalty.ts script (101 MPs updated)
+- [x] **Party loyalty rounding** - Now uses Math.floor to prevent rounding up to 100% (verified in instruction-generator.ts:183)
+- [ ] **MP citations should be direct quotes** - Key issues stances should be actual quotes from the MP's speeches, not AI-generated summaries
 
-### Priority 2: Add Admin-Only Features
-- [ ] Backtest trigger from UI (admin only)
-- [ ] Data sync trigger (admin only)
-- [ ] System status dashboard
+### Priority 1: Add Admin-Only Features ✅ COMPLETE
+- [x] Add AUTH_SECRET to Vercel
+- [x] Add ADMIN_PASSWORD to Vercel
+- [x] Deploy auth changes
+- [x] System status dashboard at /admin
+- [x] Backtest trigger from UI (admin only)
+- [x] Data sync info and CLI commands (admin only)
 
-### Priority 3: Enable Production Failover
+### Priority 2: Enable Production Failover
 **Blocked on user action:**
 ```
 # In Vercel environment variables:

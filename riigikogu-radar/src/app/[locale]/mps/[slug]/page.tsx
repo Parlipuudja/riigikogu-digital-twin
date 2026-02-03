@@ -177,14 +177,55 @@ export default async function MPDetailPage({
                 <h2 className="text-lg font-semibold">{t("keyIssues")}</h2>
               </div>
               <div className="card-content">
-                <ul className="space-y-2">
-                  {mp.instruction.politicalProfile.keyIssues.map((issue, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-ink-700">
-                      <span className="text-rk-500 mt-0.5">•</span>
-                      {locale === "et" ? issue.issue : (issue.issueEn || issue.issue)}
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-4">
+                  {mp.instruction.politicalProfile.keyIssues.map((issue, i) => {
+                    const issueText = locale === "et" ? issue.issue : (issue.issueEn || issue.issue);
+                    const stanceText = locale === "et" ? issue.stance : (issue.stanceEn || issue.stance);
+                    const quote = issue.quote;
+
+                    return (
+                      <div key={i} className="border-l-2 border-rk-200 pl-3">
+                        <div className="font-medium text-ink-900 text-sm">
+                          {issueText}
+                        </div>
+                        {stanceText && (
+                          <p className="text-xs text-ink-600 mt-1">
+                            {stanceText}
+                          </p>
+                        )}
+                        {quote && (
+                          <div className="mt-2 pl-2 border-l border-ink-200">
+                            <p className="text-xs text-ink-500 italic">
+                              &ldquo;{quote.excerpt}&rdquo;
+                            </p>
+                            <p className="text-[10px] text-ink-400 mt-0.5">
+                              — {quote.topic}, {new Date(quote.speechDate).toLocaleDateString(locale === "et" ? "et-EE" : "en-US", { year: "numeric", month: "short", day: "numeric" })}
+                            </p>
+                          </div>
+                        )}
+                        {issue.confidence && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <div
+                                  key={n}
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    n <= Math.round(issue.confidence / 20)
+                                      ? "bg-rk-500"
+                                      : "bg-ink-200"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-ink-400 ml-1">
+                              {locale === "et" ? "kindlus" : "confidence"}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </section>
           )}

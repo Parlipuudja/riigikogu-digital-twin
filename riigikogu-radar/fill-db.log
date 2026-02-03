@@ -801,3 +801,10 @@ Starting embedding generation (using Voyage AI voyage-multilingual-2)...
 
 Generating embeddings for 500 votings...
   Processed 10/500 votings (API calls: 1, ~0K tokens)
+  Processed 20/500 votings (API calls: 2, ~0K tokens)
+  Processed 30/500 votings (API calls: 3, ~0K tokens)
+  Processed 40/500 votings (API calls: 4, ~0K tokens)
+  Processed 50/500 votings (API calls: 5, ~0K tokens)
+  Processed 60/500 votings (API calls: 6, ~0K tokens)
+  Processed 70/500 votings (API calls: 7, ~0K tokens)
+  Processed 80/500 votings (API calls: 8, ~0K tokens)

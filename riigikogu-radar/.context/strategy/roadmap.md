@@ -34,6 +34,7 @@ A tool that journalists covering Riigikogu consider **essential** — trusted en
 
 ### 2.2 Authentication & Admin 🔄
 - [x] Login system (NextAuth.js)
+- [x] Environment variables configured (Vercel)
 - [ ] Admin dashboard for system status
 - [ ] Admin-triggered backtests
 - [ ] Admin-triggered data sync
@@ -41,7 +42,7 @@ A tool that journalists covering Riigikogu consider **essential** — trusted en
 ### 2.3 Data Quality
 - [x] Vector search index working
 - [x] Embeddings generation pipeline
-- [ ] 80%+ embedding coverage (currently ~75%)
+- [ ] 80%+ embedding coverage (currently ~78%)
 - [ ] Automated daily sync from Riigikogu API
 
 ### 2.4 Reliability

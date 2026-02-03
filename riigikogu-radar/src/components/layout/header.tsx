@@ -20,6 +20,7 @@ export function Header() {
     { href: `/${locale}/insights`, label: t("insights") },
     { href: `/${locale}/accuracy`, label: t("accuracy") },
     { href: `/${locale}/about`, label: t("about") },
+    ...(session ? [{ href: `/${locale}/admin`, label: locale === "et" ? "Admin" : "Admin" }] : []),
   ];
 
   const isActive = (href: string, exact?: boolean) => {

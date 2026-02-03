@@ -82,7 +82,7 @@ export default async function AccuracyPage({ params: { locale } }: { params: { l
               </p>
               <p>
                 <strong>RAG (Retrieval-Augmented Generation):</strong> Iga ennustuse jaoks otsime
-                vektorotsinguga sarnaseid varasemaid hääletusi ja kõnesid, et anda tehisintellektile
+                vektorotsinguga sarnaseid varasemaid hääletusi ja kõnesid, et anda tehisarule
                 konteksti.
               </p>
               <p>

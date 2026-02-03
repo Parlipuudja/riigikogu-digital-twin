@@ -23,7 +23,7 @@ export default async function AboutPage({ params: { locale } }: { params: { loca
             <p className="text-ink-700 leading-relaxed">
               {locale === "et"
                 ? `Riigikogu Radar on sõltumatu analüüsitööriist, mille eesmärk on muuta Eesti parlamendi
-                   tegevus läbipaistvamaks ja arusaadavamaks. Kasutame tehisintellekti ja avalikke andmeid,
+                   tegevus läbipaistvamaks ja arusaadavamaks. Kasutame tehisaru ja avalikke andmeid,
                    et pakkuda andmepõhist analüüsi seadusandlike otsuste kohta.`
                 : `Riigikogu Radar is an independent analysis tool designed to make the Estonian parliament
                    more transparent and understandable. We use AI and public data to provide data-driven
