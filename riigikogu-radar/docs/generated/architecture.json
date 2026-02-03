@@ -1,0 +1,285 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-02-03T07:44:48.722Z",
+  "stats": {
+    "totalFiles": 110,
+    "apiRoutes": 15,
+    "pages": 9,
+    "components": 12,
+    "scripts": 14,
+    "libModules": 6
+  },
+  "layers": {
+    "presentation": {
+      "name": "Presentation",
+      "features": [
+        {
+          "id": "_about",
+          "name": "/about",
+          "type": "page",
+          "path": "src/app/[locale]/about/page.tsx"
+        },
+        {
+          "id": "_accuracy",
+          "name": "/accuracy",
+          "type": "page",
+          "path": "src/app/[locale]/accuracy/page.tsx"
+        },
+        {
+          "id": "_drafts_[uuid]",
+          "name": "/drafts/[uuid]",
+          "type": "page",
+          "path": "src/app/[locale]/drafts/[uuid]/page.tsx"
+        },
+        {
+          "id": "_drafts",
+          "name": "/drafts",
+          "type": "page",
+          "path": "src/app/[locale]/drafts/page.tsx"
+        },
+        {
+          "id": "_insights",
+          "name": "/insights",
+          "type": "page",
+          "path": "src/app/[locale]/insights/page.tsx"
+        },
+        {
+          "id": "_mps_[slug]",
+          "name": "/mps/[slug]",
+          "type": "page",
+          "path": "src/app/[locale]/mps/[slug]/page.tsx"
+        },
+        {
+          "id": "_mps",
+          "name": "/mps",
+          "type": "page",
+          "path": "src/app/[locale]/mps/page.tsx"
+        },
+        {
+          "id": "_",
+          "name": "/",
+          "type": "page",
+          "path": "src/app/[locale]/page.tsx"
+        },
+        {
+          "id": "_simulate",
+          "name": "/simulate",
+          "type": "page",
+          "path": "src/app/[locale]/simulate/page.tsx"
+        },
+        {
+          "id": "component_political-position",
+          "name": "political-position",
+          "type": "component",
+          "path": "src/components/charts/political-position.tsx"
+        },
+        {
+          "id": "component_confidence-bar",
+          "name": "confidence-bar",
+          "type": "component",
+          "path": "src/components/data/confidence-bar.tsx"
+        },
+        {
+          "id": "component_party-badge",
+          "name": "party-badge",
+          "type": "component",
+          "path": "src/components/data/party-badge.tsx"
+        },
+        {
+          "id": "component_vote-badge",
+          "name": "vote-badge",
+          "type": "component",
+          "path": "src/components/data/vote-badge.tsx"
+        },
+        {
+          "id": "component_error-boundary",
+          "name": "error-boundary",
+          "type": "component",
+          "path": "src/components/error-boundary.tsx"
+        },
+        {
+          "id": "component_mp-prediction-form",
+          "name": "mp-prediction-form",
+          "type": "component",
+          "path": "src/components/forms/mp-prediction-form.tsx"
+        },
+        {
+          "id": "component_prediction-form",
+          "name": "prediction-form",
+          "type": "component",
+          "path": "src/components/forms/prediction-form.tsx"
+        },
+        {
+          "id": "component_simulation-form",
+          "name": "simulation-form",
+          "type": "component",
+          "path": "src/components/forms/simulation-form.tsx"
+        },
+        {
+          "id": "component_footer",
+          "name": "footer",
+          "type": "component",
+          "path": "src/components/layout/footer.tsx"
+        },
+        {
+          "id": "component_header",
+          "name": "header",
+          "type": "component",
+          "path": "src/components/layout/header.tsx"
+        },
+        {
+          "id": "component_language-switcher",
+          "name": "language-switcher",
+          "type": "component",
+          "path": "src/components/layout/language-switcher.tsx"
+        },
+        {
+          "id": "component_loading-spinner",
+          "name": "loading-spinner",
+          "type": "component",
+          "path": "src/components/ui/loading-spinner.tsx"
+        }
+      ]
+    },
+    "api": {
+      "name": "API",
+      "features": [
+        {
+          "id": "_api_photos__uuid",
+          "name": "/api/photos/:uuid",
+          "type": "api",
+          "path": "src/app/api/photos/[uuid]/route.ts"
+        },
+        {
+          "id": "_api_v1_ai-status",
+          "name": "/api/v1/ai-status",
+          "type": "api",
+          "path": "src/app/api/v1/ai-status/route.ts"
+        },
+        {
+          "id": "_api_v1_drafts",
+          "name": "/api/v1/drafts",
+          "type": "api",
+          "path": "src/app/api/v1/drafts/route.ts"
+        },
+        {
+          "id": "_api_v1_export_mps",
+          "name": "/api/v1/export/mps",
+          "type": "api",
+          "path": "src/app/api/v1/export/mps/route.ts"
+        },
+        {
+          "id": "_api_v1_export_votings",
+          "name": "/api/v1/export/votings",
+          "type": "api",
+          "path": "src/app/api/v1/export/votings/route.ts"
+        },
+        {
+          "id": "_api_v1_health",
+          "name": "/api/v1/health",
+          "type": "api",
+          "path": "src/app/api/v1/health/route.ts"
+        },
+        {
+          "id": "_api_v1_insights",
+          "name": "/api/v1/insights",
+          "type": "api",
+          "path": "src/app/api/v1/insights/route.ts"
+        },
+        {
+          "id": "_api_v1_mps__slug_predict",
+          "name": "/api/v1/mps/:slug/predict",
+          "type": "api",
+          "path": "src/app/api/v1/mps/[slug]/predict/route.ts"
+        },
+        {
+          "id": "_api_v1_mps__slug",
+          "name": "/api/v1/mps/:slug",
+          "type": "api",
+          "path": "src/app/api/v1/mps/[slug]/route.ts"
+        },
+        {
+          "id": "_api_v1_mps",
+          "name": "/api/v1/mps",
+          "type": "api",
+          "path": "src/app/api/v1/mps/route.ts"
+        },
+        {
+          "id": "_api_v1_search",
+          "name": "/api/v1/search",
+          "type": "api",
+          "path": "src/app/api/v1/search/route.ts"
+        },
+        {
+          "id": "_api_v1_simulate__jobId_continue",
+          "name": "/api/v1/simulate/:jobId/continue",
+          "type": "api",
+          "path": "src/app/api/v1/simulate/[jobId]/continue/route.ts"
+        },
+        {
+          "id": "_api_v1_simulate__jobId",
+          "name": "/api/v1/simulate/:jobId",
+          "type": "api",
+          "path": "src/app/api/v1/simulate/[jobId]/route.ts"
+        },
+        {
+          "id": "_api_v1_simulate",
+          "name": "/api/v1/simulate",
+          "type": "api",
+          "path": "src/app/api/v1/simulate/route.ts"
+        },
+        {
+          "id": "_api_v1_stats",
+          "name": "/api/v1/stats",
+          "type": "api",
+          "path": "src/app/api/v1/stats/route.ts"
+        }
+      ]
+    },
+    "domain": {
+      "name": "Domain",
+      "features": [
+        {
+          "id": "lib_ai",
+          "name": "ai",
+          "type": "lib",
+          "path": "src/lib/ai"
+        },
+        {
+          "id": "lib_data",
+          "name": "data",
+          "type": "lib",
+          "path": "src/lib/data"
+        },
+        {
+          "id": "lib_prediction",
+          "name": "prediction",
+          "type": "lib",
+          "path": "src/lib/prediction"
+        },
+        {
+          "id": "lib_simulation",
+          "name": "simulation",
+          "type": "lib",
+          "path": "src/lib/simulation"
+        },
+        {
+          "id": "lib_sync",
+          "name": "sync",
+          "type": "lib",
+          "path": "src/lib/sync"
+        },
+        {
+          "id": "lib_utils",
+          "name": "utils",
+          "type": "lib",
+          "path": "src/lib/utils"
+        }
+      ]
+    },
+    "infrastructure": {
+      "name": "Infrastructure",
+      "features": []
+    }
+  }
+}
