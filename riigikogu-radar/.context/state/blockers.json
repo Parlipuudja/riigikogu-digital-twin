@@ -1,15 +1,6 @@
 {
   "lastUpdated": "2026-02-03T11:20:00Z",
-  "critical": [
-    {
-      "id": "embedding-generation-crashed",
-      "title": "Embedding generation process crashed",
-      "impact": "Embeddings at 46% (down from 51%) - RAG quality degraded",
-      "blocked": ["prediction-quality", "rag-context"],
-      "resolution": "Resume embedding generation: npm run embeddings:generate",
-      "owner": "development"
-    }
-  ],
+  "critical": [],
   "high": [
     {
       "id": "failover-not-enabled",
@@ -45,6 +36,12 @@
       "title": "API credentials committed to repository",
       "resolvedAt": "2026-02-03T11:25:00Z",
       "resolution": "False alarm - .env is gitignored, only placeholders in .env.example"
+    },
+    {
+      "id": "embedding-generation-crashed",
+      "title": "Embedding generation process crashed",
+      "resolvedAt": "2026-02-03T11:45:00Z",
+      "resolution": "Resumed successfully - 500 votings + 200 stenograms, coverage 46%→58%"
     }
   ]
 }

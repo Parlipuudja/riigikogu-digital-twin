@@ -21,13 +21,13 @@
       "lastCheck": "2026-02-03T11:15:53Z"
     },
     "embeddings": {
-      "status": "degraded",
-      "lastCheck": "2026-02-03T11:20:00Z",
+      "status": "improving",
+      "lastCheck": "2026-02-03T11:45:00Z",
       "details": {
         "total": 4333,
-        "withEmbeddings": 1992,
-        "coveragePercent": 46,
-        "note": "Generation process crashed at 80/500"
+        "withEmbeddings": 2492,
+        "coveragePercent": 58,
+        "note": "Generation in progress - 500 votings done, 200 stenograms processing"
       }
     },
     "backgroundProcesses": {
