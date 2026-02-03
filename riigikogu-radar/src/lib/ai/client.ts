@@ -1,24 +1,32 @@
 /**
- * Unified Anthropic client with lazy initialization
+ * Unified AI client with multi-provider support
  *
- * Supports dotenv in scripts by initializing only when first used,
- * allowing .env to be loaded before client creation.
+ * Supports Anthropic Claude, OpenAI GPT, and Google Gemini.
+ * Configure via AI_PROVIDER environment variable.
+ *
+ * For backwards compatibility, also exports Anthropic-specific functions.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { getProvider, getProviderType, resetProvider } from "./providers";
+import type { AIProvider, CompletionOptions } from "./providers";
 
-/** Default model for predictions and analysis */
+/** Default model for predictions (Anthropic) */
 export const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
-// Singleton client instance
+// Legacy Anthropic client (for backwards compatibility)
 let anthropicClient: Anthropic | null = null;
 
 /**
- * Get the Anthropic client instance
- * Uses lazy initialization to support dotenv in scripts
- *
- * @returns Anthropic client instance
- * @throws Error if ANTHROPIC_API_KEY is not set
+ * Get the current AI provider
+ */
+export function getAIProvider(): AIProvider {
+  return getProvider();
+}
+
+/**
+ * Get the Anthropic client instance (legacy, for backwards compatibility)
+ * @deprecated Use getAIProvider() instead
  */
 export function getAnthropicClient(): Anthropic {
   if (!anthropicClient) {
@@ -35,10 +43,11 @@ export function getAnthropicClient(): Anthropic {
 }
 
 /**
- * Reset the client instance (useful for testing)
+ * Reset the client instances (useful for testing)
  */
 export function resetAnthropicClient(): void {
   anthropicClient = null;
+  resetProvider();
 }
 
 /**
@@ -55,35 +64,37 @@ export function extractTextContent(
 }
 
 /**
- * Create a simple completion with the default model
+ * Create a completion using the configured AI provider
  */
 export async function createCompletion(
   prompt: string,
-  options: {
-    maxTokens?: number;
-    model?: string;
-    system?: string;
-  } = {}
+  options: CompletionOptions & { model?: string } = {}
 ): Promise<string> {
-  const client = getAnthropicClient();
-  const { maxTokens = 2048, model = DEFAULT_MODEL, system } = options;
+  const provider = getProvider();
+  const result = await provider.complete(prompt, options);
+  return result.text;
+}
 
-  const response = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    ...(system && { system }),
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-  });
-
-  const text = extractTextContent(response);
-  if (!text) {
-    throw new Error("No text response from Claude");
+/**
+ * Get information about the current AI configuration
+ */
+export function getAIConfig(): {
+  provider: string;
+  model: string;
+  configured: boolean;
+} {
+  try {
+    const provider = getProvider();
+    return {
+      provider: provider.name,
+      model: provider.model,
+      configured: provider.isConfigured(),
+    };
+  } catch {
+    return {
+      provider: getProviderType(),
+      model: "unknown",
+      configured: false,
+    };
   }
-
-  return text;
 }
