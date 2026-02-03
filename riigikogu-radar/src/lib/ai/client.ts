@@ -14,6 +14,12 @@ import type { AIProvider, CompletionOptions } from "./providers";
 /** Default model for predictions (Anthropic) */
 export const DEFAULT_MODEL = "claude-sonnet-4-20250514";
 
+/** Cheap model for high-volume predictions (12x cheaper than Sonnet) */
+export const CHEAP_MODEL = "claude-haiku-3-5-20241022";
+
+/** Use cheap model for predictions to reduce costs */
+export const USE_CHEAP_MODEL_FOR_PREDICTIONS = true;
+
 // Legacy Anthropic client (for backwards compatibility)
 let anthropicClient: Anthropic | null = null;
 

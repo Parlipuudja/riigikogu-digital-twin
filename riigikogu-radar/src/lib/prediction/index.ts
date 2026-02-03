@@ -11,3 +11,12 @@ export {
   getRAGContext,
   type RAGContext,
 } from "./rag";
+
+export {
+  getCachedPrediction,
+  getCachedPredictions,
+  cachePrediction,
+  ensurePredictionCacheIndexes,
+  generateBillHash,
+  getStatisticalPrediction,
+} from "./cache";

@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { getMPBySlug } from "@/lib/data/mps";
-import { predictMPVote } from "@/lib/prediction";
+import { predictMPVote, ensurePredictionCacheIndexes } from "@/lib/prediction";
 import { PredictRequestSchema } from "@/lib/utils/validation";
 import type { ApiResponse, MPPredictResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60; // Allow up to 60 seconds for prediction
+
+// Ensure cache indexes exist (idempotent, runs once per cold start)
+let indexesEnsured = false;
+async function ensureIndexes() {
+  if (!indexesEnsured) {
+    await ensurePredictionCacheIndexes();
+    indexesEnsured = true;
+  }
+}
 
 export async function POST(
   request: Request,
@@ -14,6 +23,9 @@ export async function POST(
   const requestId = crypto.randomUUID();
 
   try {
+    // Ensure cache indexes exist
+    await ensureIndexes();
+
     // Get MP
     const mp = await getMPBySlug(params.slug);
 

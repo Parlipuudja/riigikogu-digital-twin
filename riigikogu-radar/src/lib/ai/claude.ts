@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { getAnthropicClient, extractTextContent, DEFAULT_MODEL } from "./client";
+import { getAnthropicClient, extractTextContent, DEFAULT_MODEL, CHEAP_MODEL, USE_CHEAP_MODEL_FOR_PREDICTIONS } from "./client";
 import type { VoteDecision } from "@/types";
+
+/** Model to use for vote predictions */
+const PREDICTION_MODEL = USE_CHEAP_MODEL_FOR_PREDICTIONS ? CHEAP_MODEL : DEFAULT_MODEL;
 
 // ============================================================================
 // Types
@@ -141,7 +144,7 @@ You are predicting how ${mpName} would vote on legislation based on the profile 
 ## Bill Information
 Title: ${input.billTitle}
 Description: ${input.billDescription}
-${input.billFullText ? `\nFull Text (excerpt):\n${input.billFullText.substring(0, 2000)}` : ""}
+${input.billFullText ? `\nFull Text (excerpt):\n${input.billFullText.substring(0, 1000)}` : ""}
 
 ## Similar Past Votes
 ${similarVotesText}
@@ -181,8 +184,8 @@ export async function predictVote(
   const prompt = buildPrompt(input, instructionTemplate, mpName);
 
   const response = await getAnthropicClient().messages.create({
-    model: DEFAULT_MODEL,
-    max_tokens: 1024,
+    model: PREDICTION_MODEL,
+    max_tokens: 512, // Reduced from 1024 - predictions are structured JSON
     messages: [
       {
         role: "user",
