@@ -6,7 +6,7 @@ import { SimulateRequestSchema } from "@/lib/utils/validation";
 import type { ApiResponse, CreateSimulationJobResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60; // Keep within Vercel's default limit
+export const maxDuration = 10; // Fast return - processing happens via self-invocation
 
 /**
  * POST /api/v1/simulate
