@@ -280,8 +280,8 @@ async function checkEmbeddings(): Promise<CategoryResult> {
   // Stenogram embeddings
   const totalStenograms = await stenogramsCollection.countDocuments({});
   const stenogramsWithEmbeddings = await stenogramsCollection.countDocuments({
-    "speakers.embedding": { $exists: true },
-  });
+    embedding: { $exists: true, $ne: [] },
+  } as Record<string, unknown>);
   const stenogramsPct = totalStenograms > 0
     ? Math.round((stenogramsWithEmbeddings / totalStenograms) * 100)
     : 0;

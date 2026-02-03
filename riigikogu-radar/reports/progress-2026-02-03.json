@@ -1,0 +1,244 @@
+{
+  "generatedAt": "2026-02-03T06:38:49.023Z",
+  "daysUntilDeadline": 26,
+  "overallScore": 89,
+  "categories": [
+    {
+      "category": "MVP Criteria",
+      "checks": [
+        {
+          "name": "Active MP Profiles",
+          "status": "pass",
+          "value": 101,
+          "target": 101
+        },
+        {
+          "name": "Prediction Accuracy",
+          "status": "pass",
+          "value": "87.6%",
+          "target": ">70%",
+          "details": "5 MPs tested, 550 predictions"
+        },
+        {
+          "name": "Data Freshness",
+          "status": "pass",
+          "value": "1h 10m",
+          "target": "<24h",
+          "details": "Last sync: 2026-02-03"
+        },
+        {
+          "name": "Days Until MVP Deadline",
+          "status": "pass",
+          "value": 26,
+          "target": "March 1, 2026"
+        }
+      ],
+      "score": 100
+    },
+    {
+      "category": "MVP Roadmap (Week of Feb 2-8)",
+      "checks": [
+        {
+          "name": "[P1] All 101 MPs have profiles",
+          "status": "pass",
+          "value": "Complete"
+        },
+        {
+          "name": "[P1] Embeddings generated for RAG",
+          "status": "warn",
+          "value": "97%"
+        },
+        {
+          "name": "[P1] Backtests establish accuracy baseline",
+          "status": "warn",
+          "value": "5 MPs tested"
+        },
+        {
+          "name": "[P2] Swing vote / anomaly detection",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "[P2] Daily data sync automation",
+          "status": "pass",
+          "value": "Configured"
+        },
+        {
+          "name": "[P3] Natural language query",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "[P3] Export functionality",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "[P3] Story leads detection",
+          "status": "pass",
+          "value": "Implemented"
+        }
+      ],
+      "score": 88
+    },
+    {
+      "category": "Data Coverage",
+      "checks": [
+        {
+          "name": "Database Size",
+          "status": "pass",
+          "value": "151.4 MB",
+          "target": "<512 MB"
+        },
+        {
+          "name": "Votings Records",
+          "status": "warn",
+          "value": "1,912",
+          "details": "47.1 MB"
+        },
+        {
+          "name": "Legislative Drafts",
+          "status": "warn",
+          "value": "500"
+        },
+        {
+          "name": "Stenograms (Speeches)",
+          "status": "pass",
+          "value": "425"
+        },
+        {
+          "name": "Member Records",
+          "status": "pass",
+          "value": "101",
+          "target": "≥101"
+        }
+      ],
+      "score": 80
+    },
+    {
+      "category": "Vector Embeddings (RAG)",
+      "checks": [
+        {
+          "name": "Voting Embeddings",
+          "status": "pass",
+          "value": "97%",
+          "target": "100%",
+          "details": "1,849 / 1,912"
+        },
+        {
+          "name": "Stenogram Embeddings",
+          "status": "pass",
+          "value": "100%",
+          "target": "100%",
+          "details": "425 / 425"
+        }
+      ],
+      "score": 100
+    },
+    {
+      "category": "Backtesting",
+      "checks": [
+        {
+          "name": "Backtest Coverage",
+          "status": "fail",
+          "value": "5%",
+          "target": "100%",
+          "details": "5 / 101 MPs"
+        },
+        {
+          "name": "Average Accuracy",
+          "status": "pass",
+          "value": "89%",
+          "target": "≥70%"
+        },
+        {
+          "name": "Accuracy Distribution",
+          "status": "info",
+          "value": "High: 4, Med: 1, Low: 0",
+          "details": "≥80%: 4, 70-79%: 1, <70%: 0"
+        },
+        {
+          "name": "Last Backtest Run",
+          "status": "pass",
+          "value": "15h 3m ago",
+          "details": "Aleksei Jevgrafov"
+        }
+      ],
+      "score": 63
+    },
+    {
+      "category": "Features & Pages",
+      "checks": [
+        {
+          "name": "Health API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "MPs API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Drafts API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Stats API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Insights API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Search API",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "MPs Page",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Drafts Page",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Simulate Page",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Insights Page",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "Accuracy Page",
+          "status": "pass",
+          "value": "Implemented"
+        },
+        {
+          "name": "About Page",
+          "status": "pass",
+          "value": "Implemented"
+        }
+      ],
+      "score": 100
+    }
+  ],
+  "summary": [
+    "👍 Good progress toward MVP goals.",
+    "1 critical issue(s) require attention.",
+    "29 checks passing."
+  ],
+  "recommendations": [
+    "Run backtests for more MPs: npx tsx scripts/run-backtest.ts"
+  ]
+}
