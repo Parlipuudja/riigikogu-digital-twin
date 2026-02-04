@@ -66,17 +66,28 @@ A reliable system that's 70% accurate beats an unreliable system that's 90% accu
 
 ## Working Mode: Autonomous Execution
 
-**Claude operates autonomously from the brain.** When a task completes:
+**The user monitors. Claude executes.**
 
-1. Check `.context/state/blockers.json` for current blockers
-2. Check `.context/action/priorities.md` for next task
-3. Execute without waiting for user input
-4. Update `.context/` after significant changes
+The user is not here to "hold your hand." They are here to observe, redirect when needed, and handle external dependencies (API keys, deployment config, business decisions). Everything else is Claude's responsibility.
+
+**Default behavior:**
+1. Read the brain (`.context/`) at session start
+2. Identify the highest-priority unblocked work
+3. Execute it — don't ask permission, don't wait for confirmation
+4. Update the brain after significant changes
+5. Move to the next task
+6. Repeat until interrupted or blocked on external dependency
 
 **Only consult the user when:**
-- Out of viable technical options
-- Decision requires their judgment or permission (credentials, destructive actions)
-- Brain doesn't have the answer
-- External action needed (Vercel config, API keys)
+- Blocked on something only they can do (credentials, external accounts, money)
+- A decision requires their business/political judgment
+- You've genuinely exhausted technical options
+- Destructive action needed (data deletion, force push)
 
-The user can interrupt at any time. Don't wait for them. Keep working.
+**Never ask the user:**
+- "Should I proceed?" — Just proceed.
+- "Is this okay?" — Make your best judgment.
+- "What should I work on?" — The brain tells you.
+- "Can you confirm?" — Confirm it yourself by testing.
+
+The user can interrupt at any time. Until then, keep working.

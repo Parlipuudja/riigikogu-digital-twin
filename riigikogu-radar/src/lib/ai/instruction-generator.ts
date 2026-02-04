@@ -458,7 +458,74 @@ function extractKeywords(text: string): string[] {
 }
 
 /**
+ * Check if a sentence expresses the MP's own opinion (first-person indicators)
+ * Returns a score: 0 = no indicators, 1 = weak, 2 = strong first-person
+ */
+function getFirstPersonScore(sentence: string): number {
+  const lower = sentence.toLowerCase();
+
+  // Strong first-person opinion indicators (score = 2)
+  const strongIndicators = [
+    'ma arvan', 'mina arvan', 'minu arvates', 'minu meelest', 'minu hinnangul',
+    'ma usun', 'ma toetan', 'ma ei toeta', 'ma pooldan', 'ma ei poolda',
+    'ma leian', 'meie arvates', 'meie hinnangul', 'minu seisukoht',
+    'minu ettepanek', 'ma soovitan', 'ma teen ettepaneku',
+    'ma olen veendunud', 'ma olen seisukohal', 'minu fraktsioon',
+    'olen nõus', 'ei ole nõus', 'meie erakond',
+  ];
+
+  if (strongIndicators.some(ind => lower.includes(ind))) {
+    return 2;
+  }
+
+  // Weaker first-person indicators (score = 1)
+  const weakIndicators = [
+    // First person verbs
+    'ma olen', 'ma näen', 'ma tahan', 'ma pean', 'ma soovin',
+    'ma küsin', 'ma palun', 'ma märgin', 'ma rõhutan', 'ma juhin',
+    'me peame', 'me tahame', 'me soovime', 'me näeme', 'me oleme',
+    // Questions (often rhetorical, expressing opinion)
+    'kas me tõesti', 'kas see on', 'miks me',
+    // Collective we
+    'meie riik', 'meie rahvas', 'meie ühiskond',
+    // Opinion words without explicit first person
+    'tuleb tunnistada', 'on selge', 'peame', 'peaksime', 'tuleks',
+    'kahjuks', 'õnneks', 'paraku', 'loomulikult', 'kindlasti',
+  ];
+
+  if (weakIndicators.some(ind => lower.includes(ind))) {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
+ * Check if a sentence is describing someone else's position (not the MP's own view)
+ */
+function isThirdPartyDescription(sentence: string): boolean {
+  const thirdPartyIndicators = [
+    // Government/ministry descriptions
+    'valitsus osutas', 'valitsus teatas', 'valitsuse seisukoht', 'valitsuse arvates',
+    'minister ütles', 'minister osutas', 'ministeeriumi', 'ministeerium teatas',
+    // Opposition/other party descriptions
+    'opositsioon', 'koalitsioon väidab', 'koalitsioon arvab',
+    // Committee/procedural descriptions (not opinions)
+    'komisjon otsustas', 'komisjon tegi ettepaneku', 'komisjoni ettepanek',
+    'eelnõu näeb ette', 'seadus sätestab', 'põhiseadus näeb',
+    // Quoting others
+    'tema sõnul', 'nende arvates', 'nende seisukoht',
+    // EU/international
+    'euroopa liit', 'euroopa komisjon', 'direktiiv näeb',
+  ];
+
+  const lower = sentence.toLowerCase();
+  return thirdPartyIndicators.some(indicator => lower.includes(indicator));
+}
+
+/**
  * Find the best quote from speeches matching keywords
+ * Prioritizes first-person opinion statements over third-party descriptions
  */
 function findBestQuote(
   keywords: string[],
@@ -472,6 +539,7 @@ function findBestQuote(
     topic: string;
     relevance: number;
     matchCount: number;
+    score: number; // Combined score including first-person bonus
   } | null = null;
 
   for (const speech of speeches) {
@@ -488,28 +556,41 @@ function findBestQuote(
       const sentenceLower = sentence.toLowerCase();
       const sentenceMatches = matchingKeywords.filter(kw => sentenceLower.includes(kw)).length;
 
-      if (sentenceMatches > 0) {
-        const relevance = sentenceMatches / keywords.length;
+      if (sentenceMatches === 0) continue;
 
-        // Extract a 200-400 char excerpt around the sentence
-        let excerpt = sentence.trim();
-        if (excerpt.length > 400) {
-          excerpt = excerpt.substring(0, 397) + '...';
-        } else if (excerpt.length < 100) {
-          // Too short, skip
-          continue;
-        }
+      // Skip sentences that are clearly describing others' positions
+      if (isThirdPartyDescription(sentence)) continue;
 
-        if (!bestMatch || sentenceMatches > bestMatch.matchCount ||
-            (sentenceMatches === bestMatch.matchCount && relevance > bestMatch.relevance)) {
-          bestMatch = {
-            excerpt,
-            speechDate: speech.sessionDate,
-            topic: speech.topic || 'Täiskogu istung',
-            relevance,
-            matchCount: sentenceMatches,
-          };
-        }
+      const relevance = sentenceMatches / keywords.length;
+
+      // Calculate score: base on keyword matches, bonus for first-person
+      let score = sentenceMatches;
+      const firstPersonScore = getFirstPersonScore(sentence);
+      if (firstPersonScore === 2) {
+        score += 3; // Strong bonus for explicit first-person opinion
+      } else if (firstPersonScore === 1) {
+        score += 1; // Smaller bonus for weaker first-person indicators
+      }
+
+      // Extract a 200-400 char excerpt around the sentence
+      let excerpt = sentence.trim();
+      if (excerpt.length > 400) {
+        excerpt = excerpt.substring(0, 397) + '...';
+      } else if (excerpt.length < 100) {
+        // Too short, skip
+        continue;
+      }
+
+      if (!bestMatch || score > bestMatch.score ||
+          (score === bestMatch.score && relevance > bestMatch.relevance)) {
+        bestMatch = {
+          excerpt,
+          speechDate: speech.sessionDate,
+          topic: speech.topic || 'Täiskogu istung',
+          relevance,
+          matchCount: sentenceMatches,
+          score,
+        };
       }
     }
   }

@@ -1,6 +1,6 @@
 # Current Priorities
 
-*Last updated: 2026-02-03 14:30 UTC*
+*Last updated: 2026-02-04 09:15 UTC*
 
 ## Status Summary
 
@@ -45,7 +45,7 @@
 ### Priority 0: Bug Fixes
 - [x] **Party loyalty fixed at 85%** - Fixed via fix-party-loyalty.ts script (101 MPs updated)
 - [x] **Party loyalty rounding** - Now uses Math.floor to prevent rounding up to 100% (verified in instruction-generator.ts:183)
-- [ ] **MP citations should be direct quotes** - Key issues stances should be actual quotes from the MP's speeches, not AI-generated summaries
+- [x] **MP citations should be direct quotes** - Fixed: Quote extraction now filters out third-party descriptions and prioritizes first-person opinion statements
 
 ### Priority 1: Add Admin-Only Features ✅ COMPLETE
 - [x] Add AUTH_SECRET to Vercel
