@@ -1,6 +1,6 @@
 # Current Priorities
 
-*Last updated: 2026-02-04 09:15 UTC*
+*Last updated: 2026-02-04 09:20 UTC*
 
 ## Status Summary
 
@@ -9,62 +9,38 @@
 | Votings | 4,333 |
 | MPs | 101 |
 | DB Size | ~268 MB |
-| Embeddings | ~78% (500 votings + 70/200 stenograms) |
+| Embeddings | 80.6% votings, 63.3% stenograms |
 | Vector Index | READY (queryable) |
 | Production | Healthy |
 | Auth | LIVE |
 
-## Completed This Session
+## Completed This Session (Feb 4)
 
-1. **Vector search index created** - RAG now returns similar votes
-2. **CLI `--post-cutoff` flag added** - Enables honest backtesting
-3. **Post-cutoff backtests run:**
-   - Maris Lauri: **90%** (20 votes)
-   - Tõnis Lukas: **87%** (39 votes)
-4. **API leakage audit** - Confirmed clean architecture
-5. **Embedding generation** - 500 votings + 70/200 stenograms (hit 60min limit)
-6. **UI improvements:**
-   - Added login button to header (linked to auth)
-   - Added OOS (out-of-sample) indicators on backtest results
-   - Added OOS explanation to methodology
-7. **Authentication system** - NextAuth.js integrated with:
-   - Login page at /[locale]/login
-   - Session-aware header (login/logout)
-   - Credentials provider (admin-only for now)
-8. **Auth environment variables deployed:**
-   - AUTH_SECRET added to Vercel
-   - ADMIN_PASSWORD added to Vercel
-   - Login functional at https://seosetu.ee/et/login
+1. **MP quote extraction fixed** - Now filters third-party descriptions, prioritizes first-person statements
+2. **Quote relevance improved** - Requires stance keyword match + 35% relevance threshold
+3. **Coalition filter added to insights** - Cross-party alliances now excludes RE+E200+SDE (coalition partners)
+4. **Autonomous working mode** - Updated principles.md to clarify user monitors, Claude executes
 
 ## In Progress
 
-- **Embedding generation** - Can restart to continue from 70/200 stenograms
+- **Quote regeneration** - ~24/101 MPs done (running in background)
+- **Embedding generation** - Processing votings (running in background)
 
 ## Next Priorities
 
-### Priority 0: Bug Fixes
-- [x] **Party loyalty fixed at 85%** - Fixed via fix-party-loyalty.ts script (101 MPs updated)
-- [x] **Party loyalty rounding** - Now uses Math.floor to prevent rounding up to 100% (verified in instruction-generator.ts:183)
-- [x] **MP citations should be direct quotes** - Fixed: Quote extraction now filters out third-party descriptions and prioritizes first-person opinion statements
+### Priority 0: Bug Fixes ✅ COMPLETE
+- [x] Party loyalty fixed at 85%
+- [x] Party loyalty rounding (Math.floor)
+- [x] MP citations - strict filtering, first-person preference
 
-### Priority 1: Add Admin-Only Features ✅ COMPLETE
-- [x] Add AUTH_SECRET to Vercel
-- [x] Add ADMIN_PASSWORD to Vercel
-- [x] Deploy auth changes
-- [x] System status dashboard at /admin
-- [x] Backtest trigger from UI (admin only)
-- [x] Data sync info and CLI commands (admin only)
+### Priority 1: Admin Features ✅ COMPLETE
 
-### Priority 2: Enable Production Failover
-**Blocked on user action:**
-```
-# In Vercel environment variables:
-ENABLE_AI_FAILOVER=true
-OPENAI_API_KEY=sk-...
-GEMINI_API_KEY=...
-AUTH_SECRET=<generate with openssl rand -base64 32>
-ADMIN_PASSWORD=<your choice>
-```
+### Priority 2: Failover ⏸️ OPTIONAL
+User chose to skip - can enable later with OPENAI_API_KEY in Vercel
+
+### Priority 3: Data Quality (Current Focus)
+- [ ] Complete embedding generation (80% → 95%+)
+- [ ] Complete quote regeneration (24/101 → 101/101)
 
 ## Future Improvements (Not Urgent)
 
