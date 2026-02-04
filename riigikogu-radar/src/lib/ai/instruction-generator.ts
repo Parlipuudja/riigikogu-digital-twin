@@ -626,11 +626,22 @@ function enhanceKeyIssuesWithQuotes(
   quote?: { excerpt: string; speechDate: string; topic: string; relevance: number };
 }> {
   return keyIssues.map(issue => {
-    // Extract keywords from both issue and stance (Estonian primarily)
-    const issueKeywords = extractKeywords(issue.issue + ' ' + issue.stance);
-    const quote = findBestQuote(issueKeywords, speeches);
+    // Extract keywords from stance primarily (more specific than issue topic)
+    // Stance keywords ensure the quote supports the actual position, not just mentions the topic
+    const stanceKeywords = extractKeywords(issue.stance);
+    const issueKeywords = extractKeywords(issue.issue);
 
-    if (quote && quote.relevance >= 0.2) {
+    // Combine but prioritize stance keywords by putting them first
+    const combinedKeywords = Array.from(new Set([...stanceKeywords, ...issueKeywords]));
+    const quote = findBestQuote(combinedKeywords, speeches);
+
+    // Require higher relevance (40%) to ensure semantic match
+    // Also require at least one stance keyword to be present in the quote
+    const hasStanceKeyword = quote && stanceKeywords.some(kw =>
+      quote.excerpt.toLowerCase().includes(kw)
+    );
+
+    if (quote && quote.relevance >= 0.35 && hasStanceKeyword) {
       return { ...issue, quote };
     }
 
