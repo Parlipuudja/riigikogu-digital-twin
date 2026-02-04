@@ -2,8 +2,8 @@
 /**
  * Operative Supervisor
  *
- * Runs continuously, executing the Project Manager at intervals.
- * The Project Manager decides when to trigger other operatives.
+ * Runs continuously, executing Project Manager and Developer at intervals.
+ * Both operatives ALWAYS run - there is no idle state.
  * State is stored in MongoDB for access from admin dashboard.
  */
 
@@ -15,7 +15,7 @@ import * as os from "os";
 import { MongoClient } from "mongodb";
 
 const LOGS_DIR = path.join(__dirname, "../../logs/operatives");
-const RUN_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const RUN_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes between cycles
 const MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes minimum between runs
 
 // MongoDB connection
@@ -37,6 +37,7 @@ interface SupervisorState {
   pid: number | null;
   totalRuns: number;
   lastPMRun: Date | null;
+  lastDevRun: Date | null;
   hostname: string;
   updatedAt: Date;
 }
@@ -92,33 +93,17 @@ if (!fs.existsSync(LOGS_DIR)) {
   fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
 
-async function runProjectManager(): Promise<boolean> {
+async function runOperative(operative: string, prompt: string): Promise<boolean> {
   const timestamp = new Date().toISOString();
-  const logFile = path.join(LOGS_DIR, `pm-${timestamp.replace(/[:.]/g, "-")}.log`);
+  const logFile = path.join(LOGS_DIR, `${operative}-${timestamp.replace(/[:.]/g, "-")}.log`);
 
-  console.log(`[${timestamp}] Starting Project Manager run...`);
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`[${timestamp}] Starting ${operative.toUpperCase()} run...`);
+  console.log(`${"=".repeat(60)}`);
 
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(logFile);
     let output = "";
-
-    const prompt = `You are the Project Manager operative for Riigikogu Radar.
-
-Read your brain: cat ~/.claude/projects/-home-ubuntu-riigikogu-radar/memory/MEMORY.md
-
-Then execute your session protocol:
-1. Check production health: curl -s https://seosetu.ee/api/v1/health
-2. Check data freshness and priorities
-3. Decide if any other operative needs to run:
-   - Collector: if data >24h stale
-   - Analyst: if embeddings <100%
-   - Predictor: if no backtest in >7 days
-   - Guardian: if health issues
-4. Take the highest-priority autonomous action
-5. Update .context/state/ files with results
-6. Be concise in output - this is logged for monitoring
-
-Work autonomously. Do not ask for permission.`;
 
     const claude = spawn(
       "claude",
@@ -146,23 +131,87 @@ Work autonomously. Do not ask for permission.`;
     claude.on("close", async (code) => {
       logStream.end();
       const status = code === 0 ? "success" : "error";
-      console.log(`[${new Date().toISOString()}] Project Manager finished with code ${code}`);
+      console.log(`\n[${new Date().toISOString()}] ${operative.toUpperCase()} finished with code ${code}`);
 
       // Log to MongoDB
-      await logOperativeRun("project-manager", status, output);
+      await logOperativeRun(operative, status, output);
 
       resolve(code === 0);
     });
 
     claude.on("error", async (err) => {
       logStream.end();
-      console.error(`[${new Date().toISOString()}] Project Manager error:`, err);
+      console.error(`[${new Date().toISOString()}] ${operative.toUpperCase()} error:`, err);
 
       // Log to MongoDB
-      await logOperativeRun("project-manager", "error", err.message);
+      await logOperativeRun(operative, "error", err.message);
 
       resolve(false);
     });
+  });
+}
+
+const PM_PROMPT = `You are the Project Manager operative for Riigikogu Radar.
+
+Read your operative definition:
+cat .context/operatives/00-project-manager.md
+
+Read your brain:
+cat ~/.claude/projects/-home-ubuntu-riigikogu-radar/memory/MEMORY.md
+
+Then execute your session protocol:
+1. Check production health: curl -s https://seosetu.ee/api/v1/health
+2. Review priorities: cat .context/action/priorities.md
+3. Review blockers: cat .context/state/blockers.json
+4. THINK: What's the biggest gap right now?
+5. Take strategic action:
+   - Update the brain if it's stale or unclear
+   - Update priorities if they've changed
+   - Create a report if it's been a while
+   - Document any blockers you discover
+6. Decide what the Developer should focus on next
+7. Update state files with results
+
+You are ALWAYS WORKING. Strategic thinking is work. Brain maintenance is work.
+Do not ask for permission. Be concise in output.`;
+
+const DEV_PROMPT = `You are the Developer operative for Riigikogu Radar.
+
+Read your operative definition:
+cat .context/operatives/05-developer.md
+
+Read your brain:
+cat ~/.claude/projects/-home-ubuntu-riigikogu-radar/memory/MEMORY.md
+
+Then execute your session protocol:
+1. Read priorities: cat .context/action/priorities.md
+2. Read blockers: cat .context/state/blockers.json
+3. Pick the highest-priority unblocked implementation task
+4. Write code to implement it
+5. Test: npm run build
+6. If build passes: git add, commit, push
+7. Update priorities.md with progress
+8. Continue to next task if time permits
+
+You are ALWAYS WORKING. There is always code to write or improve.
+If no clear priority, improve existing code quality or add tests.
+Do not ask for permission. Ship code every session.`;
+
+async function runCycle(state: SupervisorState | null): Promise<void> {
+  // Run Project Manager first
+  await updateSupervisorState({ lastPMRun: new Date() });
+  await runOperative("project-manager", PM_PROMPT);
+
+  // Short pause between operatives
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+
+  // Run Developer second
+  await updateSupervisorState({ lastDevRun: new Date() });
+  await runOperative("developer", DEV_PROMPT);
+
+  // Update total runs
+  await updateSupervisorState({
+    totalRuns: (state?.totalRuns || 0) + 1,
   });
 }
 
@@ -173,6 +222,7 @@ async function main() {
   console.log(`Started at: ${new Date().toISOString()}`);
   console.log(`Run interval: ${RUN_INTERVAL_MS / 1000 / 60} minutes`);
   console.log(`PID: ${process.pid}`);
+  console.log(`Operatives: PROJECT MANAGER + DEVELOPER (both ALWAYS run)`);
   console.log("=".repeat(60));
 
   // Initialize state
@@ -208,18 +258,13 @@ async function main() {
     const timeSinceLastRun = now - lastRun;
 
     if (timeSinceLastRun >= MIN_INTERVAL_MS) {
-      await updateSupervisorState({
-        lastPMRun: new Date(),
-        totalRuns: (state?.totalRuns || 0) + 1,
-      });
-
-      await runProjectManager();
+      await runCycle(state);
     } else {
       console.log(`[${new Date().toISOString()}] Skipping - only ${Math.round(timeSinceLastRun / 1000)}s since last run`);
     }
 
     // Wait for next interval
-    console.log(`[${new Date().toISOString()}] Sleeping for ${RUN_INTERVAL_MS / 1000 / 60} minutes...`);
+    console.log(`\n[${new Date().toISOString()}] Sleeping for ${RUN_INTERVAL_MS / 1000 / 60} minutes...`);
     await new Promise((resolve) => setTimeout(resolve, RUN_INTERVAL_MS));
   }
 }
