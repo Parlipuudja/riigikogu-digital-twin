@@ -4,65 +4,102 @@
  *
  * Runs continuously, executing the Project Manager at intervals.
  * The Project Manager decides when to trigger other operatives.
+ * State is stored in MongoDB for access from admin dashboard.
  */
 
-import { spawn, ChildProcess } from "child_process";
+import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as os from "os";
+import { MongoClient } from "mongodb";
 
-const STATE_FILE = path.join(__dirname, "../../.context/state/operatives.json");
 const LOGS_DIR = path.join(__dirname, "../../logs/operatives");
 const RUN_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const MIN_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes minimum between runs
 
+// MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI!;
+let mongoClient: MongoClient | null = null;
+
+async function getDb() {
+  if (!mongoClient) {
+    mongoClient = new MongoClient(MONGODB_URI);
+    await mongoClient.connect();
+  }
+  return mongoClient.db();
+}
+
 interface SupervisorState {
-  started: string;
-  lastPMRun: string | null;
+  type: "supervisor";
+  running: boolean;
+  started: Date | null;
+  pid: number | null;
   totalRuns: number;
-  status: "running" | "stopped" | "paused";
-  pid: number;
+  lastPMRun: Date | null;
+  hostname: string;
+  updatedAt: Date;
 }
 
-function loadSupervisorState(): SupervisorState {
-  const stateFile = path.join(__dirname, "../../.context/state/supervisor.json");
-  try {
-    if (fs.existsSync(stateFile)) {
-      return JSON.parse(fs.readFileSync(stateFile, "utf-8"));
-    }
-  } catch (e) {
-    // Ignore
-  }
-  return {
-    started: new Date().toISOString(),
-    lastPMRun: null,
-    totalRuns: 0,
-    status: "running",
-    pid: process.pid,
-  };
+async function updateSupervisorState(state: Partial<SupervisorState>): Promise<void> {
+  const db = await getDb();
+  await db.collection("operatives_state").updateOne(
+    { type: "supervisor" },
+    {
+      $set: {
+        ...state,
+        type: "supervisor",
+        hostname: os.hostname(),
+        updatedAt: new Date(),
+      },
+    },
+    { upsert: true }
+  );
 }
 
-function saveSupervisorState(state: SupervisorState): void {
-  const stateFile = path.join(__dirname, "../../.context/state/supervisor.json");
-  const dir = path.dirname(stateFile);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
+async function getSupervisorState(): Promise<SupervisorState | null> {
+  const db = await getDb();
+  return (await db.collection("operatives_state").findOne({ type: "supervisor" })) as SupervisorState | null;
+}
+
+async function logOperativeRun(operative: string, status: string, output: string): Promise<void> {
+  const db = await getDb();
+  await db.collection("operative_logs").insertOne({
+    operative,
+    status,
+    output: output.slice(-10000), // Last 10KB
+    timestamp: new Date(),
+  });
+
+  // Also update operative state
+  await db.collection("operatives_state").updateOne(
+    { type: "operative", operative },
+    {
+      $set: {
+        type: "operative",
+        operative,
+        lastRun: new Date(),
+        status,
+        updatedAt: new Date(),
+      },
+    },
+    { upsert: true }
+  );
+}
+
+// Ensure logs directory exists
+if (!fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
 }
 
 async function runProjectManager(): Promise<boolean> {
   const timestamp = new Date().toISOString();
   const logFile = path.join(LOGS_DIR, `pm-${timestamp.replace(/[:.]/g, "-")}.log`);
 
-  // Ensure logs directory exists
-  if (!fs.existsSync(LOGS_DIR)) {
-    fs.mkdirSync(LOGS_DIR, { recursive: true });
-  }
-
   console.log(`[${timestamp}] Starting Project Manager run...`);
 
   return new Promise((resolve) => {
     const logStream = fs.createWriteStream(logFile);
+    let output = "";
 
     const prompt = `You are the Project Manager operative for Riigikogu Radar.
 
@@ -93,25 +130,36 @@ Work autonomously. Do not ask for permission.`;
 
     claude.stdout.on("data", (data) => {
       const text = data.toString();
+      output += text;
       logStream.write(text);
       process.stdout.write(text);
     });
 
     claude.stderr.on("data", (data) => {
       const text = data.toString();
+      output += text;
       logStream.write(text);
       process.stderr.write(text);
     });
 
-    claude.on("close", (code) => {
+    claude.on("close", async (code) => {
       logStream.end();
+      const status = code === 0 ? "success" : "error";
       console.log(`[${new Date().toISOString()}] Project Manager finished with code ${code}`);
+
+      // Log to MongoDB
+      await logOperativeRun("project-manager", status, output);
+
       resolve(code === 0);
     });
 
-    claude.on("error", (err) => {
+    claude.on("error", async (err) => {
       logStream.end();
       console.error(`[${new Date().toISOString()}] Project Manager error:`, err);
+
+      // Log to MongoDB
+      await logOperativeRun("project-manager", "error", err.message);
+
       resolve(false);
     });
   });
@@ -126,40 +174,47 @@ async function main() {
   console.log(`PID: ${process.pid}`);
   console.log("=".repeat(60));
 
-  const state = loadSupervisorState();
-  state.started = new Date().toISOString();
-  state.status = "running";
-  state.pid = process.pid;
-  saveSupervisorState(state);
+  // Initialize state
+  let state = await getSupervisorState();
+  const totalRuns = state?.totalRuns || 0;
+
+  await updateSupervisorState({
+    running: true,
+    started: new Date(),
+    pid: process.pid,
+    totalRuns,
+  });
 
   // Handle graceful shutdown
-  process.on("SIGINT", () => {
-    console.log("\nReceived SIGINT, shutting down...");
-    state.status = "stopped";
-    saveSupervisorState(state);
+  const shutdown = async () => {
+    console.log("\nShutting down...");
+    await updateSupervisorState({ running: false });
+    if (mongoClient) {
+      await mongoClient.close();
+    }
     process.exit(0);
-  });
+  };
 
-  process.on("SIGTERM", () => {
-    console.log("\nReceived SIGTERM, shutting down...");
-    state.status = "stopped";
-    saveSupervisorState(state);
-    process.exit(0);
-  });
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 
   // Main loop
   while (true) {
-    // Check if we should run
+    // Refresh state from DB
+    state = await getSupervisorState();
     const now = Date.now();
-    const lastRun = state.lastPMRun ? new Date(state.lastPMRun).getTime() : 0;
+    const lastRun = state?.lastPMRun ? new Date(state.lastPMRun).getTime() : 0;
     const timeSinceLastRun = now - lastRun;
 
     if (timeSinceLastRun >= MIN_INTERVAL_MS) {
-      state.lastPMRun = new Date().toISOString();
-      state.totalRuns++;
-      saveSupervisorState(state);
+      await updateSupervisorState({
+        lastPMRun: new Date(),
+        totalRuns: (state?.totalRuns || 0) + 1,
+      });
 
       await runProjectManager();
+    } else {
+      console.log(`[${new Date().toISOString()}] Skipping - only ${Math.round(timeSinceLastRun / 1000)}s since last run`);
     }
 
     // Wait for next interval
@@ -168,7 +223,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error("Supervisor fatal error:", err);
+  await updateSupervisorState({ running: false });
+  if (mongoClient) {
+    await mongoClient.close();
+  }
   process.exit(1);
 });

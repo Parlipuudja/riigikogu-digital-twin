@@ -20,9 +20,10 @@ interface SupervisorStatus {
 }
 
 interface LogEntry {
-  file: string;
+  id: string;
   timestamp: string;
   operative: string;
+  status: string;
 }
 
 interface OperativesData {
@@ -84,12 +85,12 @@ function formatTimeAgo(timestamp: string | null): string {
   return `${diffDays}d ago`;
 }
 
-function LogViewer({ file, onClose }: { file: string; onClose: () => void }) {
+function LogViewer({ logId, operative, onClose }: { logId: string; operative: string; onClose: () => void }) {
   const [content, setContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/v1/admin/operatives?action=log&file=${encodeURIComponent(file)}`)
+    fetch(`/api/v1/admin/operatives?action=log&id=${encodeURIComponent(logId)}`)
       .then((res) => res.json())
       .then((data) => {
         setContent(data.content);
@@ -99,13 +100,13 @@ function LogViewer({ file, onClose }: { file: string; onClose: () => void }) {
         setContent("Failed to load log");
         setLoading(false);
       });
-  }, [file]);
+  }, [logId]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold">{file}</h3>
+          <h3 className="font-semibold">{operative}</h3>
           <button onClick={onClose} className="text-ink-500 hover:text-ink-700">
             ✕
           </button>
@@ -130,7 +131,7 @@ export function OperativesDashboard() {
   const [data, setData] = useState<OperativesData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedLog, setSelectedLog] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
 
   const fetchData = async () => {
     try {
@@ -262,13 +263,14 @@ export function OperativesDashboard() {
             <div className="space-y-1">
               {data.recentLogs.map((log, i) => (
                 <button
-                  key={i}
-                  onClick={() => setSelectedLog(log.file)}
+                  key={log.id || i}
+                  onClick={() => setSelectedLog(log)}
                   className="w-full flex items-center justify-between p-2 hover:bg-ink-50 rounded text-left"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-ink-400">📄</span>
                     <span className="font-mono text-sm text-ink-700">{log.operative}</span>
+                    <StatusBadge status={log.status} />
                   </div>
                   <span className="text-sm text-ink-500">
                     {formatTimeAgo(log.timestamp)}
@@ -282,7 +284,7 @@ export function OperativesDashboard() {
 
       {/* Log Viewer Modal */}
       {selectedLog && (
-        <LogViewer file={selectedLog} onClose={() => setSelectedLog(null)} />
+        <LogViewer logId={selectedLog.id} operative={selectedLog.operative} onClose={() => setSelectedLog(null)} />
       )}
     </div>
   );
