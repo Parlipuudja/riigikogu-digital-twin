@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { getActiveMPs } from "@/lib/data/mps";
 import {
   createJob,
@@ -7,12 +6,18 @@ import {
   findExistingSimulation,
   generateBillHash,
   ensureSimulationIndexes,
+  startProcessing,
+  updateProgress,
+  completeJob,
+  failJob,
+  saveSimulation,
 } from "@/lib/simulation";
+import { processBatch, calculateResult } from "@/lib/simulation/processor";
 import { SimulateRequestSchema } from "@/lib/utils/validation";
-import type { ApiResponse, CreateSimulationJobResponse, StoredSimulation } from "@/types";
+import type { ApiResponse, CreateSimulationJobResponse, StoredSimulation, Prediction, SimulationJobError } from "@/types";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 10; // Fast return - processing happens via self-invocation
+export const maxDuration = 300; // Process all MPs synchronously within timeout
 
 // Feature flag: Disable expensive 101-MP simulation
 // Now using Haiku model (12x cheaper) - safe to enable
@@ -125,43 +130,57 @@ export async function POST(request: Request) {
       mps.length
     );
 
-    // Get base URL for self-invocation
-    const headersList = await headers();
-    const host = headersList.get("host") || "localhost:3000";
-    const protocol = headersList.get("x-forwarded-proto") || "http";
-    const baseUrl = `${protocol}://${host}`;
+    // Mark job as processing
+    await startProcessing(job._id);
 
-    // Trigger first batch via self-invocation (fire-and-forget)
-    // This ensures the response returns immediately while processing starts in a new request
-    const continueUrl = `${baseUrl}/api/v1/simulate/${job._id}/continue`;
-    fetch(continueUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Continuation-Token": job.continuationToken,
-      },
-      body: JSON.stringify({ token: job.continuationToken }),
-    }).catch((err) => {
-      console.error(`Failed to trigger initial processing for job ${job._id}:`, err);
-    });
+    // Process all MPs synchronously in parallel batches
+    // With 300s timeout and ~2-3s per MP (parallel), this handles 101 MPs comfortably
+    const BATCH_SIZE = 15; // Process 15 MPs in parallel at a time
+    const allPredictions: Prediction[] = [];
+    const allErrors: SimulationJobError[] = [];
 
-    // Return job info immediately
-    const responseData: CreateSimulationJobResponse = {
-      jobId: job._id,
-      status: job.status,
-      progress: job.progress,
-    };
+    try {
+      for (let i = 0; i < mps.length; i += BATCH_SIZE) {
+        const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+        const { predictions, errors } = await processBatch(mps, job, i);
 
-    const response: ApiResponse<CreateSimulationJobResponse> = {
-      success: true,
-      data: responseData,
-      meta: {
-        requestId,
-        timestamp: new Date().toISOString(),
-      },
-    };
+        allPredictions.push(...predictions);
+        allErrors.push(...errors);
 
-    return NextResponse.json(response, { status: 202 }); // 202 Accepted
+        // Update progress in DB
+        await updateProgress(job._id, predictions, errors, batchNum);
+      }
+
+      // Calculate final result
+      const finalJob = { ...job, predictions: allPredictions, errors: allErrors };
+      const result = calculateResult(finalJob, allPredictions);
+      await completeJob(job._id, result);
+
+      // Save to permanent history
+      await saveSimulation(job.request, result, validation.data.draftUuid).catch((err) => {
+        console.error("Failed to save simulation to history:", err);
+      });
+
+      // Return complete result
+      return NextResponse.json(
+        {
+          success: true,
+          data: {
+            jobId: job._id,
+            status: "completed",
+            result,
+          },
+          meta: {
+            requestId,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        { status: 200 }
+      );
+    } catch (processingError) {
+      await failJob(job._id, processingError instanceof Error ? processingError.message : "Processing failed");
+      throw processingError;
+    }
   } catch (error) {
     console.error("Simulation job creation error:", error);
 

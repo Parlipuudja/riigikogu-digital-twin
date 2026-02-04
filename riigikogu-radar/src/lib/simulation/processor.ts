@@ -27,9 +27,9 @@ import type {
   ConfidenceDistribution,
 } from "@/types";
 
-// Process 10 MPs per batch (~45 seconds)
-const BATCH_SIZE = 10;
-const BATCH_DELAY_MS = 500;
+// Process 15 MPs per batch in parallel (~20-30 seconds with Haiku)
+const BATCH_SIZE = 15;
+const BATCH_DELAY_MS = 100; // Reduced delay since we're not doing fire-and-forget
 
 /**
  * Process a single batch of MPs
