@@ -162,6 +162,18 @@ export async function ensurePredictionCacheIndexes(): Promise<void> {
 // Statistical Bypass
 // ============================================================================
 
+// Current government coalition parties (RE, E200, SDE typically vote FOR government bills)
+const COALITION_PARTIES = new Set(["RE", "E200", "SDE"]);
+
+/**
+ * Get default party position based on coalition/opposition status
+ * Coalition parties typically vote FOR, opposition AGAINST
+ */
+function getDefaultPartyPosition(partyCode: string | undefined): VoteDecision {
+  if (!partyCode) return "FOR"; // Default to FOR if unknown
+  return COALITION_PARTIES.has(partyCode) ? "FOR" : "AGAINST";
+}
+
 /**
  * Check if an MP is highly predictable (can skip AI call)
  * Returns a prediction if MP votes with party >95% of time
@@ -182,23 +194,26 @@ export function getStatisticalPrediction(
   // Skip statistical bypass if:
   // - No loyalty data
   // - Loyalty below 95%
-  // - No party position provided
-  if (!loyalty || loyalty < 95 || !partyPosition) {
+  if (!loyalty || loyalty < 95) {
     return null;
   }
 
+  // Use provided party position or infer from coalition/opposition
+  const effectivePosition = partyPosition || getDefaultPartyPosition(mp.info?.party?.code);
+
   const mpName = mp.info?.fullName || mp.slug;
   const partyName = mp.info?.party?.name || "party";
+  const isCoalition = COALITION_PARTIES.has(mp.info?.party?.code || "");
 
   return {
     mpSlug: mp.slug,
     mpName,
     party: partyName,
-    vote: partyPosition,
-    confidence: Math.round(loyalty * 0.9), // Slightly lower confidence than loyalty
+    vote: effectivePosition,
+    confidence: Math.round(loyalty * 0.85), // Conservative confidence for statistical prediction
     reasoning: {
-      et: `${mpName} hääletab ${loyalty.toFixed(0)}% ajast oma fraktsiooniga. Statistiline ennustus põhineb ajaloolisel lojaalsuse mustril.`,
-      en: `${mpName} votes with their faction ${loyalty.toFixed(0)}% of the time. Statistical prediction based on historical loyalty pattern.`
+      et: `${mpName} hääletab ${loyalty.toFixed(0)}% ajast oma fraktsiooniga. ${isCoalition ? 'Koalitsioonisaadikuna eeldatakse toetust.' : 'Opositsiooni esindajana eeldatakse vastuseisu.'}`,
+      en: `${mpName} votes with their faction ${loyalty.toFixed(0)}% of the time. ${isCoalition ? 'As a coalition MP, support is expected.' : 'As opposition, resistance is expected.'}`
     },
     similarVotes: [],
     predictedAt: new Date()
