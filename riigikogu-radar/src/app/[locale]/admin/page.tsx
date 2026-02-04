@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useLocale } from "next-intl";
+import { OperativesDashboard } from "@/components/admin/operatives-dashboard";
 
 interface AdminStatus {
   database: {
@@ -687,6 +688,14 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Operatives Dashboard */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">
+          {locale === "et" ? "Operatiivid" : "Operatives"}
+        </h2>
+        <OperativesDashboard />
+      </div>
     </div>
   );
 }

@@ -1,0 +1,20 @@
+[Unit]
+Description=Riigikogu Radar Operative Supervisor
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/riigikogu-radar/riigikogu-radar
+ExecStart=/usr/bin/npx tsx scripts/operatives/supervisor.ts
+Restart=always
+RestartSec=30
+StandardOutput=append:/home/ubuntu/riigikogu-radar/riigikogu-radar/logs/operatives/supervisor.log
+StandardError=append:/home/ubuntu/riigikogu-radar/riigikogu-radar/logs/operatives/supervisor.log
+
+# Environment
+Environment=NODE_ENV=production
+Environment=PATH=/home/ubuntu/.nvm/versions/node/v20.11.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=multi-user.target
