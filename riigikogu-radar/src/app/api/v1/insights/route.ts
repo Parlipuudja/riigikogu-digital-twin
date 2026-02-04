@@ -6,6 +6,15 @@ import { getCollection } from "@/lib/data/mongodb";
 export const revalidate = 300;
 export const dynamic = "force-dynamic";
 
+// Current government coalition parties (as of XV Riigikogu)
+// High agreement between these is expected, not newsworthy
+const COALITION_PARTIES = new Set(["RE", "E200", "SDE"]);
+
+function areCoalitionPartners(partyCode1: string | undefined, partyCode2: string | undefined): boolean {
+  if (!partyCode1 || !partyCode2) return false;
+  return COALITION_PARTIES.has(partyCode1) && COALITION_PARTIES.has(partyCode2);
+}
+
 interface Voting {
   uuid: string;
   title: string;
@@ -268,6 +277,8 @@ export async function GET() {
         const mp2 = mpList[j];
         // Only compare MPs from different parties
         if (mp1.info?.party?.code === mp2.info?.party?.code) continue;
+        // Skip coalition partners - high agreement is expected, not newsworthy
+        if (areCoalitionPartners(mp1.info?.party?.code, mp2.info?.party?.code)) continue;
 
         const votes1 = mpVotePatterns.get(mp1.uuid)!;
         const votes2 = mpVotePatterns.get(mp2.uuid)!;
@@ -346,7 +357,7 @@ export async function GET() {
         },
         crossPartyAlliances: {
           title: "Cross-Party Voting Blocs",
-          description: "MPs from different parties who vote together >80% of the time",
+          description: "MPs from different parties who vote together >80% (excluding coalition partners)",
           data: topAlliances,
         },
         unpredictableMPs: {
