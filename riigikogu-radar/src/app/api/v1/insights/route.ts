@@ -139,10 +139,15 @@ export async function GET() {
       .sort((a, b) => a.attendance - b.attendance)
       .slice(0, 10);
 
-    // Insight 4: Party voting patterns
+    // Insight 4: Party voting patterns (excluding non-affiliated MPs who aren't a party)
+    const NON_PARTY_NAMES = ["Fraktsioonitud", "Non-affiliated", "Unknown"];
     const partyStats = new Map<string, { total: number; for: number; against: number; abstain: number }>();
     for (const mp of mps) {
       const party = mp.info?.party?.name || "Unknown";
+      // Skip non-affiliated MPs in party breakdown - they're individuals, not a party
+      if (NON_PARTY_NAMES.some(name => party.toLowerCase() === name.toLowerCase())) {
+        continue;
+      }
       const stats = partyStats.get(party) || { total: 0, for: 0, against: 0, abstain: 0 };
       const dist = mp.info?.votingStats?.distribution;
       if (dist) {

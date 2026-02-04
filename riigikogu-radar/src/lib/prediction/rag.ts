@@ -129,10 +129,12 @@ export async function findRelevantSpeeches(
     const collection = await getCollection<Stenogram>("stenograms");
 
     // Fallback: keyword-based search (embeddings not yet implemented for speeches)
+    // OPTIMIZED: Use positional projection to only fetch matching speaker (not all 100+)
     const stenograms = await collection
-      .find({
-        "speakers.memberUuid": mpUuid,
-      })
+      .find(
+        { "speakers.memberUuid": mpUuid },
+        { projection: { sessionDate: 1, "speakers.$": 1 } }
+      )
       .limit(20)
       .toArray();
 

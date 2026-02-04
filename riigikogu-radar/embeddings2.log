@@ -1,0 +1,21 @@
+Starting embedding generation (using Voyage AI voyage-multilingual-2)...
+
+All votings already have embeddings
+Generated 0 vote embeddings
+
+Generating embeddings for 200 stenograms...
+  Processed 10/200 stenograms (API calls: 10, ~19K tokens)
+  Processed 20/200 stenograms (API calls: 20, ~39K tokens)
+  Processed 30/200 stenograms (API calls: 30, ~57K tokens)
+  Processed 40/200 stenograms (API calls: 40, ~77K tokens)
+  Processed 50/200 stenograms (API calls: 50, ~96K tokens)
+  Processed 60/200 stenograms (API calls: 60, ~116K tokens)
+  Processed 70/200 stenograms (API calls: 70, ~136K tokens)
+  Processed 80/200 stenograms (API calls: 80, ~154K tokens)
+  Processed 90/200 stenograms (API calls: 90, ~174K tokens)
+  Processed 100/200 stenograms (API calls: 100, ~193K tokens)
+  Processed 110/200 stenograms (API calls: 110, ~213K tokens)
+Error generating embeddings: Error: HARD LIMIT: Max runtime of 60 minutes exceeded
+    at checkLimits (/home/ubuntu/riigikogu-radar/riigikogu-radar/src/lib/data/embeddings.ts:31:11)
+    at generateSpeechEmbeddings (/home/ubuntu/riigikogu-radar/riigikogu-radar/src/lib/data/embeddings.ts:161:7)
+    at async main (/home/ubuntu/riigikogu-radar/riigikogu-radar/scripts/generate-embeddings.ts:23:25)

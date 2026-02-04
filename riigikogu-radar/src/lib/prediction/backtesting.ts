@@ -93,11 +93,18 @@ export async function buildBackdatedContext(
 ): Promise<BackdatedContext | null> {
   const votingsCollection = await getCollection<Voting>('votings');
 
-  // Get all votings where MP voted before the given date
-  const votings = await votingsCollection.find({
-    'voters.memberUuid': mpUuid,
-    votingTime: { $lt: beforeDate.toISOString() }
-  }).sort({ votingTime: 1 }).toArray();
+  // Get recent votings where MP voted before the given date (limited for performance)
+  // OPTIMIZED: Use positional projection and limit to 200 most recent votes
+  const votings = await votingsCollection.find(
+    {
+      'voters.memberUuid': mpUuid,
+      votingTime: { $lt: beforeDate.toISOString() }
+    },
+    { projection: { title: 1, votingTime: 1, 'voters.$': 1 } }
+  ).sort({ votingTime: -1 }).limit(200).toArray();
+
+  // Reverse to get chronological order for stats (oldest to newest)
+  votings.reverse();
 
   if (votings.length < MIN_TRAINING_VOTES) {
     return null;
@@ -110,7 +117,8 @@ export async function buildBackdatedContext(
   let abstainCount = 0;
 
   for (const voting of votings) {
-    const voter = voting.voters.find((v: VotingVoter) => v.memberUuid === mpUuid);
+    // With positional projection ($), voters array contains only the matching MP's vote
+    const voter = voting.voters[0];
     if (voter && voter.decision !== 'ABSENT') {
       mpVotes.push({
         title: voting.title,

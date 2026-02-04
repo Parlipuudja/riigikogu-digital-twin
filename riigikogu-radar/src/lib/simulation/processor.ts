@@ -25,12 +25,49 @@ import type {
   PartyBreakdown,
   SwingVote,
   ConfidenceDistribution,
+  BillType,
 } from "@/types";
 
 // Process 25 MPs per batch in parallel (~15-20 seconds with Haiku)
 // 25 MPs × 4 batches = 100 MPs in ~60-80 seconds
 const BATCH_SIZE = 25;
 const BATCH_DELAY_MS = 50; // Minimal delay
+
+// Vote thresholds
+const NORMAL_THRESHOLD = 51;      // Simple majority
+const CONSTITUTIONAL_THRESHOLD = 68;  // 2/3 majority for constitutional amendments
+
+// Keywords that indicate constitutional amendments (Estonian)
+const CONSTITUTIONAL_KEYWORDS = [
+  "põhiseadus",
+  "põhiseaduse muutmise",
+  "põhiseaduse täiendamise",
+  "konstitutsioon",
+  "§57",  // Voting age
+  "§60",  // Candidacy age
+  "§1",   // Independence and sovereignty
+  "§3",   // State powers
+  "valimisõigus",  // Voting rights
+  "valimisiga",    // Voting age
+  "hääletusiga",   // Voting age
+  "kandideerimisiga", // Candidacy age
+];
+
+/**
+ * Detect if a bill is a constitutional amendment based on title and description
+ */
+function detectBillType(title: string, description?: string): BillType {
+  const text = `${title} ${description || ""}`.toLowerCase();
+
+  // Check for constitutional amendment keywords
+  for (const keyword of CONSTITUTIONAL_KEYWORDS) {
+    if (text.includes(keyword.toLowerCase())) {
+      return "constitutional";
+    }
+  }
+
+  return "normal";
+}
 
 /**
  * Process a single batch of MPs
@@ -118,13 +155,25 @@ export function calculateResult(
   const totalAgainst = predictions.filter((p) => p.vote === "AGAINST").length;
   const totalAbstain = predictions.filter((p) => p.vote === "ABSTAIN").length;
 
-  // Calculate passage probability (simple majority = 51 votes)
-  const passageProbability = Math.round((totalFor / 101) * 100);
+  // Detect bill type and determine vote threshold
+  const billType = detectBillType(job.request.billTitle, job.request.billDescription);
+  const votesRequired = billType === "constitutional" ? CONSTITUTIONAL_THRESHOLD : NORMAL_THRESHOLD;
 
-  // Group by party
+  // Calculate passage probability based on correct threshold
+  // passageProbability = 100 if we have enough votes, scaled down otherwise
+  const passageProbability = totalFor >= votesRequired
+    ? Math.min(100, Math.round((totalFor / votesRequired) * 100))
+    : Math.round((totalFor / votesRequired) * 100);
+
+  // Group by party (excluding non-affiliated MPs who are not a party)
   const partyMap = new Map<string, { for: number; against: number; abstain: number; total: number }>();
+  const NON_PARTY_NAMES = ["Fraktsioonitud", "Non-affiliated"];
 
   for (const p of predictions) {
+    // Skip non-affiliated MPs in party breakdown - they're individuals, not a party
+    if (NON_PARTY_NAMES.some(name => p.party.toLowerCase() === name.toLowerCase())) {
+      continue;
+    }
     const existing = partyMap.get(p.party) || { for: 0, against: 0, abstain: 0, total: 0 };
     existing.total++;
     if (p.vote === "FOR") existing.for++;
@@ -186,6 +235,8 @@ export function calculateResult(
     swingVotes,
     confidenceDistribution,
     simulatedAt: new Date(),
+    billType,
+    votesRequired,
   };
 }
 

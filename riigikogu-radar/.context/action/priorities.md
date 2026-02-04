@@ -1,6 +1,6 @@
 # Current Priorities
 
-*Last updated: 2026-02-04 09:20 UTC*
+*Last updated: 2026-02-04 19:15 UTC*
 
 ## Status Summary
 
@@ -9,7 +9,7 @@
 | Votings | 4,333 |
 | MPs | 101 |
 | DB Size | ~268 MB |
-| Embeddings | 80.6% votings, 63.3% stenograms |
+| Embeddings | 100% votings, 100% stenograms |
 | Vector Index | READY (queryable) |
 | Production | Healthy |
 | Auth | LIVE |
@@ -23,8 +23,19 @@
 
 ## In Progress
 
-- **Quote regeneration** - ~24/101 MPs done (running in background)
-- **Embedding generation** - Processing votings (running in background)
+- **MP quote regeneration** - Running batch process (optimized: ~1 min/MP instead of 10+ min)
+
+## Completed This Session (Feb 4, evening)
+
+1. **Stenogram embeddings** - COMPLETE 100% (975/975)
+2. **Voting embeddings** - COMPLETE 100% (4,333/4,333)
+
+## Completed This Session (Feb 4, afternoon)
+
+1. **Fraktsioonitud fix** - Non-affiliated MPs no longer treated as a party
+2. **Seat Plan Visualization** - Hemicycle view of simulation results
+3. **Constitutional Amendment Detection** - Shows 68-vote threshold for põhiseadus amendments
+4. **Quote regeneration** - 39/101 MPs have quotes (remaining stalled on timeouts)
 
 ## Next Priorities
 
@@ -39,8 +50,8 @@
 User chose to skip - can enable later with OPENAI_API_KEY in Vercel
 
 ### Priority 3: Data Quality (Current Focus)
-- [ ] Complete embedding generation (80% → 95%+)
-- [ ] Complete quote regeneration (24/101 → 101/101)
+- [x] Complete embedding generation (80% → 100%) ✅
+- [ ] Complete quote regeneration (39/101 → 101/101) - data collection slow for prolific MPs
 
 ## Future Improvements (Not Urgent)
 

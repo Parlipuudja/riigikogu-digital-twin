@@ -6,6 +6,7 @@ import { VoteBadge } from "@/components/data/vote-badge";
 import { PartyBadge } from "@/components/data/party-badge";
 import { ConfidenceBar } from "@/components/data/confidence-bar";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { SeatPlan } from "@/components/data/seat-plan";
 import type { SimulationResult, VoteDecision, PartyCode, SimulationJobStatusResponse } from "@/types";
 
 interface SimulationFormProps {
@@ -344,7 +345,9 @@ export function SimulationForm({ initialQuery, draftUuid, locale }: SimulationFo
 
 function SimulationResults({ result, locale }: { result: SimulationResult; locale: string }) {
   const t = useTranslations("simulation");
-  const isLikelyToPass = result.passageProbability >= 50;
+  // Check if we have enough votes based on the required threshold (not just 50% probability)
+  const votesRequired = result.votesRequired || 51;
+  const isLikelyToPass = result.totalFor >= votesRequired;
 
   return (
     <div className="space-y-8">
@@ -400,10 +403,51 @@ function SimulationResults({ result, locale }: { result: SimulationResult; local
                 style={{ width: `${(result.totalAbstain / 101) * 100}%` }}
               />
             </div>
-            <div className="text-xs text-ink-400 mt-1">{t("votesNeeded")}</div>
+            <div className="text-xs text-ink-400 mt-1">
+              {result.billType === "constitutional" ? (
+                <span className="text-amber-600 font-medium">
+                  {locale === "et"
+                    ? `${result.votesRequired} häält vajalik (põhiseaduse muudatus)`
+                    : `${result.votesRequired} votes needed (constitutional amendment)`}
+                </span>
+              ) : (
+                t("votesNeeded")
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Constitutional amendment warning */}
+      {result.billType === "constitutional" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="flex gap-3">
+            <span className="text-amber-600 text-xl">⚠️</span>
+            <div>
+              <h3 className="font-semibold text-amber-900">
+                {locale === "et" ? "Põhiseaduse muudatus" : "Constitutional Amendment"}
+              </h3>
+              <p className="text-sm text-amber-800 mt-1">
+                {locale === "et"
+                  ? `See eelnõu nõuab 2/3 häälteenamust (${result.votesRequired} häält) kiirmenetluse korral, või kahte järjestikust Riigikogu koosseisu, või rahvahääletust.`
+                  : `This bill requires a 2/3 majority (${result.votesRequired} votes) for urgent procedure, or two successive compositions of parliament, or a referendum.`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seat Plan Visualization */}
+      {result.predictions && result.predictions.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold">{t("seatPlan")}</h2>
+          </div>
+          <div className="card-content py-4">
+            <SeatPlan predictions={result.predictions} locale={locale} />
+          </div>
+        </div>
+      )}
 
       {/* Party breakdown */}
       <div className="card">

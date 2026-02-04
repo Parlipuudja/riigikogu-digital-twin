@@ -24,6 +24,14 @@ export interface SimulationJobError {
   error: string;
 }
 
+/**
+ * Bill type determines voting threshold
+ * - normal: 51 votes (simple majority)
+ * - constitutional: 68 votes (2/3 majority for urgent procedure)
+ * - organic: 51 votes (special laws but simple majority)
+ */
+export type BillType = "normal" | "constitutional" | "organic";
+
 export interface SimulationJobResult {
   draftTitle: string;
   passageProbability: number;
@@ -36,6 +44,9 @@ export interface SimulationJobResult {
   swingVotes: SwingVoteResult[];
   confidenceDistribution: ConfidenceDistributionResult;
   simulatedAt: Date;
+  // Vote threshold info (added for constitutional amendments)
+  billType: BillType;
+  votesRequired: number;  // 51 for normal, 68 for constitutional
 }
 
 export interface PartyBreakdownResult {
