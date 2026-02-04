@@ -63,6 +63,42 @@ interface BacktestResult {
   };
 }
 
+interface SimulationSummary {
+  id: string;
+  billTitle: string;
+  billDescription?: string;
+  draftUuid?: string;
+  passageProbability: number;
+  totalFor: number;
+  totalAgainst: number;
+  totalAbstain: number;
+  predictionsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface SimulationHistoryData {
+  fullParliamentSimulations: {
+    total: number;
+    simulations: SimulationSummary[];
+  };
+  individualPredictions: {
+    totalCached: number;
+    activeCached: number;
+    uniqueBills: number;
+    recentGroups: Array<{
+      billHash: string;
+      mpCount: number;
+      lastUpdated: string;
+      samplePrediction?: {
+        mpName: string;
+        party: string;
+        vote: string;
+      };
+    }>;
+  };
+}
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
@@ -128,6 +164,9 @@ export default function AdminDashboard() {
   const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [backtestError, setBacktestError] = useState<string | null>(null);
 
+  // Simulation history state
+  const [simulationHistory, setSimulationHistory] = useState<SimulationHistoryData | null>(null);
+
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
       router.push(`/${locale}/login?callbackUrl=/${locale}/admin`);
@@ -137,9 +176,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [statusRes, mpsRes] = await Promise.all([
+        const [statusRes, mpsRes, simsRes] = await Promise.all([
           fetch("/api/v1/admin/status"),
           fetch("/api/v1/admin/backtest"),
+          fetch("/api/v1/admin/simulations"),
         ]);
 
         if (!statusRes.ok || !mpsRes.ok) {
@@ -150,13 +190,17 @@ export default function AdminDashboard() {
           throw new Error("Failed to fetch data");
         }
 
-        const [statusData, mpsData] = await Promise.all([
+        const [statusData, mpsData, simsData] = await Promise.all([
           statusRes.json(),
           mpsRes.json(),
+          simsRes.json(),
         ]);
 
         setStatus(statusData.data);
         setMpList(mpsData.data || []);
+        if (simsData.success) {
+          setSimulationHistory(simsData.data);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -271,6 +315,16 @@ export default function AdminDashboard() {
     running: locale === "et" ? "Käivitub..." : "Running...",
     dataSync: locale === "et" ? "Andmete sünkroonimine" : "Data Sync",
     syncInstructions: locale === "et" ? "Käsud CLI kaudu" : "CLI Commands",
+    simulationHistory: locale === "et" ? "Simulatsioonide ajalugu" : "Simulation History",
+    fullParliament: locale === "et" ? "Parlamendi simulatsioonid" : "Parliament Simulations",
+    individualPredictions: locale === "et" ? "Üksikud ennustused" : "Individual Predictions",
+    totalSimulations: locale === "et" ? "Kokku simulatsioone" : "Total simulations",
+    cachedPredictions: locale === "et" ? "Puhverdatud ennustusi" : "Cached predictions",
+    uniqueBills: locale === "et" ? "Erinevaid eelnõusid" : "Unique bills",
+    passageChance: locale === "et" ? "Läbimise võimalus" : "Passage chance",
+    noSimulations: locale === "et" ? "Simulatsioone pole veel tehtud" : "No simulations yet",
+    for: locale === "et" ? "Poolt" : "For",
+    against: locale === "et" ? "Vastu" : "Against",
   };
 
   return (
@@ -523,6 +577,116 @@ export default function AdminDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Simulation History Section */}
+      {simulationHistory && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">{t.simulationHistory}</h2>
+
+          {/* Simulation Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard
+              title={t.fullParliament}
+              value={simulationHistory.fullParliamentSimulations.total}
+              subtitle={t.totalSimulations}
+            />
+            <StatCard
+              title={t.individualPredictions}
+              value={simulationHistory.individualPredictions.activeCached}
+              subtitle={`${simulationHistory.individualPredictions.totalCached} ${t.cachedPredictions}`}
+            />
+            <StatCard
+              title={t.uniqueBills}
+              value={simulationHistory.individualPredictions.uniqueBills}
+              subtitle={t.individualPredictions}
+            />
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Full Parliament Simulations */}
+            <section className="card">
+              <div className="card-header">
+                <h3 className="text-lg font-semibold">{t.fullParliament}</h3>
+              </div>
+              <div className="card-content">
+                {simulationHistory.fullParliamentSimulations.simulations.length === 0 ? (
+                  <p className="text-ink-500 text-sm">{t.noSimulations}</p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {simulationHistory.fullParliamentSimulations.simulations.map((sim) => (
+                      <div key={sim.id} className="p-3 bg-ink-50 rounded-lg">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-ink-900 text-sm truncate" title={sim.billTitle}>
+                              {sim.billTitle}
+                            </div>
+                            <div className="text-xs text-ink-500">
+                              {new Date(sim.createdAt).toLocaleString(locale)}
+                            </div>
+                          </div>
+                          <div className={`flex-shrink-0 text-lg font-bold ${
+                            sim.passageProbability >= 50 ? 'text-conf-high' : 'text-vote-against'
+                          }`}>
+                            {sim.passageProbability}%
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs">
+                          <span className="text-conf-high">{t.for}: {sim.totalFor}</span>
+                          <span className="text-vote-against">{t.against}: {sim.totalAgainst}</span>
+                          {sim.totalAbstain > 0 && (
+                            <span className="text-ink-500">Abstain: {sim.totalAbstain}</span>
+                          )}
+                          <span className="text-ink-400 ml-auto">{sim.predictionsCount} MPs</span>
+                        </div>
+                        {sim.draftUuid && (
+                          <div className="mt-1 text-[10px] text-ink-400 font-mono">
+                            Draft: {sim.draftUuid.substring(0, 8)}...
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Individual Prediction Groups */}
+            <section className="card">
+              <div className="card-header">
+                <h3 className="text-lg font-semibold">{t.individualPredictions}</h3>
+              </div>
+              <div className="card-content">
+                {simulationHistory.individualPredictions.recentGroups.length === 0 ? (
+                  <p className="text-ink-500 text-sm">{t.noSimulations}</p>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {simulationHistory.individualPredictions.recentGroups.map((group) => (
+                      <div key={group.billHash} className="p-3 bg-ink-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono text-xs text-ink-600">
+                            {group.billHash.substring(0, 16)}...
+                          </span>
+                          <span className="text-sm font-medium text-ink-900">
+                            {group.mpCount} MPs
+                          </span>
+                        </div>
+                        <div className="text-xs text-ink-500">
+                          {new Date(group.lastUpdated).toLocaleString(locale)}
+                        </div>
+                        {group.samplePrediction && (
+                          <div className="mt-2 text-xs text-ink-600">
+                            e.g., {group.samplePrediction.mpName} ({group.samplePrediction.party}): {group.samplePrediction.vote}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
