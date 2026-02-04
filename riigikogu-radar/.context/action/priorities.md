@@ -47,7 +47,11 @@
 
 Current state: `/insights` shows rebels, alliances, close votes, attendance patterns.
 
+**Known gap: Fraktsioonitud MPs**
+"Fraktsioonitud" = independents (non-affiliated). They are NOT a party. Current system calculates meaningless "party loyalty" for them. Need individual-level analysis instead.
+
 Enhancements needed:
+- [ ] **Fix Fraktsioonitud handling** — Don't show "party loyalty" for independents; use different metrics
 - [ ] **Time filtering** — "What happened today/this week/this month"
 - [ ] **AI story summaries** — Narrative context, not just data points
 - [ ] **Significance indicators** — Why is this newsworthy?
