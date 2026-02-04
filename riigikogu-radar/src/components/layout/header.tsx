@@ -1,5 +1,5 @@
 "use client";
-
+// Navigation header - updated 2026-02-04
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
