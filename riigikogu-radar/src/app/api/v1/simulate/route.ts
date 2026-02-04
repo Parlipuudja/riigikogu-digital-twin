@@ -134,8 +134,8 @@ export async function POST(request: Request) {
     await startProcessing(job._id);
 
     // Process all MPs synchronously in parallel batches
-    // With 300s timeout and ~2-3s per MP (parallel), this handles 101 MPs comfortably
-    const BATCH_SIZE = 15; // Process 15 MPs in parallel at a time
+    // 25 MPs parallel × 4 batches = 100 MPs in ~80-120 seconds
+    const BATCH_SIZE = 25;
     const allPredictions: Prediction[] = [];
     const allErrors: SimulationJobError[] = [];
 
