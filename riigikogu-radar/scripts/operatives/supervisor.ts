@@ -7,6 +7,7 @@
  * State is stored in MongoDB for access from admin dashboard.
  */
 
+import "dotenv/config";
 import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
