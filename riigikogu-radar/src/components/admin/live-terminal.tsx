@@ -228,7 +228,7 @@ export function LiveTerminal({ serverUrl }: LiveTerminalProps) {
       >
         {output.length === 0 ? (
           <div className="text-ink-500">
-            Click "Run Project Manager" to start...
+            Click &quot;Run Project Manager&quot; to start...
           </div>
         ) : (
           <pre className="whitespace-pre-wrap">{output.join("")}</pre>
