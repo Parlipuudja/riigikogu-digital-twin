@@ -1,60 +1,0 @@
-[dotenv@17.2.3] injecting env (3) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
-Batch Backtest
-══════════════════════════════════════════════════
-Settings: limit=20, votes=50, force=false
-
-Found 20 MP(s) to process:
-
-  • Andres Metsoja - paused (will resume)
-  • Andrus Seeme - paused (will resume)
-  • Annely Akkermann - paused (will resume)
-  • Anti Allas - paused (will resume)
-  • Anti Haugas - paused (will resume)
-  • Anti Poolamets - paused (will resume)
-  • Ants Frosch - paused (will resume)
-  • Arvo Aller - paused (will resume)
-  • Eerik-Niiles Kross - paused (will resume)
-  • Eero Merilind - paused (will resume)
-  • Enn Eesmaa - paused (will resume)
-  • Ester Karuse - paused (will resume)
-  • Evelin Poolamets - paused (will resume)
-  • Hanah Lahe - paused (will resume)
-  • Helir-Valdor Seeder - paused (will resume)
-  • Heljo Pikhof - paused (will resume)
-  • Helle-Moonika Helme - paused (will resume)
-  • Helmen Kütt - paused (will resume)
-  • Henn Põlluaas - paused (will resume)
-  • Irja Lutsar - paused (will resume)
-
-
-──────────────────────────────────────────────────
-[1/20] Andres Metsoja
-──────────────────────────────────────────────────
-Resuming backtest from index 20
-Using stratified sampling: 50 votes selected
-  [10/50] ✓  [20/50] ✓  [30/50] ✓Early stopping triggered at 39 samples (accuracy stabilized)
-  ✓ 97% accuracy (39 samples) in 10196.0s
-
-──────────────────────────────────────────────────
-[2/20] Andrus Seeme
-──────────────────────────────────────────────────
-Resuming backtest from index 20
-Using stratified sampling: 50 votes selected
-  ✗ Failed: 500 {"type":"error","error":{"type":"api_error","message":"Internal server error"},"request_id":"req_011CXoMbhC2RZiMBSWppdQhN"}
-
-──────────────────────────────────────────────────
-[3/20] Annely Akkermann
-──────────────────────────────────────────────────
-Resuming backtest from index 20
-Using stratified sampling: 50 votes selected
-  [10/50] ✓  [20/50] ✗  [30/50] ✓Early stopping triggered at 39 samples (accuracy stabilized)
-  ✓ 97% accuracy (39 samples) in 11213.4s
-
-Runtime limit reached (4h). Stopping.
-
-══════════════════════════════════════════════════
-SUMMARY
-══════════════════════════════════════════════════
-Completed: 2
-Failed: 1
-Total time: 374.4 minutes

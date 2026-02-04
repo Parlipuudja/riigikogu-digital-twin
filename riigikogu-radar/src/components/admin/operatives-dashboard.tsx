@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { LiveTerminal } from "./live-terminal";
+
+// AWS server URL for live operative streaming
+const OPERATIVE_SERVER_URL = process.env.NEXT_PUBLIC_OPERATIVE_SERVER_URL || "http://localhost:3001";
 
 interface OperativeStatus {
   id: string;
@@ -177,6 +181,16 @@ export function OperativesDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Live Terminal */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="text-lg font-semibold">Project Manager Live Terminal</h3>
+        </div>
+        <div className="card-content">
+          <LiveTerminal serverUrl={OPERATIVE_SERVER_URL} />
+        </div>
+      </div>
+
       {/* Supervisor Status */}
       <div className="card">
         <div className="card-header flex items-center justify-between">

@@ -42,7 +42,22 @@
 
 **Why second:** This is the killer feature — anticipating parliament, not just analyzing history.
 
-### P2: Make ANALYZE Temporal
+### P2: Enhance Insights Page
+**Make the existing Insights page actionable for journalists.**
+
+Current state: `/insights` shows rebels, alliances, close votes, attendance patterns.
+
+Enhancements needed:
+- [ ] **Time filtering** — "What happened today/this week/this month"
+- [ ] **AI story summaries** — Narrative context, not just data points
+- [ ] **Significance indicators** — Why is this newsworthy?
+- [ ] **Historical context** — "This is unusual because X voted with party 95% of the time"
+- [ ] **Coalition impact** — What does a rebel vote mean for government stability?
+- [ ] **Trend detection** — Is this a one-off or part of a pattern?
+
+**Why now:** The data infrastructure exists. Need to transform raw patterns into journalist-ready intelligence.
+
+### P3: Make ANALYZE Temporal
 **The system should track patterns over time.**
 
 - [ ] Store historical snapshots of MP stances
@@ -50,7 +65,7 @@
 - [ ] Coalition stability metrics
 - [ ] MP influence scoring
 
-**Why third:** Adds depth to intelligence but not urgently needed.
+**Why later:** Adds depth to intelligence but not urgently needed.
 
 ---
 

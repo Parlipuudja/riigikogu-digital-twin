@@ -1,8 +1,0 @@
-Starting embedding generation (using Voyage AI voyage-multilingual-2)...
-
-All votings already have embeddings
-Generated 0 vote embeddings
-
-Generating embeddings for 108 stenograms...
-  Processed 10/108 stenograms (API calls: 10, ~20K tokens)
-  Processed 20/108 stenograms (API calls: 20, ~31K tokens)

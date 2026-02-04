@@ -26,7 +26,7 @@
     "mps": "MPs",
     "drafts": "Drafts",
     "simulate": "Simulate",
-    "insights": "Story Leads",
+    "insights": "Insights",
     "accuracy": "Accuracy",
     "about": "About",
     "login": "Log in"
@@ -162,8 +162,8 @@
     "partyBreakdown": "By party"
   },
   "insights": {
-    "title": "Story Leads",
-    "subtitle": "AI-detected patterns and anomalies for journalists",
+    "title": "Insights",
+    "subtitle": "AI-detected patterns and anomalies in parliament",
     "failedToLoad": "Failed to load insights. Please try again later.",
     "swingVotes": {
       "title": "Potential Swing Voters",
