@@ -1,109 +1,144 @@
-# Roadmap — The Golden Plan
+# Roadmap — Autonomous Intelligence Suite
 
-*Making parliament legible, one feature at a time.*
+*Building the three pillars: COLLECT → ANALYZE → PREDICT*
 
 ## Vision
 
-A tool that journalists covering Riigikogu consider **essential** — trusted enough to cite in reporting.
+An autonomous system that continuously collects parliamentary data, generates political intelligence, and produces actionable predictions — without human intervention.
 
 ---
 
-## Phase 1: Foundation ✅ COMPLETE
+## PILLAR 1: COLLECT ✅ Operational
 
-**Goal:** Core prediction infrastructure that works.
+**Goal:** Autonomous data ingestion from official sources.
 
-- [x] Database with MPs, votings, stenograms, drafts
-- [x] AI prediction pipeline (Claude + RAG)
-- [x] Vector embeddings for semantic search
-- [x] Basic UI for browsing MPs and predictions
-- [x] Multi-language support (ET/EN)
-- [x] Honest accuracy reporting (post-cutoff backtests)
+### 1.1 Data Sources ✅
+- [x] Riigikogu API integration
+- [x] Voting records sync
+- [x] Stenogram/speech sync
+- [x] Draft legislation sync
+- [x] MP data sync
 
-**Status:** 87-90% out-of-sample accuracy achieved.
+### 1.2 Storage ✅
+- [x] MongoDB Atlas database
+- [x] Structured schema for all data types
+- [x] 100% historical coverage (2019-present)
 
----
+### 1.3 Automation 🔄
+- [x] Manual sync scripts working
+- [ ] **Vercel cron for auto-sync** (every 6 hours)
+- [ ] Sync health monitoring
+- [ ] Failure alerting
 
-## Phase 2: Trust & Transparency 🔄 IN PROGRESS
-
-**Goal:** Build credibility through transparency and reliability.
-
-### 2.1 Accuracy Transparency ✅
-- [x] OOS (out-of-sample) indicators on backtests
-- [x] Methodology documentation
-- [x] Post-cutoff testing to prevent data leakage
-
-### 2.2 Authentication & Admin 🔄
-- [x] Login system (NextAuth.js)
-- [x] Environment variables configured (Vercel)
-- [ ] Admin dashboard for system status
-- [ ] Admin-triggered backtests
-- [ ] Admin-triggered data sync
-
-### 2.3 Data Quality ✅
-- [x] Vector search index working
-- [x] Embeddings generation pipeline
-- [x] 100% embedding coverage (4333 votings, 975 stenograms)
-- [ ] Automated daily sync from Riigikogu API
-
-### 2.4 Reliability
-- [ ] AI failover (OpenAI/Gemini backup)
-- [ ] Better error handling and user feedback
-- [ ] Uptime monitoring
+**Current state:** Manual sync works. Autonomy requires cron job.
 
 ---
 
-## Phase 3: Journalist Features 📋 PLANNED
+## PILLAR 2: ANALYZE ✅ Operational
 
-**Goal:** Features journalists actually need.
+**Goal:** Transform raw data into structured intelligence.
 
-### 3.1 Predictions & Analysis
-- [ ] Batch predictions for upcoming votes
-- [ ] Coalition vs opposition breakdown
-- [ ] Vote outcome predictions (will it pass?)
-- [ ] Historical voting pattern analysis
+### 2.1 Vector Intelligence ✅
+- [x] Voyage AI embeddings for all votings (4,333)
+- [x] Voyage AI embeddings for all stenograms (975)
+- [x] MongoDB Atlas Vector Search index
+- [x] Semantic similarity queries
 
-### 3.2 Alerts & Tracking
-- [ ] Email alerts for specific MPs or topics
-- [ ] Watchlist functionality
-- [ ] RSS feeds for votes
+### 2.2 MP Profiling ✅
+- [x] Political stance extraction
+- [x] Key issues identification
+- [x] Quote extraction (52/101 MPs)
+- [x] Party loyalty calculation
 
-### 3.3 Export & Integration
-- [ ] Better export formats (Excel, PDF reports)
-- [ ] API for third-party integration
-- [ ] Embeddable widgets
-
----
-
-## Phase 4: Advanced Intelligence 🔮 FUTURE
-
-**Goal:** Deeper political insights.
-
-- [ ] Coalition dynamics tracking
+### 2.3 Pattern Detection 🔄
+- [x] Cross-party alliance identification
+- [x] Swing voter detection
+- [ ] **Trend analysis over time**
+- [ ] Coalition stability metrics
 - [ ] MP influence scoring
-- [ ] Topic clustering and trend analysis
-- [ ] Comparison with EU parliament voting
-- [ ] Historical parliament comparisons
+
+**Current state:** Static analysis works. Temporal trends not yet tracked.
+
+---
+
+## PILLAR 3: PREDICT ✅ Operational
+
+**Goal:** Anticipate parliamentary behavior before it happens.
+
+### 3.1 Individual Predictions ✅
+- [x] Single MP vote prediction
+- [x] RAG context (similar votes + speeches)
+- [x] Confidence scoring
+- [x] 87-90% out-of-sample accuracy
+
+### 3.2 Parliament Simulation ✅
+- [x] Full 101-MP simulation
+- [x] Seat plan visualization
+- [x] Constitutional amendment detection (68-vote threshold)
+- [x] Party breakdown display
+
+### 3.3 Proactive Intelligence 📋
+- [ ] **Batch predictions for upcoming agenda**
+- [ ] Bill passage probability
+- [ ] "What to watch" daily briefing
+- [ ] Anomaly detection (unexpected votes)
+
+**Current state:** On-demand predictions work. Proactive predictions not yet built.
+
+---
+
+## Infrastructure
+
+### Reliability ✅
+- [x] AI failover enabled (Claude → OpenAI → Gemini)
+- [x] Database redundancy (MongoDB Atlas)
+- [x] Error handling with graceful degradation
+
+### Observability 🔄
+- [x] Health endpoint
+- [x] Accuracy tracking (backtests)
+- [ ] Uptime monitoring
+- [ ] Performance metrics dashboard
+
+### API ✅
+- [x] RESTful endpoints for all intelligence
+- [x] Multi-language support (ET/EN)
+- [x] Export functionality (CSV/JSON)
+
+---
+
+## Priority Queue
+
+### Next: Autonomous Sync (COLLECT)
+Add Vercel cron to sync every 6 hours. This makes COLLECT truly autonomous.
+
+### Then: Proactive Predictions (PREDICT)
+Build endpoint that predicts all upcoming votes. This makes PREDICT proactive.
+
+### Then: Trend Detection (ANALYZE)
+Track patterns over time, not just snapshots. This makes ANALYZE dynamic.
 
 ---
 
 ## Anti-Goals
 
-Things we explicitly **won't** do:
+Things this suite explicitly **won't** do:
 
-- **Real-time features** - We're analysis, not news
-- **Mobile app** - Web-first for journalists at desks
-- **User accounts for everyone** - Admin-only for now
-- **Social features** - We're a tool, not a platform
-- **Paid features** - Free public resource (for now)
+- **Real-time notifications** — We're intelligence, not alerts
+- **User accounts** — Admin-only, no public registration
+- **Opinion/editorial** — Data and predictions only
+- **Other parliaments** — Estonian Riigikogu focus only
 
 ---
 
 ## Success Metrics
 
-1. **Accuracy:** 85%+ on out-of-sample predictions
-2. **Coverage:** All 101 MPs with predictions
-3. **Trust:** Cited in at least one news article
-4. **Reliability:** 99%+ uptime
+| Pillar | Metric | Target | Current |
+|--------|--------|--------|---------|
+| COLLECT | Auto-sync | Every 6h | ❌ Manual |
+| ANALYZE | Embeddings | 100% | ✅ 100% |
+| PREDICT | Accuracy | 85%+ | ✅ 87-90% |
+| ALL | Uptime | 99%+ | ✅ Healthy |
 
 ---
 

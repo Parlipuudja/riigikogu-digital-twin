@@ -1,70 +1,95 @@
 # Current Priorities
 
-*Last updated: 2026-02-04 20:00 UTC*
+*Last updated: 2026-02-04 21:00 UTC*
 
-## Status Summary
+## System Status
+
+| Pillar | Status | Autonomy |
+|--------|--------|----------|
+| COLLECT | ✅ Operational | ❌ Manual |
+| ANALYZE | ✅ Operational | ✅ Auto-embed on sync |
+| PREDICT | ✅ Operational | ✅ On-demand |
 
 | Metric | Value |
 |--------|-------|
-| Votings | 4,333 |
-| MPs | 101 |
-| DB Size | ~303 MB |
-| Embeddings | 100% votings, 100% stenograms |
-| Vector Index | READY (queryable) |
-| Production | Healthy |
-| Auth | LIVE |
-| Quotes | 52/101 MPs (52%) |
+| Votings | 4,333 (100% embedded) |
+| Stenograms | 975 (100% embedded) |
+| MPs | 101 (52 with quotes) |
+| Accuracy | 87-90% OOS |
+| Failover | ✅ Enabled |
+| Production | ✅ Healthy |
 
-## In Progress
+---
 
-- None currently
+## Priority Queue
 
-## Completed This Session (Feb 4)
+### P0: Make COLLECT Autonomous
+**The system should sync itself.**
 
-### Morning
-1. **MP quote extraction fixed** - Now filters third-party descriptions, prioritizes first-person statements
-2. **Quote relevance improved** - Requires stance keyword match + 35% relevance threshold
-3. **Coalition filter added to insights** - Cross-party alliances now excludes RE+E200+SDE (coalition partners)
-4. **Autonomous working mode** - Updated principles.md to clarify user monitors, Claude executes
+- [ ] Add Vercel cron job for auto-sync (every 6 hours)
+- [ ] Add sync health monitoring
+- [ ] Trigger embedding generation on new data
 
-### Afternoon
-1. **Fraktsioonitud fix** - Non-affiliated MPs no longer treated as a party
-2. **Seat Plan Visualization** - Hemicycle view of simulation results
-3. **Constitutional Amendment Detection** - Shows 68-vote threshold for põhiseadus amendments
+**Why first:** Without autonomous collection, the system degrades over time.
 
-### Evening
-1. **Stenogram embeddings** - COMPLETE 100% (975/975)
-2. **Voting embeddings** - COMPLETE 100% (4,333/4,333)
-3. **Quote batch complete** - 52/101 MPs have quotes
-4. **collectMPData optimization** - 10+ min → ~1 min per MP (10x faster via positional projection)
-5. **RAG/backtesting optimization** - Added projections for faster queries
-6. **Deployed to production** - All optimizations live
-7. **Context documents updated** - roadmap.md, blockers.json, MEMORY.md compacted
+### P1: Make PREDICT Proactive
+**The system should predict upcoming votes without being asked.**
 
-## Next Priorities
+- [ ] Fetch upcoming agenda from Riigikogu
+- [ ] Batch predict all upcoming votes
+- [ ] Expose `/api/v1/upcoming` endpoint
+- [ ] Generate "what to watch" daily briefing
 
-### Priority 0: Bug Fixes ✅ COMPLETE
-- [x] Party loyalty fixed at 85%
-- [x] Party loyalty rounding (Math.floor)
-- [x] MP citations - strict filtering, first-person preference
+**Why second:** This is the killer feature — anticipating parliament, not just analyzing history.
 
-### Priority 1: Admin Features ✅ COMPLETE
+### P2: Make ANALYZE Temporal
+**The system should track patterns over time.**
 
-### Priority 2: Failover ⏸️ OPTIONAL
-User chose to skip - can enable later with OPENAI_API_KEY in Vercel
+- [ ] Store historical snapshots of MP stances
+- [ ] Detect stance shifts
+- [ ] Coalition stability metrics
+- [ ] MP influence scoring
 
-### Priority 3: Data Quality ✅ COMPLETE
-- [x] Complete embedding generation (80% → 100%) ✅
-- [x] Quote regeneration batch complete (52/101 have quotes - strict filtering is intentional)
+**Why third:** Adds depth to intelligence but not urgently needed.
 
-## Future Improvements (Not Urgent)
+---
 
-- **Show RAG context in UI** - Frontend doesn't indicate when predictions lack historical context
-- **Automated sync cron** - Currently manual; could add Vercel cron for daily updates
-- **Mobile interface** - Desktop first for journalists
+## Completed (Feb 4, 2026)
 
-## What We're NOT Prioritizing
+### Infrastructure
+- ✅ AI failover enabled (Claude → OpenAI → Gemini)
+- ✅ 100% embedding coverage
+- ✅ MongoDB query optimization (10x faster)
+- ✅ Production deployed and healthy
 
-- Full parliament simulation (disabled, too expensive)
-- Neo4j migration (MongoDB sufficient)
-- Performance optimization (correctness first)
+### COLLECT Pillar
+- ✅ All sync scripts operational
+- ✅ Historical data complete (2019-present)
+
+### ANALYZE Pillar
+- ✅ Vector search index working
+- ✅ MP profiling with quotes (52/101)
+- ✅ Cross-party alliance detection
+- ✅ Swing voter identification
+
+### PREDICT Pillar
+- ✅ Individual MP predictions (87-90% accuracy)
+- ✅ Full parliament simulation
+- ✅ Seat plan visualization
+- ✅ Constitutional amendment detection
+
+---
+
+## Anti-Priorities
+
+Things we're explicitly NOT working on:
+
+- Mobile app
+- User accounts/registration
+- Email alerts
+- Other parliaments
+- UI polish
+
+---
+
+*Focus: Build autonomy into each pillar.*

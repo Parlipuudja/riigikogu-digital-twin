@@ -1,42 +1,82 @@
 # Mission
 
-> **Make the Estonian Parliament legible through AI-powered intelligence.**
+> **Build an autonomous intelligence suite that collects, analyzes, and predicts Estonian Parliament activity.**
 
-## What This Means
+## The Three Pillars
 
-**Legibility** is the quality of being understandable. The Estonian Parliament makes decisions that affect 1.3 million people, but the decision-making process is opaque:
+### 1. COLLECT
+Autonomous data ingestion from official sources:
+- Voting records from Riigikogu API
+- Stenogram transcripts (speeches)
+- Legislative drafts and amendments
+- MP membership and committee data
 
-- Voting patterns are public but not analyzed
-- Speeches exist but aren't connected to votes
-- Coalitions form and shift invisibly
-- The reasons behind votes remain unexplained
+**Goal:** The system keeps itself current without human intervention.
 
-We exist to **reveal the patterns** that are hidden in plain sight.
+### 2. ANALYZE
+AI-powered pattern recognition:
+- MP political profiles and stances
+- Coalition and opposition dynamics
+- Cross-party alliances and anomalies
+- Voting pattern trends over time
 
-## The Political Intervention
+**Goal:** Transform raw data into structured intelligence.
 
-We are not building a "product." We are building **democratic infrastructure**.
+### 3. PREDICT
+Actionable forecasts:
+- Individual MP vote predictions (87-90% accuracy)
+- Full parliament simulation outcomes
+- Bill passage probability
+- Swing voter identification
+
+**Goal:** Anticipate parliamentary behavior before it happens.
+
+## What Makes This Different
+
+**Autonomy is the key differentiator.**
+
+Most parliamentary tools are passive databases. Users must:
+- Manually check for updates
+- Do their own analysis
+- Draw their own conclusions
+
+This system is an **active intelligence agent**:
+- Collects data automatically
+- Generates insights continuously
+- Produces predictions on demand
+- Monitors its own accuracy
+
+## The Political Value
 
 ```
-Legibility → Understanding → Accountability → Better Governance
+Raw Data → Intelligence → Predictions → Accountability
 ```
 
-When journalists can see what they couldn't see before, they write better stories. When stories are written, politicians are accountable. When politicians are accountable, governance improves.
+When parliamentary behavior becomes predictable and transparent:
+- Journalists can anticipate stories, not just react
+- Citizens can understand how their representatives vote
+- Politicians know their patterns are visible
 
-The app is a **lever**, not a destination.
+**Transparency enables accountability. Accountability enables better governance.**
 
-## What We Are
+## Who Benefits
 
-We are an **independent parliamentary intelligence system** following the think tank model:
+1. **Journalists** — Predictive intelligence for political reporting
+2. **Researchers** — Structured data on parliamentary behavior
+3. **Citizens** — Understanding how parliament actually works
+4. **Democracy** — Accountability through transparency
 
-- **RAND Corporation** — rigorous, non-partisan analysis
-- **Arenguseire Keskus** — Estonian foresight, evidence-based
+## Success Criteria
 
-We serve truth, not political alignment. We serve all sides equally with facts.
+| Pillar | Metric | Target |
+|--------|--------|--------|
+| COLLECT | Data freshness | <24 hours behind official source |
+| ANALYZE | Coverage | 100% of MPs profiled |
+| PREDICT | Accuracy | 85%+ out-of-sample |
+| ALL | Uptime | 99%+ availability |
 
 ## The Ultimate Test
 
-> Would a journalist covering Riigikogu consider us an essential tool?
-> Would they trust us enough to cite us in their reporting?
+> Does the system produce useful intelligence without being asked?
 
-If yes, we've succeeded. If no, we haven't.
+If someone checks the system after ignoring it for a week, and finds fresh, accurate, actionable data — we've succeeded.
