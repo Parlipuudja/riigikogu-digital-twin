@@ -1,10 +1,10 @@
 {
-  "lastUpdated": "2026-02-04T09:05:00Z",
+  "lastUpdated": "2026-02-04T15:30:00Z",
   "overall": "healthy",
   "components": {
     "database": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T12:12:32Z",
+      "lastCheck": "2026-02-04T15:30:00Z",
       "details": {
         "votings": 4333,
         "mps": 101,
@@ -14,15 +14,15 @@
     },
     "anthropicApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T12:12:32Z"
+      "lastCheck": "2026-02-04T15:30:00Z"
     },
     "voyageApi": {
       "status": "healthy",
-      "lastCheck": "2026-02-03T12:12:32Z"
+      "lastCheck": "2026-02-04T15:30:00Z"
     },
     "embeddings": {
       "status": "operational",
-      "lastCheck": "2026-02-03T12:12:00Z",
+      "lastCheck": "2026-02-04T15:30:00Z",
       "details": {
         "votingsCoverage": "57.5%",
         "stenogramsCoverage": "48.2%",
@@ -32,19 +32,32 @@
     },
     "rag": {
       "status": "operational",
-      "lastCheck": "2026-02-03T12:16:00Z",
+      "lastCheck": "2026-02-04T15:30:00Z",
       "note": "Vector search index created and verified working"
+    },
+    "simulation": {
+      "status": "operational",
+      "lastCheck": "2026-02-04T15:30:00Z",
+      "note": "Full 101-MP simulation working, ~3m processing time with statistical bypass"
+    },
+    "adminAuth": {
+      "status": "healthy",
+      "lastCheck": "2026-02-04T15:30:00Z",
+      "note": "Fixed env var newline issues"
     }
   },
   "degradedFeatures": [],
   "workingFeatures": [
     "Vote predictions with RAG context",
-    "Parliament simulation",
+    "Parliament simulation (101 MPs)",
+    "Simulation history tracking",
     "MP browsing",
     "Voting history",
     "Draft browsing",
     "Search",
     "Export",
-    "Vector similarity search"
+    "Vector similarity search",
+    "Admin dashboard",
+    "Admin authentication"
   ]
 }
