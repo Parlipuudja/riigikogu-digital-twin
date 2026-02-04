@@ -36,6 +36,21 @@ The system collects parliamentary data, generates political intelligence, and pr
 
 ---
 
+## CRITICAL: Repo Structure
+
+```
+/home/ubuntu/riigikogu-radar/           ← GIT REPO ROOT
+├── vercel.json                          ← ROOT CONFIG (DO NOT DELETE)
+├── CLAUDE.md
+└── riigikogu-radar/                     ← NEXT.JS PROJECT (working dir)
+    ├── src/
+    ├── package.json
+    └── vercel.json
+```
+
+**The root `vercel.json` sets `rootDirectory: "riigikogu-radar"`.**
+**NEVER modify Vercel Root Directory in the UI. It breaks deploys.**
+
 ## Working Directory
 
 ```
