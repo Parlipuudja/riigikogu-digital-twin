@@ -1,16 +1,7 @@
 {
   "lastUpdated": "2026-02-04T20:00:00Z",
   "critical": [],
-  "high": [
-    {
-      "id": "failover-not-enabled",
-      "title": "Failover implemented but not enabled in production",
-      "impact": "Failover exists but won't activate without config",
-      "blocked": ["reliability"],
-      "resolution": "Set ENABLE_AI_FAILOVER=true and add OPENAI_API_KEY or GEMINI_API_KEY in Vercel",
-      "owner": "user"
-    }
-  ],
+  "high": [],
   "medium": [],
   "resolved": [
     {
@@ -60,6 +51,12 @@
       "title": "collectMPData taking 10+ minutes per MP",
       "resolvedAt": "2026-02-04T19:30:00Z",
       "resolution": "Optimized with positional projection (voters.$, speakers.$) - now ~1 min per MP"
+    },
+    {
+      "id": "failover-enabled",
+      "title": "AI failover now enabled in production",
+      "resolvedAt": "2026-02-04T20:45:00Z",
+      "resolution": "Added OPENAI_API_KEY, GOOGLE_AI_API_KEY, ENABLE_AI_FAILOVER=true to Vercel"
     }
   ]
 }
