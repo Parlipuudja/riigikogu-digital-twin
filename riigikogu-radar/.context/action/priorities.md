@@ -92,4 +92,20 @@ Things we're explicitly NOT working on:
 
 ---
 
-*Focus: Build autonomy into each pillar.*
+## Operative System ✅ DEFINED
+
+The project is self-managed by Claude Code operatives:
+
+| Operative | Role | Status |
+|-----------|------|--------|
+| Project Manager | Lead, prioritize, coordinate | ✅ Active |
+| Collector | COLLECT pillar execution | ✅ Defined |
+| Analyst | ANALYZE pillar execution | ✅ Defined |
+| Predictor | PREDICT pillar validation | ✅ Defined |
+| Guardian | Health monitoring | ✅ Defined |
+
+See: `.context/operatives/` for full role definitions.
+
+---
+
+*Focus: Build autonomy into each pillar. Operatives manage the system.*
