@@ -39,10 +39,10 @@ A tool that journalists covering Riigikogu consider **essential** — trusted en
 - [ ] Admin-triggered backtests
 - [ ] Admin-triggered data sync
 
-### 2.3 Data Quality
+### 2.3 Data Quality ✅
 - [x] Vector search index working
 - [x] Embeddings generation pipeline
-- [ ] 80%+ embedding coverage (currently ~78%)
+- [x] 100% embedding coverage (4333 votings, 975 stenograms)
 - [ ] Automated daily sync from Riigikogu API
 
 ### 2.4 Reliability
@@ -107,4 +107,4 @@ Things we explicitly **won't** do:
 
 ---
 
-*Last updated: 2026-02-03*
+*Last updated: 2026-02-04*

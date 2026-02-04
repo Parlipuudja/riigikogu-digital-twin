@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-02-03T11:20:00Z",
+  "lastUpdated": "2026-02-04T20:00:00Z",
   "critical": [],
   "high": [
     {
@@ -41,13 +41,25 @@
       "id": "embedding-generation-crashed",
       "title": "Embedding generation process crashed",
       "resolvedAt": "2026-02-03T11:45:00Z",
-      "resolution": "Resumed successfully - 500 votings + 200 stenograms, coverage 46%→58%"
+      "resolution": "Resumed successfully - partial recovery"
     },
     {
       "id": "vector-search-no-index",
       "title": "MongoDB Atlas Vector Search index missing",
       "resolvedAt": "2026-02-03T12:14:00Z",
       "resolution": "Created vector_index on votings collection - RAG now returns similar votes"
+    },
+    {
+      "id": "embeddings-100-percent",
+      "title": "Embeddings reached 100% coverage",
+      "resolvedAt": "2026-02-04T19:00:00Z",
+      "resolution": "All 4333 votings and 975 stenograms now have embeddings"
+    },
+    {
+      "id": "slow-mp-data-collection",
+      "title": "collectMPData taking 10+ minutes per MP",
+      "resolvedAt": "2026-02-04T19:30:00Z",
+      "resolution": "Optimized with positional projection (voters.$, speakers.$) - now ~1 min per MP"
     }
   ]
 }
