@@ -1,104 +1,299 @@
 /**
- * Brain Chat API
+ * Brain Chat API - Full Agent Mode
  *
- * Provides instant natural language communication with the brain.
- * Messages are processed immediately via Claude API and stored in MongoDB.
+ * Provides Claude Code-level power via the brain chat interface.
+ * The brain can read/write files, run commands, query database, and more.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/data/mongodb";
 import Anthropic from "@anthropic-ai/sdk";
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+
+const WORKING_DIR = "/home/ubuntu/riigikogu-radar/riigikogu-radar";
+const MAX_ITERATIONS = 10;
 
 interface ChatMessage {
   role: "human" | "brain";
   content: string;
   timestamp: Date;
-  actionItems?: string[];
-  processed?: boolean;
+  toolsUsed?: string[];
 }
 
-interface Conversation {
-  _id?: string;
-  messages: ChatMessage[];
-  createdAt: Date;
-  updatedAt: Date;
+// Tool definitions for the brain
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "read_file",
+    description: "Read the contents of a file. Use this to understand code, configs, or data files.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Path to the file (relative to project root or absolute)" }
+      },
+      required: ["path"]
+    }
+  },
+  {
+    name: "write_file",
+    description: "Write content to a file. Creates the file if it doesn't exist.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Path to the file" },
+        content: { type: "string", description: "Content to write" }
+      },
+      required: ["path", "content"]
+    }
+  },
+  {
+    name: "run_command",
+    description: "Run a bash command. Use for git, npm, curl, database queries, etc. Be careful with destructive commands.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        command: { type: "string", description: "The bash command to run" },
+        timeout: { type: "number", description: "Timeout in seconds (default 30)" }
+      },
+      required: ["command"]
+    }
+  },
+  {
+    name: "list_files",
+    description: "List files in a directory with optional pattern matching.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: { type: "string", description: "Directory path (default: project root)" },
+        pattern: { type: "string", description: "Glob pattern to filter files (e.g., '*.ts')" }
+      },
+      required: []
+    }
+  },
+  {
+    name: "search_code",
+    description: "Search for a pattern in the codebase using grep.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        pattern: { type: "string", description: "Regex pattern to search for" },
+        path: { type: "string", description: "Directory to search in (default: src/)" },
+        fileType: { type: "string", description: "File extension to filter (e.g., 'ts', 'tsx')" }
+      },
+      required: ["pattern"]
+    }
+  },
+  {
+    name: "query_database",
+    description: "Query MongoDB directly. Returns JSON results.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        collection: { type: "string", description: "Collection name (e.g., 'mps', 'votings', 'brain_state')" },
+        operation: { type: "string", enum: ["find", "findOne", "count", "aggregate"], description: "Operation type" },
+        query: { type: "string", description: "JSON query string (e.g., '{\"isActive\": true}')" },
+        limit: { type: "number", description: "Limit for find operations (default: 10)" }
+      },
+      required: ["collection", "operation"]
+    }
+  }
+];
+
+// Tool execution
+async function executeTool(name: string, input: Record<string, unknown>): Promise<string> {
+  try {
+    switch (name) {
+      case "read_file": {
+        const filePath = input.path as string;
+        const fullPath = filePath.startsWith("/") ? filePath : path.join(WORKING_DIR, filePath);
+        if (!fs.existsSync(fullPath)) {
+          return `Error: File not found: ${fullPath}`;
+        }
+        const content = fs.readFileSync(fullPath, "utf-8");
+        if (content.length > 50000) {
+          return content.slice(0, 50000) + "\n\n... [truncated, file too large]";
+        }
+        return content;
+      }
+
+      case "write_file": {
+        const filePath = input.path as string;
+        const content = input.content as string;
+        const fullPath = filePath.startsWith("/") ? filePath : path.join(WORKING_DIR, filePath);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(fullPath, content);
+        return `Successfully wrote ${content.length} bytes to ${fullPath}`;
+      }
+
+      case "run_command": {
+        const command = input.command as string;
+        const timeout = ((input.timeout as number) || 30) * 1000;
+
+        // Safety checks
+        const dangerous = ["rm -rf /", "dd if=", "mkfs", "> /dev/", "chmod -R 777 /"];
+        if (dangerous.some(d => command.includes(d))) {
+          return "Error: Command blocked for safety reasons";
+        }
+
+        try {
+          const output = execSync(command, {
+            cwd: WORKING_DIR,
+            timeout,
+            encoding: "utf-8",
+            maxBuffer: 10 * 1024 * 1024
+          });
+          return output.slice(0, 50000) || "(no output)";
+        } catch (err: unknown) {
+          const error = err as { stderr?: string; message?: string };
+          return `Command failed: ${error.stderr || error.message || "Unknown error"}`;
+        }
+      }
+
+      case "list_files": {
+        const dirPath = (input.path as string) || ".";
+        const pattern = input.pattern as string;
+        const fullPath = dirPath.startsWith("/") ? dirPath : path.join(WORKING_DIR, dirPath);
+
+        let command = `find "${fullPath}" -type f`;
+        if (pattern) {
+          command += ` -name "${pattern}"`;
+        }
+        command += " | head -100";
+
+        try {
+          const output = execSync(command, { encoding: "utf-8", timeout: 10000 });
+          return output || "(no files found)";
+        } catch {
+          return `Error listing files in ${fullPath}`;
+        }
+      }
+
+      case "search_code": {
+        const pattern = input.pattern as string;
+        const searchPath = (input.path as string) || "src/";
+        const fileType = input.fileType as string;
+        const fullPath = searchPath.startsWith("/") ? searchPath : path.join(WORKING_DIR, searchPath);
+
+        let command = `grep -rn "${pattern}" "${fullPath}"`;
+        if (fileType) {
+          command += ` --include="*.${fileType}"`;
+        }
+        command += " | head -50";
+
+        try {
+          const output = execSync(command, { encoding: "utf-8", timeout: 30000 });
+          return output || "(no matches found)";
+        } catch {
+          return "(no matches found)";
+        }
+      }
+
+      case "query_database": {
+        const db = await getDatabase();
+        const collection = input.collection as string;
+        const operation = input.operation as string;
+        const queryStr = (input.query as string) || "{}";
+        const limit = (input.limit as number) || 10;
+
+        let query;
+        try {
+          query = JSON.parse(queryStr);
+        } catch {
+          return `Error: Invalid JSON query: ${queryStr}`;
+        }
+
+        let result;
+        switch (operation) {
+          case "findOne":
+            result = await db.collection(collection).findOne(query);
+            break;
+          case "count":
+            result = await db.collection(collection).countDocuments(query);
+            break;
+          case "aggregate":
+            result = await db.collection(collection).aggregate(query).toArray();
+            break;
+          case "find":
+          default:
+            result = await db.collection(collection).find(query).limit(limit).toArray();
+        }
+
+        return JSON.stringify(result, null, 2);
+      }
+
+      default:
+        return `Unknown tool: ${name}`;
+    }
+  } catch (err: unknown) {
+    const error = err as Error;
+    return `Error executing ${name}: ${error.message}`;
+  }
 }
 
-// System prompt for the brain
-const BRAIN_SYSTEM_PROMPT = `You are the Brain of Riigikogu Radar, an autonomous parliamentary intelligence system for Estonia.
+// System prompt
+const BRAIN_SYSTEM_PROMPT = `You are the Brain of Riigikogu Radar - a parliamentary intelligence system for Estonia.
 
-You are speaking directly with your human operator. Be helpful, concise, and proactive.
+You have FULL ACCESS to the system. Use your tools to:
+- Read and write files
+- Run bash commands (git, npm, curl, etc.)
+- Query the MongoDB database directly
+- Search and modify code
 
-## Your Capabilities
-- You manage priorities for the system (stored in .context/action/priorities.md)
-- You coordinate PM and Developer operatives that run every 30 minutes
-- You have access to parliamentary data: votings, stenograms, MPs, predictions
-- You generate daily self-reports
+## Project Structure
+- Working directory: ${WORKING_DIR}
+- Source code: src/
+- Scripts: scripts/
+- Context files: .context/
+- Brain memory: ~/.claude/projects/-home-ubuntu-riigikogu-radar/memory/MEMORY.md
 
-## Current System State
-{SYSTEM_STATE}
+## Key Files
+- Priorities: .context/action/priorities.md
+- Brain memory: ~/.claude/projects/-home-ubuntu-riigikogu-radar/memory/MEMORY.md
+- Package.json: package.json
 
-## Current Priorities
-{PRIORITIES}
+## Database Collections
+- mps: MP data
+- votings: Voting records
+- stenograms: Parliament transcripts
+- brain_state: Brain status
+- brain_chat: Chat history
+- brain_action_items: Pending actions
 
-## How to Respond
-1. Answer questions directly and concisely
-2. If the human asks you to do something, acknowledge it and explain what will happen
-3. If it's a priority change, note it as an ACTION ITEM that the PM operative will execute
-4. Be honest about what you can and cannot do immediately vs. what requires operative action
+## Current Principle: CLARITY
+Remove unnecessary complexity. Keep only what is essential. Simplify.
 
-## Action Items
-If the human requests something that requires action (code changes, priority updates, etc.), include it in your response as:
-ACTION: [description of what needs to be done]
+## How to Work
+1. When asked to do something, USE YOUR TOOLS to actually do it
+2. Read files before modifying them
+3. Run commands to verify changes
+4. Be concise in responses but thorough in actions
+5. If you modify code, run \`npm run build\` to verify it compiles
 
-The PM operative will see these and execute them in the next cycle.
+You are autonomous. Execute tasks directly. Don't just describe what could be done - do it.`;
 
-Respond naturally, as if you are a helpful AI assistant managing this parliamentary intelligence system.`;
-
-async function getSystemContext(): Promise<{ state: string; priorities: string }> {
+async function getSystemContext(): Promise<string> {
   const db = await getDatabase();
 
-  // Get brain state
   const brainState = await db.collection("brain_state").findOne({ _id: "brain" as unknown as import("mongodb").ObjectId });
-
-  // Get stats
   const votings = await db.collection("votings").countDocuments();
-  const stenograms = await db.collection("stenograms").countDocuments();
   const mps = await db.collection("mps").countDocuments({ isActive: true });
 
-  // Get recent operative runs
-  const recentRuns = await db.collection("operative_runs")
-    .find({})
-    .sort({ startedAt: -1 })
-    .limit(5)
-    .toArray();
-
-  const state = `
+  return `
 Status: ${brainState?.status || "unknown"}
 Last Heartbeat: ${brainState?.lastHeartbeat || "unknown"}
-Cycle Count: ${brainState?.cycleCount || 0}
-Data: ${votings} votings, ${stenograms} stenograms, ${mps} MPs
-Recent Runs: ${recentRuns.map(r => `${r.operative}:${r.status}`).join(", ") || "none"}
+Data: ${votings} votings, ${mps} active MPs
 `.trim();
-
-  // Get priorities from file (simplified - in production would read from git or MongoDB)
-  const priorities = `
-P0: Living Brain - Phase 1 Complete, Phase 2 in progress
-P1: Auto-sync (Vercel cron) - Not started
-P2: Proactive predictions (/upcoming) - Not started
-P3: Enhance Insights page - Exists, needs work
-P4: Temporal analysis - Not started
-`.trim();
-
-  return { state, priorities };
 }
 
 async function getChatHistory(): Promise<ChatMessage[]> {
   const db = await getDatabase();
-  const conversation = await db.collection<Conversation>("brain_chat")
+  const conversation = await db.collection("brain_chat")
     .findOne({}, { sort: { updatedAt: -1 } });
-
-  return conversation?.messages || [];
+  return (conversation?.messages as ChatMessage[]) || [];
 }
 
 async function saveChatMessage(message: ChatMessage): Promise<void> {
@@ -116,113 +311,112 @@ async function saveChatMessage(message: ChatMessage): Promise<void> {
   );
 }
 
-async function saveActionItem(action: string, fromMessage: string): Promise<void> {
-  const db = await getDatabase();
-
-  await db.collection("brain_action_items").insertOne({
-    action,
-    fromMessage,
-    status: "pending",
-    createdAt: new Date(),
-    processedAt: null,
-    processedBy: null
-  });
-}
-
 export async function POST(request: NextRequest) {
   try {
-    let body;
-    try {
-      body = await request.json();
-    } catch (parseError) {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON in request body" },
-        { status: 400 }
-      );
+    const body = await request.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
     }
 
     const { message } = body;
-
     if (!message || typeof message !== "string") {
-      return NextResponse.json(
-        { success: false, error: "Message is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: "Message required" }, { status: 400 });
     }
 
     // Save human message
-    const humanMessage: ChatMessage = {
-      role: "human",
-      content: message,
-      timestamp: new Date()
-    };
-    await saveChatMessage(humanMessage);
+    await saveChatMessage({ role: "human", content: message, timestamp: new Date() });
 
     // Get context
-    const { state, priorities } = await getSystemContext();
+    const systemContext = await getSystemContext();
     const history = await getChatHistory();
 
-    // Build conversation for Claude
-    const systemPrompt = BRAIN_SYSTEM_PROMPT
-      .replace("{SYSTEM_STATE}", state)
-      .replace("{PRIORITIES}", priorities);
+    // Build messages
+    const systemPrompt = BRAIN_SYSTEM_PROMPT + "\n\n## Current State\n" + systemContext;
 
-    // Get recent messages for context (last 10)
-    const recentMessages: Array<{ role: "user" | "assistant"; content: string }> = history.slice(-10).map(m => ({
+    const messages: Anthropic.MessageParam[] = history.slice(-8).map(m => ({
       role: m.role === "human" ? "user" as const : "assistant" as const,
       content: m.content
     }));
+    messages.push({ role: "user", content: message });
 
-    // Add current message
-    recentMessages.push({ role: "user", content: message });
+    // Claude client
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-    // Call Claude API
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY!
-    });
+    // Agentic loop
+    let iterations = 0;
+    let finalResponse = "";
+    const toolsUsed: string[] = [];
 
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: recentMessages
-    }).catch(async () => {
-      // Fallback to claude-3-5-sonnet if newer model not available
-      return anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1024,
+    while (iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      const response = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096,
         system: systemPrompt,
-        messages: recentMessages
-      });
-    });
+        tools: TOOLS,
+        messages
+      }).catch(() =>
+        anthropic.messages.create({
+          model: "claude-3-5-sonnet-20241022",
+          max_tokens: 4096,
+          system: systemPrompt,
+          tools: TOOLS,
+          messages
+        })
+      );
 
-    const brainResponse = response.content[0].type === "text"
-      ? response.content[0].text
-      : "I couldn't generate a response.";
+      // Check if we need to process tool calls
+      const toolUseBlocks = response.content.filter(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
+      );
 
-    // Extract action items
-    const actionItems: string[] = [];
-    const actionRegex = /ACTION:\s*(.+?)(?:\n|$)/g;
-    let match;
-    while ((match = actionRegex.exec(brainResponse)) !== null) {
-      actionItems.push(match[1].trim());
-      await saveActionItem(match[1].trim(), message);
+      const textBlocks = response.content.filter(
+        (block): block is Anthropic.TextBlock => block.type === "text"
+      );
+
+      // Collect any text response
+      if (textBlocks.length > 0) {
+        finalResponse = textBlocks.map(b => b.text).join("\n");
+      }
+
+      // If no tool calls, we're done
+      if (toolUseBlocks.length === 0 || response.stop_reason === "end_turn") {
+        break;
+      }
+
+      // Execute tools
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const toolUse of toolUseBlocks) {
+        toolsUsed.push(toolUse.name);
+        const result = await executeTool(toolUse.name, toolUse.input as Record<string, unknown>);
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: toolUse.id,
+          content: result
+        });
+      }
+
+      // Add assistant message and tool results to continue conversation
+      messages.push({ role: "assistant", content: response.content });
+      messages.push({ role: "user", content: toolResults });
     }
 
     // Save brain response
     const brainMessage: ChatMessage = {
       role: "brain",
-      content: brainResponse,
+      content: finalResponse,
       timestamp: new Date(),
-      actionItems: actionItems.length > 0 ? actionItems : undefined
+      toolsUsed: toolsUsed.length > 0 ? toolsUsed : undefined
     };
     await saveChatMessage(brainMessage);
 
     return NextResponse.json({
       success: true,
       data: {
-        response: brainResponse,
-        actionItems,
+        response: finalResponse,
+        toolsUsed,
+        iterations,
         timestamp: brainMessage.timestamp
       }
     });
@@ -231,7 +425,7 @@ export async function POST(request: NextRequest) {
     console.error("Brain chat error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { success: false, error: `Failed to process message: ${errorMessage}` },
+      { success: false, error: `Failed: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -242,11 +436,7 @@ export async function GET() {
     const db = await getDatabase();
     const today = new Date().toISOString().split("T")[0];
 
-    // Get today's conversation
-    const conversation = await db.collection("brain_chat")
-      .findOne({ date: today });
-
-    // Get pending action items
+    const conversation = await db.collection("brain_chat").findOne({ date: today });
     const actionItems = await db.collection("brain_action_items")
       .find({ status: "pending" })
       .sort({ createdAt: -1 })
@@ -263,9 +453,6 @@ export async function GET() {
 
   } catch (error) {
     console.error("Brain chat error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch messages" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Failed to fetch messages" }, { status: 500 });
   }
 }
