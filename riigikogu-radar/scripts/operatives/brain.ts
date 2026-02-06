@@ -836,7 +836,7 @@ async function sendEmailReport(report: DailyReport, recipients: string[]): Promi
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Riigikogu Radar <brain@seosetu.ee>",
+        from: "Riigikogu Radar Brain <onboarding@resend.dev>",
         to: recipients,
         subject,
         text: markdown,
