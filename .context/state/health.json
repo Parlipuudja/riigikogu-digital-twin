@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-02-06T13:31:00Z",
+  "overall": "healthy",
+  "components": {
+    "database": "healthy",
+    "anthropic_api": "healthy",
+    "voyage_api": "healthy",
+    "production": "healthy"
+  },
+  "features": {
+    "vote_predictions": "operational",
+    "parliament_simulation": "operational",
+    "mp_browsing": "operational",
+    "voting_history": "operational",
+    "semantic_search": "operational",
+    "data_export": "operational",
+    "brain_chat": "operational"
+  },
+  "metrics": {
+    "prediction_accuracy": 91.7,
+    "embedding_coverage": 100,
+    "mp_count": 101,
+    "voting_count": 4333,
+    "stenogram_count": 975
+  }
+}
