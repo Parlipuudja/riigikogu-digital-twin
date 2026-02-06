@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "home": "Avaleht",
+    "mps": "Saadikud",
+    "simulate": "Simuleeri",
+    "drafts": "Eelnõud",
+    "accuracy": "Täpsus",
+    "about": "Info"
+  },
+  "home": {
+    "title": "Riigikogu Radar",
+    "subtitle": "Eesti parlamendi luure- ja prognoosisüsteem",
+    "stats": "Statistika",
+    "totalVotings": "Hääletusi",
+    "totalMPs": "Saadikuid",
+    "activeMPs": "Aktiivseid",
+    "totalDrafts": "Eelnõusid",
+    "accuracy": "Täpsus",
+    "modelVersion": "Mudeli versioon",
+    "lastSync": "Viimane sünkroniseerimine",
+    "systemHealth": "Süsteemi tervis",
+    "recentVotings": "Viimased hääletused"
+  },
+  "mps": {
+    "title": "Riigikogu liikmed",
+    "search": "Otsi nime järgi...",
+    "filterParty": "Filtreeri erakonna järgi",
+    "allParties": "Kõik erakonnad",
+    "sortBy": "Sorteeri",
+    "sortName": "Nimi",
+    "sortLoyalty": "Erakonna lojaalsus",
+    "sortAttendance": "Osavõtt",
+    "votes": "hääli",
+    "attendance": "Osavõtt",
+    "loyalty": "Lojaalsus",
+    "profile": "Poliitiline profiil",
+    "keyIssues": "Põhiteemad",
+    "votingHistory": "Hääletusajalugu",
+    "predict": "Ennusta häält",
+    "committees": "Komisjonid"
+  },
+  "simulate": {
+    "title": "Parlamendi simulatsioon",
+    "subtitle": "Sisesta eelnõu kirjeldus ja vaata prognoositavat hääletustulemust",
+    "billTitle": "Eelnõu pealkiri",
+    "billDescription": "Eelnõu kirjeldus",
+    "billType": "Eelnõu tüüp",
+    "initiators": "Algatajad",
+    "run": "Simuleeri hääletust",
+    "running": "Simuleeritakse...",
+    "result": "Tulemus",
+    "for": "Poolt",
+    "against": "Vastu",
+    "abstain": "Erapooletu",
+    "absent": "Puudub",
+    "outcome": "Prognoositav tulemus"
+  },
+  "drafts": {
+    "title": "Eelnõud",
+    "status": "Staatus",
+    "initiators": "Algatajad",
+    "type": "Tüüp"
+  },
+  "accuracy": {
+    "title": "Prognoosi täpsus",
+    "subtitle": "Aus mõõtmine — ainult uutel andmetel",
+    "overall": "Üldine täpsus",
+    "baseline": "Baasjoone täpsus",
+    "improvement": "Paranemine",
+    "sampleSize": "Valimi suurus",
+    "byParty": "Erakondade kaupa",
+    "byVoteType": "Hääletustüübi kaupa",
+    "trend": "Täpsuse trend",
+    "party": "Erakond",
+    "count": "Hääli",
+    "honest": "Aus periood"
+  },
+  "about": {
+    "title": "Riigikogu Radarist",
+    "description": "Autonoomne luuresüsteem Eesti parlamendi jaoks.",
+    "methodology": "Metoodika",
+    "methodologyText": "Süsteem kasutab statistilisi mudeleid (mitte tehisintellekti) hääletustulemuste ennustamiseks. Põhitunnused: erakonna lojaalsus, teema sarnasus, koalitsiooni kuuluvus, komisjoni asjakohasus.",
+    "dataSources": "Andmeallikad",
+    "dataSourcesText": "Kõik andmed pärinevad Riigikogu avalikust API-st. Mudeleid treenitakse ajaloolistel hääletusandmetel.",
+    "philosophy": "Filosoofia",
+    "philosophyText": "Läbipaistvus > maagia. Täpsus > kiirus. Autonoomia > sõltuvus."
+  },
+  "common": {
+    "loading": "Laadimine...",
+    "error": "Viga",
+    "noData": "Andmed puuduvad",
+    "back": "Tagasi"
+  }
+}

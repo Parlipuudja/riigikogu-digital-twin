@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "home": "Home",
+    "mps": "MPs",
+    "simulate": "Simulate",
+    "drafts": "Drafts",
+    "accuracy": "Accuracy",
+    "about": "About"
+  },
+  "home": {
+    "title": "Riigikogu Radar",
+    "subtitle": "Intelligence and prediction system for the Estonian Parliament",
+    "stats": "Statistics",
+    "totalVotings": "Votings",
+    "totalMPs": "MPs",
+    "activeMPs": "Active",
+    "totalDrafts": "Drafts",
+    "accuracy": "Accuracy",
+    "modelVersion": "Model version",
+    "lastSync": "Last sync",
+    "systemHealth": "System health",
+    "recentVotings": "Recent votings"
+  },
+  "mps": {
+    "title": "Members of Parliament",
+    "search": "Search by name...",
+    "filterParty": "Filter by party",
+    "allParties": "All parties",
+    "sortBy": "Sort by",
+    "sortName": "Name",
+    "sortLoyalty": "Party loyalty",
+    "sortAttendance": "Attendance",
+    "votes": "votes",
+    "attendance": "Attendance",
+    "loyalty": "Loyalty",
+    "profile": "Political profile",
+    "keyIssues": "Key issues",
+    "votingHistory": "Voting history",
+    "predict": "Predict vote",
+    "committees": "Committees"
+  },
+  "simulate": {
+    "title": "Parliament simulation",
+    "subtitle": "Enter a bill description and see the predicted voting outcome",
+    "billTitle": "Bill title",
+    "billDescription": "Bill description",
+    "billType": "Bill type",
+    "initiators": "Initiators",
+    "run": "Simulate vote",
+    "running": "Simulating...",
+    "result": "Result",
+    "for": "For",
+    "against": "Against",
+    "abstain": "Abstain",
+    "absent": "Absent",
+    "outcome": "Predicted outcome"
+  },
+  "drafts": {
+    "title": "Legislative drafts",
+    "status": "Status",
+    "initiators": "Initiators",
+    "type": "Type"
+  },
+  "accuracy": {
+    "title": "Prediction accuracy",
+    "subtitle": "Honest measurement — post-cutoff data only",
+    "overall": "Overall accuracy",
+    "baseline": "Baseline accuracy",
+    "improvement": "Improvement",
+    "sampleSize": "Sample size",
+    "byParty": "By party",
+    "byVoteType": "By vote type",
+    "trend": "Accuracy trend",
+    "party": "Party",
+    "count": "Votes",
+    "honest": "Honest period"
+  },
+  "about": {
+    "title": "About Riigikogu Radar",
+    "description": "An autonomous intelligence system for the Estonian Parliament.",
+    "methodology": "Methodology",
+    "methodologyText": "The system uses statistical models (not AI) to predict voting outcomes. Key features: party loyalty, topic similarity, coalition membership, committee relevance.",
+    "dataSources": "Data sources",
+    "dataSourcesText": "All data comes from the public Riigikogu API. Models are trained on historical voting data.",
+    "philosophy": "Philosophy",
+    "philosophyText": "Transparency > magic. Accuracy > speed. Autonomy > dependency."
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "noData": "No data available",
+    "back": "Back"
+  }
+}
