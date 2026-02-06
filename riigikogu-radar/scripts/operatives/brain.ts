@@ -62,10 +62,11 @@ async function runBrain(): Promise<{ output: string; status: string; durationMs:
       resolve({ output, status, durationMs: Date.now() - startTime });
     };
 
-    // Simple: just use -p with text output, not stream-json
+    // Use --print for immediate output
     const claude = spawn("claude", [
       "-p", BRAIN_PROMPT,
-      "--dangerously-skip-permissions"
+      "--dangerously-skip-permissions",
+      "--print"
     ], {
       cwd: CONFIG.WORKING_DIR,
       env: { ...process.env },
