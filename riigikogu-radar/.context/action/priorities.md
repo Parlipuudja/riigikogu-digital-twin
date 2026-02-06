@@ -1,6 +1,6 @@
 # Current Priorities
 
-*Last updated: 2026-02-04 21:00 UTC*
+*Last updated: 2026-02-06 08:21 UTC*
 
 ## System Status
 
@@ -15,87 +15,129 @@
 | Votings | 4,333 (100% embedded) |
 | Stenograms | 975 (100% embedded) |
 | MPs | 101 (52 with quotes) |
-| Accuracy | 87-90% OOS |
+| Accuracy | 91.7% overall |
 | Failover | ✅ Enabled |
 | Production | ✅ Healthy |
+| **Brain** | ✅ **ALIVE** (self-healing, auto-restart) |
 
 ---
 
 ## Priority Queue
 
-### P0: Make COLLECT Autonomous
+### P0: THE LIVING BRAIN (Operatives Overhaul)
+
+**Goal:** Fully autonomous, self-healing operative system that never stops running.
+
+**Problem:** Current supervisor crashed (missing MONGODB_URI in systemd env). System has single point of failure with no recovery mechanism.
+
+**Solution:** Multi-layer defense system:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    AWS EC2 (The Brain)                      │
+│                                                             │
+│  LAYER 0: Cron Watchdog (every minute)                     │
+│    → Checks if brain alive, restarts if dead               │
+│                                                             │
+│  LAYER 1: systemd (riigikogu-brain.service)                │
+│    → Restart=always, WatchdogSec=300, MemoryMax=2G         │
+│                                                             │
+│  LAYER 2: brain.ts (the supervisor)                        │
+│    → Runs operative cycles                                  │
+│    → Sends heartbeats to MongoDB                           │
+│    → Manages resources                                      │
+│                                                             │
+│  LAYER 3: Operatives (Claude CLI instances)                │
+│    → Spawned with 30-min timeout                           │
+│    → Isolated: one failure doesn't kill brain              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Phase 1: Foundation ✅ COMPLETE
+
+- [x] Create `/etc/riigikogu/env` with environment variables
+- [x] Create `brain.ts` — new supervisor with proper architecture
+- [x] Create `riigikogu-brain.service` — systemd with restart policies
+- [x] Create `/etc/cron.d/riigikogu-watchdog` — backup restart mechanism
+- [x] Test restart behavior (verified: 31s recovery after kill)
+
+#### Phase 2: Intelligence
+
+- [ ] Smart operative scheduling (priority queue based on need)
+- [ ] Real-time output streaming to MongoDB
+- [ ] Operative timeout handling (kill stuck processes)
+- [ ] Resource monitoring and bounds (memory, disk, logs)
+
+#### Phase 3: Observability
+
+- [ ] `/api/v1/brain/status` endpoint
+- [ ] Dashboard showing brain state in real-time
+- [ ] Optional alerting (Discord webhook when brain dies)
+
+#### Operative Priority Queue
+
+| Priority | Operative | Trigger |
+|----------|-----------|---------|
+| P0 | Guardian | Health degraded |
+| P1 | Collector | Data > 24h stale |
+| P2 | Project Manager | Every cycle |
+| P3 | Developer | Every cycle |
+| P4 | Analyst | Embeddings incomplete |
+| P5 | Predictor | No backtest > 7 days |
+
+---
+
+### P1: Make COLLECT Autonomous
+
 **The system should sync itself.**
 
 - [ ] Add Vercel cron job for auto-sync (every 6 hours)
 - [ ] Add sync health monitoring
 - [ ] Trigger embedding generation on new data
 
-**Why first:** Without autonomous collection, the system degrades over time.
+### P2: Proactive Predictions (/upcoming)
 
-### P1: Make PREDICT Proactive
-**The system should predict upcoming votes without being asked.**
+**Predict upcoming votes without being asked.**
 
 - [ ] Fetch upcoming agenda from Riigikogu
 - [ ] Batch predict all upcoming votes
 - [ ] Expose `/api/v1/upcoming` endpoint
-- [ ] Generate "what to watch" daily briefing
 
-**Why second:** This is the killer feature — anticipating parliament, not just analyzing history.
+### P3: Enhance Insights Page
 
-### P2: Enhance Insights Page
-**Make the existing Insights page actionable for journalists.**
+**Make Insights actionable for journalists.**
 
-Current state: `/insights` shows rebels, alliances, close votes, attendance patterns.
+- [ ] Fix Fraktsioonitud handling (independents aren't a party)
+- [ ] Time filtering (today/week/month)
+- [ ] AI story summaries
+- [ ] Historical context
 
-**Known gap: Fraktsioonitud MPs**
-"Fraktsioonitud" = independents (non-affiliated). They are NOT a party. Current system calculates meaningless "party loyalty" for them. Need individual-level analysis instead.
+### P4: Temporal Analysis
 
-Enhancements needed:
-- [ ] **Fix Fraktsioonitud handling** — Don't show "party loyalty" for independents; use different metrics
-- [ ] **Time filtering** — "What happened today/this week/this month"
-- [ ] **AI story summaries** — Narrative context, not just data points
-- [ ] **Significance indicators** — Why is this newsworthy?
-- [ ] **Historical context** — "This is unusual because X voted with party 95% of the time"
-- [ ] **Coalition impact** — What does a rebel vote mean for government stability?
-- [ ] **Trend detection** — Is this a one-off or part of a pattern?
+**Track patterns over time.**
 
-**Why now:** The data infrastructure exists. Need to transform raw patterns into journalist-ready intelligence.
-
-### P3: Make ANALYZE Temporal
-**The system should track patterns over time.**
-
-- [ ] Store historical snapshots of MP stances
+- [ ] Historical snapshots of MP stances
 - [ ] Detect stance shifts
 - [ ] Coalition stability metrics
-- [ ] MP influence scoring
-
-**Why later:** Adds depth to intelligence but not urgently needed.
 
 ---
 
-## Completed (Feb 4, 2026)
+## Completed (Feb 4-6, 2026)
 
 ### Infrastructure
 - ✅ AI failover enabled (Claude → OpenAI → Gemini)
 - ✅ 100% embedding coverage
 - ✅ MongoDB query optimization (10x faster)
 - ✅ Production deployed and healthy
+- ✅ Root vercel.json locked
 
-### COLLECT Pillar
-- ✅ All sync scripts operational
-- ✅ Historical data complete (2019-present)
-
-### ANALYZE Pillar
-- ✅ Vector search index working
-- ✅ MP profiling with quotes (52/101)
-- ✅ Cross-party alliance detection
-- ✅ Swing voter identification
-
-### PREDICT Pillar
-- ✅ Individual MP predictions (87-90% accuracy)
-- ✅ Full parliament simulation
-- ✅ Seat plan visualization
-- ✅ Constitutional amendment detection
+### The Living Brain ✅ ALIVE
+- ✅ Operative definitions created
+- ✅ `brain.ts` supervisor with MongoDB heartbeat
+- ✅ `riigikogu-brain.service` with Restart=always
+- ✅ Cron watchdog as backup restart mechanism
+- ✅ Auto-restart verified (31s recovery)
+- ✅ Resource limits (2GB RAM, 80% CPU)
 
 ---
 
@@ -111,20 +153,4 @@ Things we're explicitly NOT working on:
 
 ---
 
-## Operative System ✅ DEFINED
-
-The project is self-managed by Claude Code operatives:
-
-| Operative | Role | Status |
-|-----------|------|--------|
-| Project Manager | Lead, prioritize, coordinate | ✅ Active |
-| Collector | COLLECT pillar execution | ✅ Defined |
-| Analyst | ANALYZE pillar execution | ✅ Defined |
-| Predictor | PREDICT pillar validation | ✅ Defined |
-| Guardian | Health monitoring | ✅ Defined |
-
-See: `.context/operatives/` for full role definitions.
-
----
-
-*Focus: Build autonomy into each pillar. Operatives manage the system.*
+*Focus: Bring the brain to life. Everything else depends on autonomy.*
