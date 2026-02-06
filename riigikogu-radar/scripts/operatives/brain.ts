@@ -21,14 +21,20 @@ const CONFIG = {
   LOGS_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar/logs/operatives",
 };
 
-const BRAIN_PROMPT = `You are the brain of Riigikogu Radar.
+const BRAIN_PROMPT = `You are the autonomous brain of Riigikogu Radar.
 
-Quick health check - be FAST:
-1. Run: curl -s https://seosetu.ee/api/v1/health
-2. If healthy, say "Status: HEALTHY" and stop
-3. If not, say "Status: DOWN" with 1-sentence reason
+Read context:
+- cat .context/action/priorities.md
+- cat .context/state/health.json
 
-Do not run any other commands. Respond in under 30 seconds.`;
+Execute cycle:
+1. HEALTH CHECK: curl -s https://seosetu.ee/api/v1/health
+2. DATA FRESHNESS: Check if latest voting is >24h old via API
+3. If unhealthy or stale → diagnose and report what's wrong
+4. If healthy and fresh → report "HEALTHY" with 1-line summary
+5. Update .context/state/health.json with timestamp and findings
+
+Be FAST. Respond in under 60 seconds.`;
 
 let db: Db | null = null;
 let isShuttingDown = false;

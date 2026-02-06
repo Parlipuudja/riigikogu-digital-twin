@@ -9,10 +9,10 @@
     "lint": "next lint",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "db:sync": "tsx scripts/sync.ts",
-    "db:sync:daily": "tsx scripts/sync.ts --daily",
-    "db:backtest": "tsx scripts/backtest.ts",
-    "db:profiles": "tsx scripts/generate-profiles.ts"
+    "db:sync": "tsx scripts/sync-api.ts all",
+    "db:sync:daily": "tsx scripts/sync-api.ts members",
+    "db:backtest": "tsx scripts/run-backtest.ts",
+    "db:profiles": "tsx scripts/regen-mp.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.72.1",
@@ -26,9 +26,7 @@
     "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1",
     "lucide-react": "^0.344.0",
     "mammoth": "^1.11.0",
     "mongodb": "^7.0.0",
@@ -46,9 +44,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
-    "@types/express": "^5.0.6",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

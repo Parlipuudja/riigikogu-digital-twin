@@ -1,21 +1,21 @@
 # Current Priorities
 
-## P0: Full Autonomy (Founding Directive)
+## DONE: P0: Full Autonomy (Founding Directive)
 
-The system must be self-maintaining, self-improving, self-reporting, self-planning, self-correcting, and self-pruning.
+Brain upgraded to full autonomous cycle: health check, data freshness, context-aware planning, self-reporting to `.context/state/health.json`. Completed 2025-02-06.
 
-## P1: Clarity
+## DONE: P1: Clarity
 
-Remove unnecessary complexity. Keep only what's essential.
+Dead npm scripts fixed. Redundant operatives (supervisor, run-operative, live-server) deleted. express/cors deps removed. Empty cron dir removed. Brain is the single canonical process. Completed 2025-02-06.
 
-## P2: Automated Data Collection
+## P0: Automated Data Collection
 
 Move COLLECT from manual to automated. Vercel cron or equivalent for 6-hour sync cycles.
 
-## P3: Complete MP Profiles
+## P1: Complete MP Profiles
 
 Finish quote extraction for remaining 49/101 MPs to achieve full ANALYZE coverage.
 
-## P4: Honest Accuracy
+## P2: Honest Accuracy
 
 Always measure and report post-cutoff prediction accuracy. Current true accuracy: 73.3%. Target: 85%+.
