@@ -131,7 +131,17 @@ async function saveActionItem(action: string, fromMessage: string): Promise<void
 
 export async function POST(request: NextRequest) {
   try {
-    const { message } = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON in request body" },
+        { status: 400 }
+      );
+    }
+
+    const { message } = body;
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
