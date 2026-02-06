@@ -12,21 +12,24 @@
 ┌─────────────────┐     ┌──────────────────────┐     ┌────────────────┐
 │  Riigikogu API  │────▶│  Python Service       │────▶│  MongoDB Atlas │
 │  (data source)  │     │  (FastAPI + Docker)   │◀───▶│  (shared DB)   │
-└─────────────────┘     │  VPS :8000            │     └────────────────┘
-                        └──────────┬───────────┘
-                                   │ REST
-                        ┌──────────▼───────────┐
-                        │  Next.js Frontend     │
-                        │  Vercel — seosetu.ee  │
-                        └──────────────────────┘
+└─────────────────┘     │  VPS :8000            │     └───────┬────────┘
+                        └──────────┬───────────┘             │
+                                   │ REST              reads │ state
+                        ┌──────────▼───────────┐     ┌───────▼────────┐
+                        │  Next.js Frontend     │     │  Claude Code   │
+                        │  Vercel — seosetu.ee  │     │  (cron on VPS) │
+                        └──────────────────────┘     └────────────────┘
 ```
 
-**Two processes, one database, no coordinator.** The database is the coordination layer — each process reads the state of the world and acts accordingly (stigmergy, not orchestration).
+**Three processes, one database, no coordinator.** The database is the coordination layer — each process reads the state of the world and acts accordingly (stigmergy, not orchestration).
 
-- **Python service** (VPS, Docker): data pipeline, prediction model, learning loops, scheduling. Runs continuously. The brain and the body.
+- **Python service** (VPS, Docker): data pipeline, prediction model, learning loops, scheduling. Runs continuously. The body.
 - **Next.js frontend** (Vercel): presentation only. SSR pages, i18n, API routes proxying to Python. Stateless. The face.
+- **Claude Code operator** (VPS, cron): reads system state from MongoDB, modifies the codebase to improve it, tests changes, deploys. Runs on schedule and on trigger. The higher cognition.
 
-The Python service writes. The frontend reads. MongoDB Atlas is the shared truth.
+The Python service is the nervous system — fast, deterministic, always running. Claude Code is the capacity for self-modification — slow, expensive, creative. The Python loops identify *what* is wrong. Claude Code figures out *how to fix it* at the code level.
+
+The Python service writes data. The frontend reads data. Claude Code writes code. MongoDB Atlas is the shared truth.
 
 ---
 
@@ -68,7 +71,14 @@ The Python service writes. The frontend reads. MongoDB Atlas is the shared truth
 │   │       ├── scheduler.py            # APScheduler: all loop heartbeats
 │   │       ├── resolve.py              # Match predictions against actual votes
 │   │       ├── diagnose.py             # Categorize prediction failures
-│   │       └── plan.py                 # Identify weaknesses, prioritize improvements
+│   │       ├── plan.py                 # Identify weaknesses, prioritize improvements
+│   │       └── operator.py             # Claude Code session launcher + safety wrapper
+│   ├── prompts/
+│   │   ├── improvement.md             # Prompt: accuracy dropped, fix it
+│   │   ├── investigation.md           # Prompt: new error category, investigate
+│   │   ├── feature_engineering.md     # Prompt: engineer new features
+│   │   ├── bug_fix.md                 # Prompt: sync/task failure, fix it
+│   │   └── review.md                  # Prompt: weekly health + quality review
 │   └── tests/
 │       ├── test_baseline.py
 │       ├── test_features.py
@@ -297,6 +307,30 @@ The system's self-model. Its understanding of its own performance, weaknesses, a
 | `improvementPriorities` | array | `[{ area, expectedGain, action }]` — the system's own roadmap |
 | `planHistory` | array | `[{ date, priorities, outcome }]` — what the system planned and what happened |
 
+### `operator_sessions`
+
+Audit trail of every Claude Code operator session. The system's memory of its own self-modification.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `_id` | ObjectId | |
+| `sessionType` | enum | `improvement`, `investigation`, `feature_engineering`, `bug_fix`, `review` |
+| `triggeredBy` | string | What condition triggered this session |
+| `stateSnapshot` | object | `model_state` at session start — the diagnosis that prompted the session |
+| `prompt` | string | What Claude Code was asked to do |
+| `startedAt` | Date | |
+| `completedAt` | Date | |
+| `branch` | string | Git branch name (`operator/{type}/{timestamp}`) |
+| `filesChanged` | `string[]` | Files modified during the session |
+| `testsPassed` | boolean | Did `pytest` pass after changes? |
+| `merged` | boolean | Was the branch merged to `main`? |
+| `commitHash` | string? | If merged, the commit hash |
+| `summary` | string | Claude Code's summary of what it did and why |
+| `accuracyBefore` | number | `model_state.accuracy.overall` at session start |
+| `accuracyAfter` | number? | Measured at next backtest — did the change actually help? |
+
+This collection enables the meta-learning loop: the system can query its own session history to learn which types of interventions succeed and which fail. "Feature engineering sessions after accuracy drops have a 60% success rate. Bug fix sessions have 90%. Prioritize accordingly."
+
 ---
 
 ## Python Service — Detail
@@ -324,7 +358,14 @@ class Settings(BaseSettings):
     stenogram_max_bytes: int = 10240    # 10KB per speaker
     db_size_limit_mb: int = 480         # Pause sync near this
 
-    model_cutoff_date: str = "2025-05-01"  # LLM training data boundary
+    model_cutoff_date: str = "2025-05-01"  # Evaluation boundary — test set starts after this
+
+    # Operator (Claude Code self-improvement sessions)
+    operator_enabled: bool = True
+    operator_max_files_per_session: int = 5         # Safety: limit blast radius
+    operator_session_timeout_seconds: int = 600     # 10 minutes max per session
+    operator_accuracy_drop_threshold: float = 0.02  # Trigger improvement session on >2% drop
+    operator_error_count_threshold: int = 5         # Trigger investigation on >5 new errors in a category
 
     class Config:
         env_file = ".env"
@@ -493,7 +534,7 @@ After the model predicts:
 
 ### Scheduler
 
-APScheduler, running inside the FastAPI process. These are the heartbeats of the five autonomy loops described in SOUL.md.
+APScheduler, running inside the FastAPI process. These are the heartbeats of the autonomy loops described in SOUL.md.
 
 | Task | Interval | Loop | What it does |
 |------|----------|------|-------------|
@@ -507,12 +548,13 @@ APScheduler, running inside the FastAPI process. These are the heartbeats of the
 | `regenerate_stale_profiles` | Weekly | Pruning | Re-generate MP profiles where accuracy has dropped below threshold |
 | `prune_cache` | Daily | Pruning | TTL-expired prediction_cache entries |
 | `health_check` | Every 5 min | Metabolic | DB connectivity, API reachability, disk, memory |
+| `operator_check` | After plan + weekly + on error | Operator | Evaluate triggers → launch Claude Code session if needed |
 
 ---
 
 ## Autonomy Architecture
 
-*Concrete realization of the five loops from SOUL.md. The database is the coordination layer — no central brain, no orchestrator.*
+*Concrete realization of the six loops from SOUL.md. The database is the coordination layer — no central brain, no orchestrator.*
 
 ### The Metabolic Loop
 
@@ -590,6 +632,157 @@ scheduler.regenerate_stale_profiles → query mps WHERE backtest.accuracy < (bas
 ```
 
 Model pruning: after retrain, compare feature importances. Features with importance < 1% for 3 consecutive retrains are candidates for removal. Log the removal, don't delete silently — antifragility requires knowing what was tried.
+
+### The Operator — Code Autonomy via Claude Code
+
+*The five loops above are the nervous system — fast, deterministic, always running. The operator is the higher cognition — slow, expensive, creative. The loops identify what is wrong. The operator figures out how to fix it at the code level.*
+
+The Python loops can retrain weights and adjust parameters. They cannot write new features, fix their own bugs, or rethink their approach. Claude Code can. This is the difference between a thermostat (adjusts a number) and an organism (reshapes its own body).
+
+#### Three Levels of Autonomy
+
+**Level 1: Data autonomy** (Python loops). The model retrains on new data. Weights shift. The same code processes better numbers. This is the five loops above.
+
+**Level 2: Code autonomy** (Claude Code, event-triggered). The system modifies its own source code. A new feature is engineered in `features.py`. A bug in `riigikogu.py` is fixed. A new error category handler is added to `diagnose.py`. The code itself evolves.
+
+**Level 3: Strategy autonomy** (Claude Code, monthly). The system reviews its own architecture. Should logistic regression be replaced with XGBoost? Should the two-stage attendance/vote split be implemented? Should a new scheduler task be added? Larger structural changes, still bounded by SOUL.md.
+
+#### Trigger Conditions
+
+`operator.py` runs `operator_check` on schedule. It reads `model_state` and `sync_progress` to decide if a Claude Code session is needed.
+
+| Trigger | Condition | Session Type |
+|---------|-----------|-------------|
+| Accuracy drop | `model_state.accuracy.overall` dropped >2% since last operator session | `improvement` |
+| New error pattern | An `errorCategories` type has >5 new examples since last session | `investigation` |
+| Feature stagnation | Feature importances unchanged across 3 retrains | `feature_engineering` |
+| Persistent sync failure | `sync_progress.error` persists for >2 cycles | `bug_fix` |
+| Weekly routine | Every Sunday | `review` |
+| Post-backtest | After weekly backtest completes | `improvement` (if accuracy < target) |
+| Monthly strategy | First of month | `review` (deep) |
+
+If no trigger condition is met, the operator does nothing. Silence is the default.
+
+#### Session Execution
+
+```
+operator_check() → evaluate triggers against model_state
+                 → if triggered:
+                   1. snapshot model_state → operator_sessions.stateSnapshot
+                   2. select prompt template from prompts/{session_type}.md
+                   3. inject current state into prompt
+                   4. create git branch: operator/{type}/{timestamp}
+                   5. launch Claude Code with --print flag
+                   6. run pytest service/tests/
+                   7. if tests pass → merge to main → docker compose rebuild
+                   8. if tests fail → discard branch → log failure
+                   9. record session to operator_sessions collection
+```
+
+#### The Launch
+
+```python
+def launch_operator_session(session_type: str, state: dict) -> dict:
+    branch = f"operator/{session_type}/{datetime.now():%Y%m%d-%H%M}"
+    prompt = build_prompt(session_type, state)
+
+    # Branch for safety
+    subprocess.run(["git", "checkout", "-b", branch], cwd=REPO_ROOT)
+
+    try:
+        # Launch Claude Code
+        result = subprocess.run(
+            ["claude", "--print", "-p", prompt,
+             "--allowedTools", "Read,Write,Edit,Bash,Glob,Grep"],
+            cwd=REPO_ROOT,
+            capture_output=True, text=True,
+            timeout=settings.operator_session_timeout_seconds,
+        )
+
+        # Validate
+        tests = subprocess.run(
+            ["docker", "compose", "exec", "service", "pytest", "tests/", "-x"],
+            cwd=REPO_ROOT, capture_output=True, text=True,
+        )
+
+        if tests.returncode == 0:
+            subprocess.run(["git", "checkout", "main"], cwd=REPO_ROOT)
+            subprocess.run(["git", "merge", "--no-ff", branch], cwd=REPO_ROOT)
+            subprocess.run(["docker", "compose", "up", "-d", "--build"], cwd=REPO_ROOT)
+            return {"merged": True, "branch": branch}
+        else:
+            subprocess.run(["git", "checkout", "main"], cwd=REPO_ROOT)
+            subprocess.run(["git", "branch", "-D", branch], cwd=REPO_ROOT)
+            return {"merged": False, "branch": branch, "test_output": tests.stderr}
+
+    except subprocess.TimeoutExpired:
+        subprocess.run(["git", "checkout", "main"], cwd=REPO_ROOT)
+        subprocess.run(["git", "branch", "-D", branch], cwd=REPO_ROOT)
+        return {"merged": False, "timeout": True}
+```
+
+Changes only reach `main` if tests pass. Failed attempts are logged but discarded. The system literally cannot break itself — natural selection at the code level.
+
+#### Prompt Templates
+
+Each session type has a prompt template in `service/prompts/`. The template receives the current `model_state` as context.
+
+**Core rules injected into every prompt:**
+
+```
+You are the autonomous operator of Riigikogu Radar.
+
+SOUL.md defines your philosophy. You never modify SOUL.md or SPECS.md.
+
+Current system state:
+{model_state JSON}
+
+Rules:
+- One problem per session. Do not scope-creep.
+- Never modify SOUL.md, SPECS.md, or .env
+- Always run tests before committing
+- Write commit messages that explain WHY, not just WHAT
+- If uncertain, write to model_state.improvement_priorities instead of implementing
+- Maximum {max_files} files changed per session
+- Small, targeted changes. The minimum that addresses the issue.
+```
+
+**`improvement.md`** — accuracy dropped. Read the error categories. Read the weakest MPs/topics. Read the current features. Implement the single highest-impact fix.
+
+**`investigation.md`** — a new error pattern appeared. Read examples of the failing predictions. Determine root cause. Either fix it directly or add it to improvement priorities with a clear diagnosis.
+
+**`feature_engineering.md`** — features are stagnant. Read feature importances. Read error categories. Design and implement one new feature that targets the most common error type. Add it to `features.py`. Update tests.
+
+**`bug_fix.md`** — a sync or task is failing persistently. Read the error logs. Read the relevant source code. Fix the bug. Add a regression test.
+
+**`review.md`** — weekly or monthly health check. Review accuracy trends, session history, feature importances, error distribution. Write a summary to `model_state.planHistory`. Optionally make small improvements.
+
+#### The Meta-Loop
+
+This is the feedback loop of feedback loops:
+
+```
+Python loops → model_state (diagnosis) → operator_check (trigger)
+                                              ↓
+                                         Claude Code (modify code)
+                                              ↓
+                                         tests pass? → merge → rebuild
+                                              ↓
+                                         Python loops (improved) → model_state (new diagnosis)
+                                              ↓
+                                         operator_sessions (did it help?)
+```
+
+The `accuracyAfter` field in `operator_sessions` closes the meta-loop. At the next backtest after a merged session, the system records whether accuracy actually improved. Over time, `operator_sessions` becomes a dataset of what works and what doesn't. The system can query its own history: "Which session types succeed most? Which trigger conditions lead to the best improvements? What's the ROI of feature engineering vs bug fixes?"
+
+This is autopoiesis realized: the system that produces and improves itself.
+
+#### Cost
+
+- Claude Code session: ~$0.05–0.50 depending on scope
+- Weekly routine: ~4 sessions/month ≈ $2
+- Event-triggered: ~4–8 sessions/month ≈ $4
+- Total: ~$6–10/month for genuine code-level self-improvement
 
 ### API Endpoints
 
@@ -793,9 +986,12 @@ Phase 2: Prediction     prediction/* + routers/predict.py
 Phase 3: Explanation    prediction/explain.py
                         → predictions include bilingual reasoning text
 
-Phase 4: Autonomy       tasks/* + prediction_log + model_state
-                        → the five loops running: metabolic, learning,
+Phase 4: Autonomy       tasks/* + prediction_log + model_state + operator_sessions
+                        → the five Python loops running: metabolic, learning,
                           diagnostic, planning, pruning
+                        → operator.py + prompts/ + cron trigger
+                        → Claude Code can read state, modify code, test, deploy
+                        → the system improves itself
 
 Phase 5: Frontend       frontend/ (Next.js app)
                         → npm run build passes, all pages render
@@ -810,7 +1006,7 @@ Phase 6: Deploy         Vercel + VPS
 Phases 0–4 are sequential. Phase 5 can overlap with 3–4 (API contract stable early). Phase 6 is the cutover.
 
 **Phase 1 is where legibility is achieved.** The system becomes useful even without prediction.
-**Phase 4 is where the system comes alive.** Before it, a service. After it, an organism.
+**Phase 4 is where the system comes alive.** Before it, a service. After it, an organism. The Python loops are the heartbeat. Claude Code is the capacity to evolve.
 
 ---
 
@@ -822,7 +1018,7 @@ Phases 0–4 are sequential. Phase 5 can overlap with 3–4 (API contract stable
 | 1 | `POST /sync` + inspect MongoDB | Collections populated; sync_progress complete |
 | 2 | `POST /predict/martin-helme` | Returns prediction; backtest accuracy > 85% |
 | 3 | Check prediction response | Contains `reasoning.et` and `reasoning.en` |
-| 4 | Wait for one sync+backtest cycle | `prediction_log` has resolved entries; `model_state` has `improvementPriorities`; accuracy trend exists |
+| 4 | Wait for one sync+backtest cycle | `prediction_log` has resolved entries; `model_state` has `improvementPriorities`; accuracy trend exists; `operator_sessions` has at least one entry; operator branch was created, tested, and merged or discarded |
 | 5 | `cd frontend && npm run build` | Zero errors; all pages render; API calls succeed |
 | 6 | `curl https://seosetu.ee` | New frontend; predictions work end-to-end |
 

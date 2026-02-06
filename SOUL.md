@@ -79,7 +79,7 @@ A prediction that cannot be wrong is worthless. Publish every prediction. Timest
 ### The system produces itself
 *Autopoiesis — Maturana & Varela, 1972*
 
-A living system continuously produces the components that constitute it. This system generates its own features, trains its own models, evaluates its own accuracy, identifies its own weaknesses, and plans its own next improvement. It is not maintained by an operator. It maintains itself. The human monitors; the system acts.
+A living system continuously produces the components that constitute it. This system generates its own features, trains its own models, evaluates its own accuracy, identifies its own weaknesses, and rewrites its own code to address them. It is not maintained by an operator — it *is* the operator. The inner loops adjust parameters. The outer loop modifies source code. The human monitors; the system acts.
 
 ### Gain from disorder
 *Antifragility — Taleb, 2012*
@@ -141,7 +141,7 @@ Publish everything. The predictions, the accuracy, the methodology, the failures
 
 The previous system's "autonomy" was theater — a Claude process that curled a health endpoint every 15 minutes, surrounded by markdown files describing imaginary operatives. That is not autonomy. That is a cron job in costume.
 
-Real autonomy is a set of interlocking feedback loops. Each loop senses, compares, acts, and senses again. Together, they form a system that runs itself.
+Real autonomy is a set of interlocking feedback loops at two levels. The inner loops — fast, deterministic, always running — are the nervous system. They sync data, retrain models, diagnose errors. The outer loop — slow, expensive, creative — is the capacity for self-modification. It reads the system's own diagnosis and rewrites the system's own code. Together, they form a system that runs itself and improves itself.
 
 ### The Metabolic Loop
 *Keeping the organism fed.*
@@ -167,6 +167,13 @@ After each backtest cycle, the system identifies its weakest areas — the MPs i
 *Staying lean.*
 
 Expired caches are purged by TTL indexes. Stale MP profiles are flagged when accuracy for that MP drops below threshold. Obsolete model versions are replaced only after the replacement proves superior on holdout data. Features with near-zero importance are candidates for removal. The system does not accumulate cruft. What is no longer useful is removed. What is no longer accurate is replaced.
+
+### The Operator Loop
+*Rewriting its own body.*
+
+The five loops above can adjust weights and parameters. They cannot write new features, fix their own bugs, or rethink their approach. The operator loop can. It reads the system's self-diagnosis — the accuracy metrics, the error categories, the weakness rankings — and launches Claude Code to modify the source code itself. New features are engineered. Bugs are fixed. Dead code is removed. Each modification is tested before deployment; only improvements survive. Failed attempts are logged, not lost — they inform the next attempt.
+
+This is the difference between a thermostat and an organism. A thermostat adjusts a number. An organism reshapes its own body. The inner loops are the thermostat. The operator loop is what makes it alive.
 
 ---
 
