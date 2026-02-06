@@ -176,6 +176,14 @@ export async function POST(request: NextRequest) {
       max_tokens: 1024,
       system: systemPrompt,
       messages: recentMessages
+    }).catch(async () => {
+      // Fallback to claude-3-5-sonnet if newer model not available
+      return anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: recentMessages
+      });
     });
 
     const brainResponse = response.content[0].type === "text"
@@ -211,8 +219,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("Brain chat error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { success: false, error: "Failed to process message" },
+      { success: false, error: `Failed to process message: ${errorMessage}` },
       { status: 500 }
     );
   }
