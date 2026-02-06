@@ -20,6 +20,7 @@ export function Header() {
     { href: `/${locale}/insights`, label: t("insights") },
     { href: `/${locale}/accuracy`, label: t("accuracy") },
     { href: `/${locale}/about`, label: t("about") },
+    { href: `/${locale}/admin/brain`, label: "🧠", title: locale === "et" ? "Aju" : "Brain" },
     ...(session ? [{ href: `/${locale}/admin`, label: locale === "et" ? "Admin" : "Admin" }] : []),
   ];
 
