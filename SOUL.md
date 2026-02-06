@@ -1,359 +1,187 @@
-# SOUL.md — Riigikogu Radar
+# SOUL.md
 
-Everything a rebuilt version of this project needs to know and be.
-
----
-
-## What This Is
-
-A system that predicts how members of the Estonian Parliament (Riigikogu) will vote on proposed legislation, and makes those predictions publicly accessible.
-
-One sentence: **Given a bill, predict each MP's vote (FOR/AGAINST/ABSTAIN/ABSENT), explain why, and show your accuracy.**
+*The philosophical blueprint. What this project believes, and why.*
 
 ---
 
-## Why It Exists
+## I
 
-Parliamentary voting in Estonia is public record, but it is not legible. Citizens can see that MP X voted FOR bill Y, but they cannot see the pattern — that MP X votes with their party 97% of the time, breaks rank on environmental legislation, and has never voted against a defense budget increase.
+A system that makes power predictable — and therefore accountable.
 
-This system makes parliamentary behavior legible and predictable. It inverts the surveillance relationship: instead of power watching citizens, citizens watch power.
+It watches the Estonian Parliament. It learns how each of the 101 members behaves — not what they say, but what they do. It predicts what they will do next, explains why, and publishes its track record for anyone to verify.
 
-The democratic value is not the prediction itself. It is the profile — the proof that a politician's behavior can be modeled, and therefore is not mysterious but systematic.
+**Given a bill, predict each MP's vote, explain the prediction, prove your accuracy.**
+
+---
+
+## Why
+
+Parliamentary democracy depends on a fiction: that citizens hold their representatives accountable. In practice, no citizen reads 4,000 voting records. No one tracks which MP breaks rank on environmental legislation or rubber-stamps every defense budget. The information is public but effectively invisible.
+
+This system makes the invisible visible. It inverts the relationship between power and observation: instead of the state watching citizens, citizens watch the state. Not through opinion or ideology, but through pattern — here is what your representative did, here is the model, here is what they will likely do next.
+
+The prediction is not the product. The product is the proof that political behavior is systematic, modelable, and therefore subject to scrutiny. When a machine can predict your representative's vote with 90% accuracy, the mystery evaporates. What remains is accountability.
+
+---
+
+## Principles
+
+### Do one thing well
+*Unix — McIlroy, 1978*
+
+The sync process syncs. The model predicts. The explainer explains. The server serves. They compose through clean interfaces — the output of one becomes the input of the next. A program that does one thing well is a program you can trust. A system of such programs is a system you can reason about.
+
+### Silence is the default
+*Unix — Rule of Silence*
+
+When a program has nothing surprising to report, it says nothing. Health is not an event. Alert on anomaly, not normalcy. A system that narrates its own functioning drowns signal in noise.
+
+### Fail noisily, fail early
+*Unix — Rule of Repair*
+
+Silent failures compound into catastrophes. When something breaks, it breaks loudly and immediately — what failed, why, what is needed to recover. The system does not paper over errors, retry silently, or hope things resolve themselves.
+
+### Prototype, then iterate
+*Unix — Rule of Optimization*
+
+Get it working before making it elegant. A logistic regression that ships today beats an ensemble that ships next month. Measure, then optimize what you measured — never what you imagine.
+
+### Sense, compare, act
+*Cybernetics — Wiener, 1948*
+
+The feedback loop is the atom of intelligence. Sense the world (collect data). Form expectations (predict). Compare against reality (backtest). Act on the difference (retrain, adjust). A system without this loop is a clock. A system with it learns.
+
+### Match the variety of what you model
+*Ashby's Law of Requisite Variety, 1956*
+
+A model must be complex enough to capture the phenomenon — and no more. One that knows only party affiliation cannot predict cross-party votes. One that knows a thousand features overfits noise. The art is matching the model's variety to the world's variety. Not less. Not wildly more.
+
+### Optimize for surprise
+*Information Theory — Shannon, 1948*
+
+A prediction that says "loyal MP votes with party" carries zero information — everyone already knows this. The value of a prediction is proportional to its surprise. Predicting a defection is information. Predicting party-line is noise. The 85% of votes that follow party are easy and boring. The 15% of defections, splits, and free votes are where this system earns its existence.
+
+### Every prediction is a bet against reality
+*Falsificationism — Popper, 1934*
+
+A prediction that cannot be wrong is worthless. Publish every prediction. Timestamp it. Wait for reality. Compare. Report the results — honestly, always, no exceptions. The previous incarnation showed 91.7% accuracy; honest measurement revealed 73.3%. That was the most important discovery in the project's history.
+
+### The system produces itself
+*Autopoiesis — Maturana & Varela, 1972*
+
+A living system continuously produces the components that constitute it. This system generates its own features, trains its own models, evaluates its own accuracy, identifies its own weaknesses, and plans its own next improvement. It is not maintained by an operator. It maintains itself. The human monitors; the system acts.
+
+### Gain from disorder
+*Antifragility — Taleb, 2012*
+
+The system does not merely survive failure — it metabolizes failure into strength. Every wrong prediction is a labeled training example. Every crash reveals a missing resilience pattern. Every edge case becomes a test case. Stress is not damage. Stress is nutrition.
+
+### Start with nothing. Complexify only when forced.
+*Occam's Razor*
+
+A party-line heuristic at 85% is better than an LLM prompt at 73%. Add machinery only when simplicity fails measurably. The previous system had operatives, a brain, a project manager persona, a guardian, a context directory tree. None of it did anything. A well-designed feedback loop outperforms any amount of organizational theater.
 
 ---
 
 ## The Domain
 
-### Estonian Parliament (Riigikogu)
+101 members of the **Riigikogu** (Estonian Parliament), elected by proportional representation, organized into **factions** that map to parties. The **XV Riigikogu** began April 6, 2023.
 
-- **101 members**, elected by proportional representation
-- Members belong to **factions** (fraktsioonid), which map to political parties
-- **"Fraktsioonitud"** = independents — must be analyzed individually, not as a bloc
-- **XV Riigikogu** (current convocation) began April 6, 2023
+Coalition composition changes — governments fall, parties realign. Any code that hardcodes which parties are in the coalition is broken the moment this happens. Derive coalition status from voting correlation patterns. Always.
 
-### Political Parties (as of 2025)
+Votes are **FOR**, **AGAINST**, **ABSTAIN**, or **ABSENT**. Simple majority is 51 votes; constitutional majority is 68. Approximately 85% of votes follow party line. The remaining 15% — defections, splits, free votes — are where prediction has value and difficulty.
 
-| Code | Name (Estonian) | Name (English) | Coalition/Opposition |
-|------|----------------|-----------------|---------------------|
-| RE | Reformierakond | Reform Party | Coalition |
-| E200 | Eesti 200 | Estonia 200 | Coalition |
-| SDE | Sotsiaaldemokraadid | Social Democrats | Coalition |
-| EKRE | Eesti Konservatiivne Rahvaerakond | Conservative People's Party | Opposition |
-| K | Keskerakond | Centre Party | Opposition |
-| I | Isamaa | Fatherland | Opposition |
-
-**Coalition composition changes.** Any code that hardcodes which parties are in the coalition is broken the day a government falls. This must be derived from data, not declared.
-
-### Voting Mechanics
-
-- **Simple majority**: 51 votes (most legislation)
-- **Constitutional majority**: 68 votes (2/3, for organic laws and constitutional amendments)
-- **Vote types**: FOR, AGAINST, ABSTAIN, ABSENT
-- Most votes are party-line. The interesting predictions are the exceptions.
-
-### Data Source
-
-The **Riigikogu API** (api.riigikogu.ee) provides:
-- Voting records with individual decisions per MP
-- Stenograms (parliamentary speech transcripts) with speaker attribution
-- Draft legislation with full text, initiators, and status
-- MP data: faction membership, committees, photo, convocation history
-
-The data is public. The API has rate limits (respect 200ms+ between calls). Estonian-language content dominates.
+The **Riigikogu API** provides everything: voting records with individual decisions, stenograms with speaker attribution, draft legislation with initiators and status, MP profiles with faction and committee data. Public data. Estonian language. Rate-limited — respect it.
 
 ---
 
-## What Actually Works (Honest Assessment)
+## The Method
 
-### Working well:
-- **Data collection** is solid. The sync system handles rate limiting, checkpointing, and resumption. 4,333 votings, 975 stenograms, 101 MPs collected.
-- **Vector embeddings** at 100% coverage via Voyage AI (voyage-multilingual-2), which handles Estonian well.
-- **The web interface** works. MP profiles, vote histories, prediction UI, parliament simulation — all functional at seosetu.ee.
-- **Bilingual support** (Estonian/English) throughout the UI and API responses.
+**Statistics decide. Language models explain.**
 
-### Not working well:
-- **Prediction accuracy is 73.3% on honest (post-cutoff) data.** This is mediocre. A naive baseline of "predict party line" would achieve ~85% for most MPs. The AI prediction system currently underperforms the obvious heuristic for loyal MPs and provides marginal value only for the ~15-20 MPs who regularly break rank.
-- **The "brain" is a glorified health checker.** It runs Claude CLI every 15 minutes to curl a health endpoint and check data freshness. This is not autonomy — it is a cron job with LLM overhead.
-- **The operatives concept is theater.** Project Manager, Collector, Analyst, Predictor, Guardian — these exist only as markdown role descriptions. There is no actual multi-agent architecture. One brain.ts spawns one Claude process.
-- **No learning loop.** The system does not improve from its mistakes. Backtests measure accuracy but results never feed back into better predictions. There is no training step, no weight adjustment, no feature engineering.
+Not this: bill text → ask LLM → parse response → 73% accuracy.
 
----
+This: historical votes → feature engineering → statistical model → calibrated probability → LLM explains the result.
 
-## How Prediction Works (Current Implementation)
+Three layers:
 
-```
-Bill text → Embed → Vector search for similar past votes →
-  Find MP's votes on those similar bills →
-  Find MP's relevant speeches (keyword match, not semantic) →
-  Build prompt with MP's "digital twin" profile →
-  Ask Claude (Haiku) to predict vote →
-  Parse JSON response → Cache for 7 days
-```
+**Floor.** Predict every MP votes with their party. ~85% accurate. Free. Every technique must beat this or it is waste.
 
-### The Three Layers (Cost Optimization)
+**Model.** For each (MP, bill) pair, compute features from data — loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion. Train a statistical model. Calibrate its probabilities so "90% confidence" means correct 90% of the time. Target: 88%+.
 
-1. **Cache** ($0): Check if this MP+bill combination was predicted in the last 7 days.
-2. **Statistical bypass** ($0): If MP votes with party >95% of the time, predict party line without calling AI. (Flawed: hardcodes coalition = FOR, opposition = AGAINST, ignoring bill context.)
-3. **AI prediction** (~$0.001): Build a prompt from the MP's profile template + RAG context, send to Claude Haiku, parse JSON response.
-
-### MP Profile ("Digital Twin")
-
-Each MP gets an AI-generated instruction template containing:
-- Political position (economic scale, social scale)
-- Key issues with stances and confidence scores
-- Decision factors (support triggers, opposition triggers)
-- Behavioral patterns (party loyalty %, independence indicators)
-- Voting statistics (distribution, attendance)
-- Direct quotes from speeches (matched by keyword, not semantic similarity)
-
-The template is generated once by Claude Sonnet analyzing the MP's voting history and speeches, then used as a prompt prefix for all future predictions via Haiku.
-
-### RAG (Retrieval-Augmented Generation)
-
-- **Similar votes**: MongoDB Atlas Vector Search on voting embeddings (Voyage AI). Finds past votes semantically similar to the bill being predicted. Returns the MP's actual vote on those similar bills.
-- **Relevant speeches**: Falls back to keyword matching (not semantic search). Finds stenogram excerpts where the MP spoke on related topics. Limited to 20 stenograms, word overlap matching.
-
-### Known Prediction Flaws
-
-1. **No calibrated confidence.** The confidence score is whatever Claude outputs — not statistically calibrated. A "90% confidence" prediction is not correct 90% of the time.
-2. **Coalition hardcoding.** `COALITION_PARTIES = new Set(["RE", "E200", "SDE"])` breaks when the government changes. Must be derived dynamically.
-3. **No bill-type awareness in statistical bypass.** The bypass assumes coalition parties always vote FOR and opposition always AGAINST. This ignores free votes, conscience votes, opposition-initiated legislation, and constitutional amendments where dynamics differ.
-4. **Speech retrieval is weak.** Keyword matching produces false positives and misses semantic relevance. This is inconsistent — votings use vector search, speeches use keywords.
-5. **No cross-MP signal.** Each MP is predicted independently. The system doesn't model that if one party leader votes AGAINST, their faction likely follows.
-6. **Profile staleness.** MP profiles are generated once and reused. If an MP changes positions or party dynamics shift, the profile is stale until manually regenerated.
+**Explanation.** After the model decides, ask an LLM to explain why — in natural language, in both Estonian and English. The LLM never makes the prediction. It narrates the prediction. Each tool does what it does well.
 
 ---
 
-## Data Leakage Warning (ADR-001)
+## Autonomy
 
-Backtesting showed 91.7% accuracy — but this included votes from before Claude's training cutoff (May 2025). The model may have memorized these votes during pre-training. **Only post-cutoff accuracy (73.3%) is honest.** Any accuracy claim must specify the evaluation period relative to the model's training data.
+The previous system's "autonomy" was theater — a Claude process that curled a health endpoint every 15 minutes, surrounded by markdown files describing imaginary operatives. That is not autonomy. That is a cron job in costume.
 
-This is the single most important technical integrity decision in the project. Overstating accuracy would be both dishonest and strategically stupid — it would lead to false confidence in predictions that don't work.
+Real autonomy is a set of interlocking feedback loops. Each loop senses, compares, acts, and senses again. Together, they form a system that runs itself.
 
----
+### The Metabolic Loop
+*Keeping the organism fed.*
 
-## Architecture
+Data flows in from the Riigikogu API on schedule. On failure: retry with exponential backoff. On crash: resume from the last checkpoint. The database size is monitored against its limits. Embeddings are generated for new data. No human intervention required for normal operation.
 
-```
-Riigikogu API → MongoDB Atlas → Voyage AI → Claude → Next.js API → Web UI
-     ↓              ↓              ↓           ↓           ↓
-  COLLECT        STORE          EMBED      PREDICT     SERVE
-```
+### The Learning Loop
+*Getting smarter from experience.*
 
-### Tech Stack
+Every prediction is logged with its timestamp, features, confidence, and model version. When the actual vote happens, the system resolves the prediction — correct or incorrect. Accuracy is tracked per MP, per party, per vote type, per topic. The model retrains periodically on the growing dataset. If the new model outperforms the old one on held-out data, it replaces it. If not, the old model survives. Evolution by selection.
 
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| Framework | Next.js 14 (App Router) | SSR + API routes in one deployment |
-| Language | TypeScript (strict) | Type safety for complex domain |
-| Database | MongoDB Atlas | Document store fits parliamentary data shapes; vector search built-in |
-| Embeddings | Voyage AI (voyage-multilingual-2, 1024 dim) | Best multilingual/Estonian support |
-| Prediction | Claude (Haiku for predictions, Sonnet for profiles) | Best reasoning quality |
-| Failover | OpenAI, Google AI | Backup if Anthropic is down |
-| Hosting | Vercel | Git-push deploys, serverless |
-| Styling | Tailwind CSS + Radix UI | Rapid UI development |
-| i18n | next-intl | Estonian/English |
-| Validation | Zod | Schema validation for API responses |
+### The Diagnostic Loop
+*Understanding its own failures.*
 
-### Database Collections
+When predictions fail, they are categorized: Was it a free vote where no party whip applied? A party split where the faction was divided? A stale MP profile that missed a shift in behavior? A new political alignment not yet reflected in the data? Each category implies a different correction. The system diagnoses before it treats.
 
-| Collection | Purpose | Size |
-|------------|---------|------|
-| `members` | Raw MP data from API | Small |
-| `mps` | Enriched MP profiles with AI-generated templates | Medium |
-| `votings` | All voting records with per-voter decisions + embeddings | Large |
-| `stenograms` | Parliamentary speeches by session and speaker | Large |
-| `drafts` | Legislation text, initiators, status | Medium |
-| `prediction_cache` | Cached predictions (7-day TTL) | Small |
-| `simulations` | Cached full parliament simulations | Small |
-| `simulation_jobs` | Async job tracking for simulations | Small |
-| `brain_state` | Brain process status and heartbeat | Tiny |
-| `brain_runs` | Brain cycle history and output logs | Small |
-| `sync_progress` | Per-type sync checkpointing for resumption | Tiny |
-| `backtest_progress` | Per-MP backtest progress tracking | Small |
+### The Planning Loop
+*Knowing where to look next.*
 
-### Constraint: MongoDB Atlas Free Tier (512 MB)
+After each backtest cycle, the system identifies its weakest areas — the MPs it predicts worst, the vote types where accuracy drops, the features that contribute least. These become the priorities for the next improvement cycle. The system maintains a model of its own performance and directs its own development. It doesn't just execute a schedule. It reasons about what would make it better.
 
-The current deployment uses the free tier. Stenograms are the largest data type and are truncated to 10KB per speaker. Sync scripts check database size every N records and pause if approaching 480MB. This constraint shapes the entire data strategy.
+### The Pruning Loop
+*Staying lean.*
+
+Expired caches are purged by TTL indexes. Stale MP profiles are flagged when accuracy for that MP drops below threshold. Obsolete model versions are replaced only after the replacement proves superior on holdout data. Features with near-zero importance are candidates for removal. The system does not accumulate cruft. What is no longer useful is removed. What is no longer accurate is replaced.
 
 ---
 
-## Web Pages
+## Vision
 
-| Path | Purpose |
-|------|---------|
-| `/` | Dashboard with system stats and recent activity |
-| `/mps` | List all MPs with search and party filtering |
-| `/mps/[slug]` | Individual MP profile, voting history, prediction interface |
-| `/simulate` | Full parliament vote simulation for a bill |
-| `/drafts` | Browse legislation |
-| `/drafts/[uuid]` | Individual draft with related votes |
-| `/accuracy` | Public accuracy metrics |
-| `/insights` | AI-generated political analysis |
-| `/about` | Project information |
-| `/admin` | Admin dashboard (status, sync, backtest controls) |
-| `/admin/brain` | Brain chat interface |
+This is chapter one: predict votes in the Estonian Parliament.
 
-### API Endpoints
+Chapter two: detect political realignment before it is announced. When voting correlation between two parties shifts suddenly, the system notices before the press conference. When an MP's defection rate climbs, the system flags a potential party switch. The patterns are in the data. The system just needs to look.
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | `/api/v1/mps/[slug]/predict` | Predict one MP's vote on a bill |
-| GET | `/api/v1/mps` | List MPs |
-| GET | `/api/v1/mps/[slug]` | Get MP profile |
-| POST | `/api/v1/simulate` | Start parliament simulation |
-| GET | `/api/v1/simulate/[jobId]` | Get simulation status/results |
-| POST | `/api/v1/simulate/[jobId]/continue` | Resume interrupted simulation |
-| GET | `/api/v1/health` | Health check |
-| GET | `/api/v1/search` | Semantic search across all data |
-| GET | `/api/v1/insights` | AI-generated insights |
-| GET | `/api/v1/stats` | Parliamentary statistics |
-| GET | `/api/v1/drafts` | List drafts |
-| GET | `/api/v1/ai-status` | AI provider status |
-| GET | `/api/v1/export/mps` | Export MP data |
-| GET | `/api/v1/export/votings` | Export voting data |
-| POST | `/api/v1/brain/chat` | Brain chat with tool use |
-| GET | `/api/v1/admin/status` | Admin system status |
-| POST | `/api/v1/admin/sync` | Trigger data sync |
-| GET | `/api/v1/admin/backtest` | Backtest status |
-| GET | `/api/v1/admin/simulations` | Simulation history |
-| GET | `/api/v1/admin/operatives` | Brain/operative status |
+Chapter three: generalize. Any parliament with public voting records can be modeled with the same architecture — sync, features, model, explain. The domain knowledge changes. The method is universal. Estonia is the prototype.
+
+Chapter four: change the relationship between citizens and their representatives. When voters can see, in advance, how their MP will vote on upcoming legislation, accountability shifts from retrospective to prospective. Representatives become predictable — and therefore honest about what they represent.
 
 ---
 
-## Principles for a Rebuild
+## Lessons
 
-### 1. Accuracy Is the Product
+These are not opinions. These are scars.
 
-Not the UI. Not the "autonomous brain." Not the architecture. The only thing that matters is: **does the system correctly predict how MPs will vote?** Everything else is infrastructure to serve that question.
+1. **Data leakage flatters accuracy.** Pre-training contamination inflated results from 73% to 92%. Only post-cutoff evaluation is honest. This is the single most important integrity decision.
 
-Current accuracy: 73.3%. Target: 85%+. The gap is not a prompting problem — it is a methodology problem. The system needs to move from "ask an LLM" to "build a model that learns from data."
+2. **The baseline is the judge.** Party-line prediction gets ~85% for free. Anything that doesn't beat this is waste — no matter how sophisticated.
 
-### 2. Start With the Naive Baseline
+3. **LLM confidence is a feeling, not a probability.** When Claude says "85% confident," that number is not calibrated. Use Platt scaling or isotonic regression for real probabilities.
 
-Before building anything complex, implement the obvious: **predict that every MP votes with their party.** Measure accuracy. This is probably ~85% for loyal MPs. Now you have a baseline. Every technique must beat this baseline or it is waste.
+4. **Hardcoded constants are tomorrow's bugs.** `COALITION_PARTIES = ["RE", "E200", "SDE"]` is correct today and wrong the day a government falls. Derive from data.
 
-### 3. Separate What LLMs Are Good At From What Statistics Are Good At
+5. **Consistency across retrieval methods.** Vector search for votes but keyword matching for speeches produced unreliable context. Use the same method everywhere.
 
-LLMs are good at: understanding bill text, generating explanations, extracting positions from speeches, producing bilingual output.
+6. **Persistent compute for persistent tasks.** Serverless caps at 60–300 seconds. Sync, backtesting, simulation need a process that stays alive.
 
-LLMs are bad at: consistent numerical reasoning, calibrated probability estimates, learning from data patterns, being fast and cheap at scale.
+7. **Respect rate limits — they are a feature.** Dynamic backoff (start 500ms, reduce on success, increase on 429) builds systems that work indefinitely.
 
-Use LLMs for understanding content. Use statistics/ML for making predictions.
+8. **Profiles go stale.** An MP who switches parties has a fundamentally different voting pattern. Detect the change, trigger regeneration.
 
-### 4. The Interesting Problem Is the Exceptions
+9. **512MB shapes everything.** Atlas free tier means truncating stenograms, monitoring size during sync, and prioritizing newer data. Design around your constraints, not against them.
 
-85% of votes are party-line. They are boring and easy to predict. The valuable predictions are the 15%: when an MP breaks rank, when a party splits, when a free vote produces surprises. A system that is 100% accurate on party-line votes and 0% on defections is useless. Optimize for the tail.
-
-### 5. Dynamic Over Static
-
-Coalition composition changes. Party positions evolve. MPs switch parties. Individual voting patterns shift over time. Nothing should be hardcoded that can be derived from data. If you find yourself writing `COALITION_PARTIES = ["RE", "E200", "SDE"]`, you are building something that will break.
-
-### 6. Honest Accuracy Is Non-Negotiable
-
-Always separate pre-cutoff from post-cutoff evaluation. Always report the honest number. Never inflate accuracy to look good. Users who trust inflated numbers will be burned; users who trust honest numbers will be loyal.
-
-### 7. Occam's Razor Applied to Code
-
-The previous version had: a brain, a supervisor, a run-operative script, a live-server, an elaborate .context/ directory tree, a multi-operative role system, and a health monitoring loop. What it actually needed: a script that syncs data, a function that predicts votes, and a web server that shows results. Start from minimum viable and add complexity only when forced by a real problem.
-
-### 8. Feedback Loops Over Fire-and-Forget
-
-The current system predicts → caches → forgets. A better system predicts → records → waits for the actual vote → compares → adjusts. Every prediction should be an opportunity to learn. Every wrong prediction should be investigated: was the bill text misleading? Was the MP profile stale? Was it a free vote? Was it a party split?
+10. **Autonomy is loops, not personas.** Operatives, brains, project managers, guardians — organizational theater that did nothing. A feedback loop with `sense → compare → act` does everything.
 
 ---
 
-## What a Rebuild Should Prioritize
-
-### Phase 1: Data Foundation
-- Sync all parliamentary data (existing code works well, reuse it)
-- Establish the naive baseline: party-line prediction accuracy
-- Build a clean data model with one canonical type per entity
-
-### Phase 2: Statistical Prediction
-- For each MP, calculate party loyalty rate dynamically
-- Classify votes by type (party-line, free vote, constitutional, procedural)
-- For high-loyalty MPs (>95%): predict party line, done
-- For swing MPs: build feature vectors from voting history, committee membership, bill topic similarity, coalition dynamics
-- Measure accuracy against the naive baseline
-
-### Phase 3: LLM Enhancement
-- Use LLMs to understand bill text (classification, topic extraction)
-- Use LLMs to generate explanations for statistical predictions
-- Use LLMs to extract positions from speeches
-- Do NOT use LLMs to make the prediction itself
-
-### Phase 4: Learning Loop
-- Record every prediction with a timestamp
-- When the actual vote happens, compare
-- Track accuracy over time per MP, per vote type, per topic
-- Feed errors back into the model
-- Publish accuracy transparently
-
-### Phase 5: Autonomy (If Earned)
-- Only automate what works manually first
-- The "brain" should trigger data syncs and backtests, not make architectural decisions
-- Health monitoring is a cron job, not an AI agent
-
----
-
-## Hard-Won Lessons
-
-1. **Data leakage flatters accuracy.** Testing on data the model was trained on (or that the LLM saw in pre-training) produces unrealistically high numbers. Always evaluate on truly unseen data.
-
-2. **Fire-and-forget in serverless dies silently.** Vercel functions have a 60-300 second timeout. Any work must complete within the request lifecycle or use continuation tokens.
-
-3. **Single AI dependency is a single point of failure.** Build the failover chain (Claude → OpenAI → Google AI) but test it regularly. An untested failover is not a failover.
-
-4. **Rate limiting is a feature, not a bug.** The Riigikogu API has limits. Respecting them with dynamic backoff (start 500ms, reduce on success, increase on 429) builds a robust sync system.
-
-5. **MongoDB Atlas free tier caps at 512MB.** This means truncating stenogram text (10KB per speaker), checking size during sync, and prioritizing newer data. Upgrading the tier removes this constraint but costs money.
-
-6. **MP profiles go stale.** An MP who switched from coalition to opposition has a fundamentally different voting pattern. Profiles must be regenerated when major political events occur, not just on a schedule.
-
-7. **Keyword search is not semantic search.** The speech retrieval system uses keyword matching while the voting retrieval uses vector search. This inconsistency means speech context is unreliable.
-
-8. **The LLM's confidence score is not calibrated.** When Claude says "85% confidence," it does not mean the prediction is correct 85% of the time. Treat LLM-generated confidence as ordinal (relative ranking), not cardinal (actual probability).
-
-9. **Party-line prediction is the floor, not the ceiling.** A system that only predicts party line is ~85% accurate but useless — it tells you nothing you couldn't know from knowing the party composition. Value comes from predicting deviations.
-
-10. **Bilingual adds complexity.** Supporting Estonian and English doubles the prompt length, the profile size, and the testing surface. Decide if this is worth it for the target audience.
-
----
-
-## Philosophical Foundations
-
-These are the intellectual frameworks that should guide design decisions:
-
-- **Falsificationism** (Popper): Every prediction must be testable against reality. Report accuracy honestly. Predictions that cannot be wrong are worthless.
-- **Bayesian Epistemology**: Start with prior beliefs (party loyalty, historical voting), update with evidence (bill text, speeches, similar votes), produce posterior probability. This is literally what the prediction function should be.
-- **Cybernetics** (Wiener/Ashby): The system must have a feedback loop. Sense → Compare → Act → Sense again. Measure accuracy, find errors, improve, measure again.
-- **Requisite Variety** (Ashby): The model must have at least as many dimensions as the phenomenon it predicts. A model that only knows party affiliation cannot predict cross-party votes.
-- **Occam's Razor**: Do not add complexity that does not improve prediction accuracy. A statistical model that is 85% accurate is better than an LLM pipeline that is 73% accurate.
-- **Unix Philosophy**: Do one thing well. The sync script syncs. The prediction function predicts. The web server serves. They are composed, not entangled.
-
----
-
-## Environment Variables
-
-```
-MONGODB_URI           # MongoDB Atlas connection string
-ANTHROPIC_API_KEY     # Claude API (primary)
-VOYAGE_API_KEY        # Voyage AI embeddings
-OPENAI_API_KEY        # OpenAI (failover)
-GOOGLE_AI_API_KEY     # Google AI (failover)
-ENABLE_AI_FAILOVER    # "true" to enable failover chain
-```
-
----
-
-## Production
-
-- **URL**: https://seosetu.ee
-- **Health**: https://seosetu.ee/api/v1/health
-- **Deploy**: Push to `main` branch triggers Vercel auto-deploy
-- **API docs**: https://api.riigikogu.ee/swagger-ui.html (data source)
-
----
-
-*This document is the seed. Everything else is implementation.*
+*This is the soul. SPECS.md is the body. The .env is the breath. Together they rebuild everything.*
