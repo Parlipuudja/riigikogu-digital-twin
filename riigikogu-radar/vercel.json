@@ -4,7 +4,7 @@
   "outputDirectory": ".next",
   "framework": "nextjs",
   "regions": ["fra1"],
-    "functions": {
+  "functions": {
     "src/app/api/**/*": {
       "maxDuration": 60
     },
