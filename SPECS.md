@@ -776,12 +776,16 @@ tailwind-merge
 
 ## Implementation Order
 
+The arc from SOUL.md determines the order: legible first, then predictable, then accountable.
+
 ```
 Phase 0: Skeleton       service/ + Dockerfile + docker-compose
                         → docker compose up → curl :8000/health → OK
 
-Phase 1: Data           sync/riigikogu.py + sync/embeddings.py
+Phase 1: Legibility     sync/riigikogu.py + sync/embeddings.py + data router
                         → POST /sync → MongoDB populated
+                        → GET /mps, /votings, /drafts, /stats return structured data
+                        → the parliament is readable
 
 Phase 2: Prediction     prediction/* + routers/predict.py
                         → POST /predict/martin-helme → beats baseline
@@ -795,14 +799,18 @@ Phase 4: Autonomy       tasks/* + prediction_log + model_state
 
 Phase 5: Frontend       frontend/ (Next.js app)
                         → npm run build passes, all pages render
+                        → legibility is visible: MP profiles, histories, patterns
+                        → predictions are accessible: predict UI, simulation
+                        → accountability is public: accuracy dashboard
 
 Phase 6: Deploy         Vercel + VPS
-                        → seosetu.ee serves predictions end-to-end
+                        → seosetu.ee serves the full arc end-to-end
 ```
 
 Phases 0–4 are sequential. Phase 5 can overlap with 3–4 (API contract stable early). Phase 6 is the cutover.
 
-**Phase 4 is where the system comes alive.** Before it, you have a prediction service. After it, you have a self-improving organism.
+**Phase 1 is where legibility is achieved.** The system becomes useful even without prediction.
+**Phase 4 is where the system comes alive.** Before it, a service. After it, an organism.
 
 ---
 

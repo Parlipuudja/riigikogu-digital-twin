@@ -6,21 +6,31 @@
 
 ## I
 
-A system that makes power predictable — and therefore accountable.
+A system that makes the Estonian Parliament legible — then predictable — then accountable.
 
-It watches the Estonian Parliament. It learns how each of the 101 members behaves — not what they say, but what they do. It predicts what they will do next, explains why, and publishes its track record for anyone to verify.
+It collects every vote, every speech, every bill. It structures them so a citizen can see, at a glance, how their representative behaves. Then it models that behavior, predicts what comes next, and publishes its track record for anyone to verify.
 
-**Given a bill, predict each MP's vote, explain the prediction, prove your accuracy.**
+**Make it readable. Make it predictable. Prove your work.**
 
 ---
 
 ## Why
 
-Parliamentary democracy depends on a fiction: that citizens hold their representatives accountable. In practice, no citizen reads 4,000 voting records. No one tracks which MP breaks rank on environmental legislation or rubber-stamps every defense budget. The information is public but effectively invisible.
+The problem is not that parliamentary data is secret. It is public. The problem is that it is illegible. Four thousand voting records, in Estonian, scattered across API endpoints, with no structure that a citizen can read. The information exists. The legibility does not.
 
-This system makes the invisible visible. It inverts the relationship between power and observation: instead of the state watching citizens, citizens watch the state. Not through opinion or ideology, but through pattern — here is what your representative did, here is the model, here is what they will likely do next.
+This is the precondition that the previous version of this system skipped. It jumped straight to prediction — and achieved 73% accuracy, worse than guessing party line. The lesson: you cannot predict what you cannot read. Legibility comes first.
 
-The prediction is not the product. The product is the proof that political behavior is systematic, modelable, and therefore subject to scrutiny. When a machine can predict your representative's vote with 90% accuracy, the mystery evaporates. What remains is accountability.
+### The Arc
+
+**Legible → Predictable → Accountable**
+
+**Legible.** Collect, structure, present. Raw API data becomes MP profiles, voting histories, party patterns, attendance records, topic breakdowns. The parliament becomes readable. This is already valuable on its own — most citizens have never seen their representative's behavior laid bare. A profile that shows "votes with party 97% of the time, except on environmental legislation" is a revelation without any prediction at all.
+
+**Predictable.** Once behavior is legible, it can be modeled. Patterns become features, features become forecasts. The proof that behavior is systematic — that it can be captured in a model — is itself a democratic statement. It says: your representative is not mysterious. They are patterned. And patterns can be anticipated.
+
+**Accountable.** Once behavior is both legible and predictable, the relationship between citizen and representative changes. The complexity that once shielded politicians from scrutiny is dissolved. What remains is the gap between prediction and reality — the moments of genuine political agency, the votes that surprise the model. That gap is where accountability lives, and now it is visible.
+
+This is *Seeing Like a State* inverted — citizens seeing power with the same clarity that power sees citizens.
 
 ---
 
@@ -97,6 +107,16 @@ The **Riigikogu API** provides everything: voting records with individual decisi
 
 ## The Method
 
+The arc determines the method. Each stage has its own tools.
+
+### Making it legible
+
+Collect all parliamentary data. Structure it into entities a citizen can understand: MP profiles with voting statistics, party loyalty rates, committee memberships, attendance records. Topic breakdowns. Voting histories with context. Speeches attributed to speakers and debates.
+
+This stage uses no AI. It is data engineering — sync, normalize, enrich, present. The output is a readable parliament.
+
+### Making it predictable
+
 **Statistics decide. Language models explain.**
 
 Not this: bill text → ask LLM → parse response → 73% accuracy.
@@ -110,6 +130,10 @@ Three layers:
 **Model.** For each (MP, bill) pair, compute features from data — loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion. Train a statistical model. Calibrate its probabilities so "90% confidence" means correct 90% of the time. Target: 88%+.
 
 **Explanation.** After the model decides, ask an LLM to explain why — in natural language, in both Estonian and English. The LLM never makes the prediction. It narrates the prediction. Each tool does what it does well.
+
+### Making it accountable
+
+Publish everything. The predictions, the accuracy, the methodology, the failures. The public accuracy dashboard is not a feature — it is the product. A system that hides its mistakes is propaganda. A system that publishes them is science.
 
 ---
 
@@ -148,13 +172,15 @@ Expired caches are purged by TTL indexes. Stale MP profiles are flagged when acc
 
 ## Vision
 
-This is chapter one: predict votes in the Estonian Parliament.
+**Chapter one: Legibility.** Make the Estonian Parliament readable. Collect every vote, every speech, every bill. Structure it. Present it. Give citizens what they have never had — a clear view of how their representatives actually behave. This alone justifies the system's existence.
 
-Chapter two: detect political realignment before it is announced. When voting correlation between two parties shifts suddenly, the system notices before the press conference. When an MP's defection rate climbs, the system flags a potential party switch. The patterns are in the data. The system just needs to look.
+**Chapter two: Prediction.** Model the patterns. Forecast votes. Prove that political behavior is systematic. The prediction is not the point — the proof of systematicity is the point. When a machine can anticipate your representative's vote, the claim that politics is unknowable collapses.
 
-Chapter three: generalize. Any parliament with public voting records can be modeled with the same architecture — sync, features, model, explain. The domain knowledge changes. The method is universal. Estonia is the prototype.
+**Chapter three: Detection.** Once the system reads patterns, it can notice when patterns change. When voting correlation between two parties shifts suddenly, the system sees it before the press conference. When an MP's defection rate climbs, the system flags a potential realignment. The patterns are in the data. The system just needs to look.
 
-Chapter four: change the relationship between citizens and their representatives. When voters can see, in advance, how their MP will vote on upcoming legislation, accountability shifts from retrospective to prospective. Representatives become predictable — and therefore honest about what they represent.
+**Chapter four: Generalization.** Any parliament with public voting records can be modeled with the same architecture — sync, structure, model, explain. The domain knowledge changes. The method is universal. Estonia is the prototype.
+
+**Chapter five: The shift.** When voters can see, in advance, how their MP will vote on upcoming legislation — and can verify that prediction against reality — accountability becomes prospective, not retrospective. The democratic relationship changes. Power becomes legible, predictable, and therefore honest about what it represents.
 
 ---
 
@@ -162,25 +188,27 @@ Chapter four: change the relationship between citizens and their representatives
 
 These are not opinions. These are scars.
 
-1. **Data leakage flatters accuracy.** Pre-training contamination inflated results from 73% to 92%. Only post-cutoff evaluation is honest. This is the single most important integrity decision.
+1. **Legibility before prediction.** The previous system skipped straight to forecasting and achieved 73%. You cannot model what you cannot read. Structure the data first. Understand the patterns. Then predict.
 
-2. **The baseline is the judge.** Party-line prediction gets ~85% for free. Anything that doesn't beat this is waste — no matter how sophisticated.
+2. **Data leakage flatters accuracy.** Pre-training contamination inflated results from 73% to 92%. Only post-cutoff evaluation is honest. This is the single most important integrity decision.
 
-3. **LLM confidence is a feeling, not a probability.** When Claude says "85% confident," that number is not calibrated. Use Platt scaling or isotonic regression for real probabilities.
+3. **The baseline is the judge.** Party-line prediction gets ~85% for free. Anything that doesn't beat this is waste — no matter how sophisticated.
 
-4. **Hardcoded constants are tomorrow's bugs.** `COALITION_PARTIES = ["RE", "E200", "SDE"]` is correct today and wrong the day a government falls. Derive from data.
+4. **LLM confidence is a feeling, not a probability.** When Claude says "85% confident," that number is not calibrated. Use Platt scaling or isotonic regression for real probabilities.
 
-5. **Consistency across retrieval methods.** Vector search for votes but keyword matching for speeches produced unreliable context. Use the same method everywhere.
+5. **Hardcoded constants are tomorrow's bugs.** `COALITION_PARTIES = ["RE", "E200", "SDE"]` is correct today and wrong the day a government falls. Derive from data.
 
-6. **Persistent compute for persistent tasks.** Serverless caps at 60–300 seconds. Sync, backtesting, simulation need a process that stays alive.
+6. **Consistency across retrieval methods.** Vector search for votes but keyword matching for speeches produced unreliable context. Use the same method everywhere.
 
-7. **Respect rate limits — they are a feature.** Dynamic backoff (start 500ms, reduce on success, increase on 429) builds systems that work indefinitely.
+7. **Persistent compute for persistent tasks.** Serverless caps at 60–300 seconds. Sync, backtesting, simulation need a process that stays alive.
 
-8. **Profiles go stale.** An MP who switches parties has a fundamentally different voting pattern. Detect the change, trigger regeneration.
+8. **Respect rate limits — they are a feature.** Dynamic backoff (start 500ms, reduce on success, increase on 429) builds systems that work indefinitely.
 
-9. **512MB shapes everything.** Atlas free tier means truncating stenograms, monitoring size during sync, and prioritizing newer data. Design around your constraints, not against them.
+9. **Profiles go stale.** An MP who switches parties has a fundamentally different voting pattern. Detect the change, trigger regeneration.
 
-10. **Autonomy is loops, not personas.** Operatives, brains, project managers, guardians — organizational theater that did nothing. A feedback loop with `sense → compare → act` does everything.
+10. **512MB shapes everything.** Atlas free tier means truncating stenograms, monitoring size during sync, and prioritizing newer data. Design around your constraints, not against them.
+
+11. **Autonomy is loops, not personas.** Operatives, brains, project managers, guardians — organizational theater that did nothing. A feedback loop with `sense → compare → act` does everything.
 
 ---
 
