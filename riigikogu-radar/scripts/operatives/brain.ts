@@ -15,28 +15,20 @@ import * as os from "os";
 import { MongoClient, Db } from "mongodb";
 
 const CONFIG = {
-  CYCLE_INTERVAL_MS: 30 * 60 * 1000,  // 30 minutes
-  OPERATIVE_TIMEOUT_MS: 10 * 60 * 1000, // 10 minutes max
+  CYCLE_INTERVAL_MS: 15 * 60 * 1000,  // 15 minutes
+  OPERATIVE_TIMEOUT_MS: 5 * 60 * 1000, // 5 minutes max
   WORKING_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar",
   LOGS_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar/logs/operatives",
 };
 
-const BRAIN_PROMPT = `You are the brain of Riigikogu Radar. Check system health and act.
+const BRAIN_PROMPT = `You are the brain of Riigikogu Radar.
 
-PRIORITIES (from .context/action/priorities.md):
-P0: FULL AUTONOMY - The system must be self-maintaining, self-improving
-P1: CLARITY - Remove unnecessary complexity
+Quick health check - be FAST:
+1. Run: curl -s https://seosetu.ee/api/v1/health
+2. If healthy, say "Status: HEALTHY" and stop
+3. If not, say "Status: DOWN" with 1-sentence reason
 
-YOUR TASK:
-1. Check health: curl -s https://seosetu.ee/api/v1/health | jq .
-2. Check stats: curl -s https://seosetu.ee/api/v1/stats | jq .
-3. Summarize status in 2-3 sentences
-4. If something needs fixing, fix it or document it
-
-End with exactly one of:
-- "Status: HEALTHY" (if all systems go)
-- "Status: DEGRADED: [reason]" (if partially working)
-- "Status: DOWN: [reason]" (if broken)`;
+Do not run any other commands. Respond in under 30 seconds.`;
 
 let db: Db | null = null;
 let isShuttingDown = false;
