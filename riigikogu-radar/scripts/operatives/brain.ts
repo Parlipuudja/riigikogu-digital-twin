@@ -39,6 +39,8 @@ const CONFIG = {
   // Paths
   WORKING_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar",
   LOGS_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar/logs/operatives",
+  REPORTS_DIR: "/home/ubuntu/riigikogu-radar/riigikogu-radar/reports",
+  NOTIFICATIONS_CONFIG: "/home/ubuntu/riigikogu-radar/riigikogu-radar/.context/config/notifications.json",
 
   // Resource limits
   MAX_LOG_SIZE_MB: 100,
@@ -604,6 +606,339 @@ async function cleanupLogs(): Promise<void> {
 }
 
 // ============================================================================
+// DAILY REPORTS
+// ============================================================================
+
+interface DailyReport {
+  date: string;
+  generatedAt: Date;
+  summary: {
+    cyclesRun: number;
+    operativeRuns: number;
+    successfulRuns: number;
+    failedRuns: number;
+    averageDurationMs: number;
+  };
+  health: {
+    apiHealthy: boolean;
+    databaseConnected: boolean;
+    accuracy: number | null;
+  };
+  metrics: {
+    votings: number;
+    stenograms: number;
+    mps: number;
+    embeddingCoverage: number;
+  };
+  commits: string[];
+  errors: string[];
+  highlights: string[];
+}
+
+interface NotificationConfig {
+  dailyReport: {
+    enabled: boolean;
+    recipients: string[];
+    sendTime: string;
+    timezone: string;
+  };
+  alerts: {
+    enabled: boolean;
+    recipients: string[];
+    triggers: string[];
+  };
+}
+
+function loadNotificationConfig(): NotificationConfig | null {
+  try {
+    if (fs.existsSync(CONFIG.NOTIFICATIONS_CONFIG)) {
+      return JSON.parse(fs.readFileSync(CONFIG.NOTIFICATIONS_CONFIG, "utf-8"));
+    }
+  } catch (error) {
+    logError("Failed to load notification config", error as Error);
+  }
+  return null;
+}
+
+async function generateDailyReport(): Promise<DailyReport> {
+  const database = await connectDb();
+  const today = new Date().toISOString().split("T")[0];
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  // Get operative runs from last 24 hours
+  const runs = await database.collection("operative_runs")
+    .find({ startedAt: { $gte: yesterday } })
+    .toArray();
+
+  const successfulRuns = runs.filter(r => r.status === "success").length;
+  const failedRuns = runs.filter(r => r.status === "error" || r.status === "timeout").length;
+  const avgDuration = runs.length > 0
+    ? runs.reduce((sum, r) => sum + (r.durationMs || 0), 0) / runs.length
+    : 0;
+
+  // Get health data
+  let health = { apiHealthy: false, databaseConnected: true, accuracy: null as number | null };
+  try {
+    const response = await fetch("https://seosetu.ee/api/v1/health");
+    const data = await response.json();
+    health.apiHealthy = data.success && data.data?.status === "healthy";
+  } catch {
+    health.apiHealthy = false;
+  }
+
+  try {
+    const response = await fetch("https://seosetu.ee/api/v1/stats");
+    const data = await response.json();
+    health.accuracy = data.data?.accuracy?.overall || null;
+  } catch {
+    // Ignore
+  }
+
+  // Get metrics
+  const votings = await database.collection("votings").countDocuments();
+  const stenograms = await database.collection("stenograms").countDocuments();
+  const mps = await database.collection("mps").countDocuments({ isActive: true });
+  const withEmbeddings = await database.collection("votings").countDocuments({
+    embedding: { $exists: true, $ne: null }
+  });
+  const embeddingCoverage = votings > 0 ? (withEmbeddings / votings) * 100 : 0;
+
+  // Get recent commits (from git log)
+  let commits: string[] = [];
+  try {
+    const { execSync } = require("child_process");
+    const gitLog = execSync(
+      `git log --oneline --since="${yesterday.toISOString()}" 2>/dev/null || echo ""`,
+      { cwd: CONFIG.WORKING_DIR, encoding: "utf-8" }
+    );
+    commits = gitLog.trim().split("\n").filter((l: string) => l.length > 0);
+  } catch {
+    // Ignore
+  }
+
+  // Get brain state for errors
+  const brainState = await database.collection("brain_state").findOne({ _id: "brain" });
+  const errors = brainState?.errors || [];
+
+  // Generate highlights
+  const highlights: string[] = [];
+  if (commits.length > 0) {
+    highlights.push(`${commits.length} commits shipped`);
+  }
+  if (successfulRuns > 0) {
+    highlights.push(`${successfulRuns} successful operative runs`);
+  }
+  if (health.accuracy && health.accuracy > 90) {
+    highlights.push(`Prediction accuracy at ${health.accuracy.toFixed(1)}%`);
+  }
+  if (failedRuns > 0) {
+    highlights.push(`${failedRuns} failed runs - review needed`);
+  }
+
+  return {
+    date: today,
+    generatedAt: new Date(),
+    summary: {
+      cyclesRun: Math.floor(runs.length / 2), // PM + Dev per cycle
+      operativeRuns: runs.length,
+      successfulRuns,
+      failedRuns,
+      averageDurationMs: Math.round(avgDuration),
+    },
+    health,
+    metrics: {
+      votings,
+      stenograms,
+      mps,
+      embeddingCoverage: Math.round(embeddingCoverage * 10) / 10,
+    },
+    commits,
+    errors,
+    highlights,
+  };
+}
+
+function formatReportAsMarkdown(report: DailyReport): string {
+  const avgDurationSec = Math.round(report.summary.averageDurationMs / 1000);
+
+  return `# Daily Brain Report: ${report.date}
+
+*Generated at ${report.generatedAt.toISOString()}*
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Cycles Run | ${report.summary.cyclesRun} |
+| Operative Runs | ${report.summary.operativeRuns} |
+| Successful | ${report.summary.successfulRuns} |
+| Failed | ${report.summary.failedRuns} |
+| Avg Duration | ${avgDurationSec}s |
+
+## System Health
+
+| Check | Status |
+|-------|--------|
+| API | ${report.health.apiHealthy ? "✅ Healthy" : "❌ Down"} |
+| Database | ${report.health.databaseConnected ? "✅ Connected" : "❌ Disconnected"} |
+| Accuracy | ${report.health.accuracy ? `${report.health.accuracy.toFixed(1)}%` : "Unknown"} |
+
+## Data Metrics
+
+| Metric | Value |
+|--------|-------|
+| Votings | ${report.metrics.votings.toLocaleString()} |
+| Stenograms | ${report.metrics.stenograms.toLocaleString()} |
+| Active MPs | ${report.metrics.mps} |
+| Embedding Coverage | ${report.metrics.embeddingCoverage}% |
+
+## Highlights
+
+${report.highlights.length > 0
+  ? report.highlights.map(h => `- ${h}`).join("\n")
+  : "- No notable highlights today"}
+
+## Commits Shipped
+
+${report.commits.length > 0
+  ? report.commits.map(c => `- ${c}`).join("\n")
+  : "- No commits today"}
+
+## Errors
+
+${report.errors.length > 0
+  ? report.errors.map(e => `- ${e}`).join("\n")
+  : "- No errors recorded"}
+
+---
+
+*This report was automatically generated by The Brain.*
+*Riigikogu Radar - Autonomous Parliamentary Intelligence*
+`;
+}
+
+async function sendEmailReport(report: DailyReport, recipients: string[]): Promise<boolean> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+
+  if (!resendApiKey) {
+    log("RESEND_API_KEY not configured - skipping email", "WARN");
+    return false;
+  }
+
+  const markdown = formatReportAsMarkdown(report);
+  const subject = `🧠 Brain Report: ${report.date} | ${report.summary.successfulRuns}/${report.summary.operativeRuns} runs, ${report.commits.length} commits`;
+
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Riigikogu Radar <brain@seosetu.ee>",
+        to: recipients,
+        subject,
+        text: markdown,
+        html: `<pre style="font-family: monospace; white-space: pre-wrap;">${markdown}</pre>`,
+      }),
+    });
+
+    if (response.ok) {
+      log(`Daily report emailed to ${recipients.length} recipients`);
+      return true;
+    } else {
+      const error = await response.text();
+      logError(`Failed to send email: ${error}`);
+      return false;
+    }
+  } catch (error) {
+    logError("Failed to send email", error as Error);
+    return false;
+  }
+}
+
+async function saveDailyReport(report: DailyReport): Promise<void> {
+  const database = await connectDb();
+
+  // Save to MongoDB
+  await database.collection("daily_reports").updateOne(
+    { date: report.date },
+    { $set: report },
+    { upsert: true }
+  );
+  log(`Daily report saved to MongoDB`);
+
+  // Save to file system
+  if (!fs.existsSync(CONFIG.REPORTS_DIR)) {
+    fs.mkdirSync(CONFIG.REPORTS_DIR, { recursive: true });
+  }
+
+  const markdown = formatReportAsMarkdown(report);
+  const filePath = path.join(CONFIG.REPORTS_DIR, `${report.date}.md`);
+  fs.writeFileSync(filePath, markdown);
+  log(`Daily report saved to ${filePath}`);
+
+  // Commit to git
+  try {
+    const { execSync } = require("child_process");
+    execSync(`git add reports/${report.date}.md`, { cwd: CONFIG.WORKING_DIR });
+    execSync(
+      `git commit -m "Daily report: ${report.date}" --author="Brain <brain@seosetu.ee>" || true`,
+      { cwd: CONFIG.WORKING_DIR }
+    );
+    execSync(`git push || true`, { cwd: CONFIG.WORKING_DIR });
+    log(`Daily report committed to git`);
+  } catch (error) {
+    logError("Failed to commit daily report", error as Error);
+  }
+}
+
+async function shouldGenerateDailyReport(): Promise<boolean> {
+  const database = await connectDb();
+  const today = new Date().toISOString().split("T")[0];
+
+  // Check if we already generated today's report
+  const existing = await database.collection("daily_reports").findOne({ date: today });
+  if (existing) {
+    return false;
+  }
+
+  // Check if it's past the configured send time (default 8:00 Tallinn time)
+  const config = loadNotificationConfig();
+  if (!config?.dailyReport?.enabled) {
+    return false;
+  }
+
+  // Simple check: generate after 8:00 UTC (11:00 Tallinn in winter, 10:00 in summer)
+  const hour = new Date().getUTCHours();
+  return hour >= 8;
+}
+
+async function runDailyReportIfDue(): Promise<void> {
+  if (!await shouldGenerateDailyReport()) {
+    return;
+  }
+
+  log("Generating daily report...");
+
+  try {
+    const report = await generateDailyReport();
+    await saveDailyReport(report);
+
+    // Send email
+    const config = loadNotificationConfig();
+    if (config?.dailyReport?.enabled && config.dailyReport.recipients.length > 0) {
+      await sendEmailReport(report, config.dailyReport.recipients);
+    }
+
+    log("Daily report complete");
+  } catch (error) {
+    logError("Failed to generate daily report", error as Error);
+  }
+}
+
+// ============================================================================
 // MAIN
 // ============================================================================
 
@@ -685,10 +1020,16 @@ async function main(): Promise<void> {
   // Initial cleanup
   await cleanupLogs();
 
+  // Check for daily report on startup
+  await runDailyReportIfDue();
+
   // Main loop
   while (!isShuttingDown) {
     try {
       await runCycle();
+
+      // Check for daily report after each cycle
+      await runDailyReportIfDue();
     } catch (error) {
       logError("Cycle failed", error as Error);
 
