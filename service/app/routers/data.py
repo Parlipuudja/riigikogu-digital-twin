@@ -13,11 +13,14 @@ async def list_mps(
     party: str | None = None,
     sort: str = "name",
     order: str = "asc",
+    active: str | None = None,
 ):
     db = await get_db()
     query = {}
     if party:
         query["partyCode"] = party.upper()
+    if active == "true":
+        query["isCurrentMember"] = True
 
     sort_field = {
         "name": "name",
@@ -38,7 +41,33 @@ async def list_mps(
         },
     ).sort(sort_field, sort_dir)
 
-    return await cursor.to_list(None)
+    raw = await cursor.to_list(None)
+    # Normalize for frontend: ensure firstName/lastName exist, stats as decimals
+    results = []
+    for mp in raw:
+        if not mp.get("firstName") and mp.get("name"):
+            parts = mp["name"].split(" ", 1)
+            mp["firstName"] = parts[0]
+            mp["lastName"] = parts[1] if len(parts) > 1 else ""
+        if not mp.get("firstName"):
+            mp["firstName"] = mp.get("slug", "").replace("-", " ").title().split(" ")[0]
+            mp["lastName"] = " ".join(mp.get("slug", "").replace("-", " ").title().split(" ")[1:])
+        stats = mp.get("stats")
+        if stats:
+            mp["stats"] = {
+                "totalVotes": stats.get("totalVotes", 0),
+                "forVotes": stats.get("votesFor", 0),
+                "againstVotes": stats.get("votesAgainst", 0),
+                "abstainVotes": stats.get("votesAbstain", 0),
+                "absentVotes": stats.get("totalVotes", 0) - stats.get("votesFor", 0) - stats.get("votesAgainst", 0) - stats.get("votesAbstain", 0),
+                "attendanceRate": stats.get("attendance", 0) / 100,
+                "partyAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
+                "recentAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
+            }
+        mp["isActive"] = mp.get("isCurrentMember", False)
+        mp["committees"] = []
+        results.append(mp)
+    return results
 
 
 @router.get("/mps/{slug}")
@@ -52,8 +81,8 @@ async def get_mp(slug: str):
 
 @router.get("/votings")
 async def list_votings(
-    page: int = Query(0, ge=0),
-    size: int = Query(20, ge=1, le=100),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
 ):
     db = await get_db()
     cursor = db.votings.find(
@@ -64,17 +93,30 @@ async def list_votings(
             "inFavor": 1, "against": 1, "abstained": 1, "absent": 1,
             "_id": 0,
         },
-    ).sort("votingTime", -1).skip(page * size).limit(size)
+    ).sort("votingTime", -1).skip(skip).limit(limit)
 
-    items = await cursor.to_list(size)
-    total = await db.votings.count_documents({})
-    return {"items": items, "total": total, "page": page, "size": size}
+    items = await cursor.to_list(limit)
+    # Normalize field names for frontend
+    results = []
+    for v in items:
+        results.append({
+            "uuid": v.get("uuid"),
+            "title": v.get("title"),
+            "titleEn": v.get("titleEn"),
+            "votingTime": v.get("votingTime"),
+            "result": v.get("result"),
+            "forCount": v.get("inFavor", 0),
+            "againstCount": v.get("against", 0),
+            "abstainCount": v.get("abstained", 0),
+            "absentCount": v.get("absent", 0),
+        })
+    return results
 
 
 @router.get("/drafts")
 async def list_drafts(
-    page: int = Query(0, ge=0),
-    size: int = Query(20, ge=1, le=100),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=200),
     status_code: str | None = None,
 ):
     db = await get_db()
@@ -89,11 +131,23 @@ async def list_drafts(
             "type": 1, "status": 1, "initiators": 1, "submitDate": 1,
             "_id": 0,
         },
-    ).sort("submitDate", -1).skip(page * size).limit(size)
+    ).sort("submitDate", -1).skip(skip).limit(limit)
 
-    items = await cursor.to_list(size)
-    total = await db.drafts.count_documents(query)
-    return {"items": items, "total": total, "page": page, "size": size}
+    items = await cursor.to_list(limit)
+    # Normalize for frontend
+    results = []
+    for d in items:
+        status = d.get("status")
+        results.append({
+            "uuid": d.get("uuid"),
+            "title": d.get("title"),
+            "titleEn": d.get("titleEn"),
+            "number": d.get("number", d.get("mark", "")),
+            "status": status.get("value", "") if isinstance(status, dict) else str(status or ""),
+            "initiators": d.get("initiators", []),
+            "billType": d.get("type", {}).get("value", "") if isinstance(d.get("type"), dict) else "",
+        })
+    return results
 
 
 @router.get("/stats")
