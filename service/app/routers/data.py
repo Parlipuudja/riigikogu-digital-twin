@@ -155,6 +155,35 @@ async def list_votings(
     return results
 
 
+@router.get("/votings/{uuid}")
+async def get_voting(uuid: str):
+    db = await get_db()
+    voting = await db.votings.find_one({"uuid": uuid}, {"_id": 0, "embedding": 0})
+    if not voting:
+        raise HTTPException(status_code=404, detail="Voting not found")
+    # Normalize voters for frontend
+    voters = []
+    for v in voting.get("voters", []):
+        voters.append({
+            "memberUuid": v.get("memberUuid"),
+            "fullName": v.get("fullName"),
+            "faction": v.get("faction"),
+            "decision": v.get("decision"),
+        })
+    return {
+        "uuid": voting.get("uuid"),
+        "title": voting.get("title"),
+        "titleEn": voting.get("titleEn"),
+        "votingTime": voting.get("votingTime"),
+        "result": voting.get("result"),
+        "forCount": voting.get("inFavor", 0),
+        "againstCount": voting.get("against", 0),
+        "abstainCount": voting.get("abstained", 0),
+        "absentCount": voting.get("absent", 0),
+        "voters": voters,
+    }
+
+
 @router.get("/drafts")
 async def list_drafts(
     skip: int = Query(0, ge=0),

@@ -4,7 +4,9 @@
     "mps": "Saadikud",
     "simulate": "Simuleeri",
     "drafts": "Eelnõud",
+    "votings": "Hääletused",
     "accuracy": "Täpsus",
+    "intelligence": "Luure",
     "about": "Info"
   },
   "home": {
@@ -73,6 +75,19 @@
     "number": "Number",
     "noDrafts": "Eelnõusid ei leitud"
   },
+  "votings": {
+    "title": "Hääletused",
+    "result": "Tulemus",
+    "voters": "Hääletajad",
+    "accepted": "Vastu võetud",
+    "rejected": "Tagasi lükatud",
+    "for": "Poolt",
+    "against": "Vastu",
+    "abstain": "Erapooletu",
+    "absent": "Puudub",
+    "noVotings": "Hääletusi ei leitud",
+    "votingTime": "Hääletuse aeg"
+  },
   "accuracy": {
     "title": "Prognoosi täpsus",
     "subtitle": "Aus mõõtmine — ainult uutel andmetel",
@@ -97,6 +112,34 @@
     "dataSourcesText": "Kõik andmed pärinevad Riigikogu avalikust API-st. Mudeleid treenitakse ajaloolistel hääletusandmetel.",
     "philosophy": "Filosoofia",
     "philosophyText": "Läbipaistvus > maagia. Täpsus > kiirus. Autonoomia > sõltuvus."
+  },
+  "intelligence": {
+    "title": "Luure",
+    "subtitle": "Tuvastused ja mudeli diagnostika",
+    "detections": "Tuvastused",
+    "totalDetections": "Tuvastusi kokku",
+    "lastDetection": "Viimane tuvastus",
+    "coalitionShifts": "Koalitsiooni muutused",
+    "mpShifts": "Saadiku muutused",
+    "partySplits": "Erakonna lõhenemised",
+    "severity": "Tõsidus",
+    "high": "Kõrge",
+    "medium": "Keskmine",
+    "description": "Kirjeldus",
+    "detectedAt": "Tuvastatud",
+    "noDetections": "Tuvastusi ei leitud",
+    "errorCategories": "Veakategooriad",
+    "freeVote": "Vaba hääletus",
+    "partySplit": "Erakonna lõhenemine",
+    "staleProfile": "Aegunud profiil",
+    "featureGap": "Tunnuse puudujääk",
+    "weakestMPs": "Nõrgimad saadikud",
+    "mpName": "Saadiku nimi",
+    "accuracy": "Täpsus",
+    "count": "Hääli",
+    "improvementPriorities": "Parenduste prioriteedid",
+    "modelDiagnostics": "Mudeli diagnostika",
+    "modelVersion": "Mudeli versioon"
   },
   "common": {
     "loading": "Laadimine...",

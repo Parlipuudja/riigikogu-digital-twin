@@ -10,7 +10,9 @@ const NAV_ITEMS = [
   { key: "mps", href: "/mps" },
   { key: "simulate", href: "/simulate" },
   { key: "drafts", href: "/drafts" },
+  { key: "votings", href: "/votings" },
   { key: "accuracy", href: "/accuracy" },
+  { key: "intelligence", href: "/intelligence" },
   { key: "about", href: "/about" },
 ] as const;
 

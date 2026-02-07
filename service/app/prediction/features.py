@@ -23,6 +23,9 @@ FEATURE_NAMES = [
     "mp_defection_rate",
     "party_majority_direction",  # FOR=1.0, ABSTAIN=0.0, AGAINST=-1.0
     "party_majority_margin",
+    "is_independent",               # 1.0 for FR (non-affiliated), 0.0 otherwise
+    "mp_personal_for_rate",         # This MP's personal FOR tendency (0-1)
+    "opposition_majority_direction",  # What did the opposition block vote? (-1 to 1)
 ]
 
 # Cache for coalition detection (recomputed per training run)
@@ -82,6 +85,18 @@ async def compute_features(
     # FOR=1.0, AGAINST=-1.0, middle=0.0
     features["party_majority_direction"] = (party_for_rate - 0.5) * 2.0
     features["party_majority_margin"] = abs(party_for_rate - 0.5) * 2  # 0=split, 1=unanimous
+
+    # 8. Is independent (FR / non-affiliated)
+    features["is_independent"] = 1.0 if party_code == "FR" else 0.0
+
+    # 9. MP's personal FOR rate — individual voting tendency
+    stats = mp.get("stats", {})
+    total_votes = stats.get("totalVotes", 1) or 1
+    votes_for = stats.get("votesFor", 0) or 0
+    features["mp_personal_for_rate"] = votes_for / max(total_votes, 1)
+
+    # 10. Opposition majority direction (estimated from recent votes)
+    features["opposition_majority_direction"] = await _historical_opposition_direction(db)
 
     return features
 
@@ -149,6 +164,27 @@ async def compute_features_for_training(
     else:
         features["party_majority_direction"] = 1.0
         features["party_majority_margin"] = 0.5
+
+    # 8. Is independent
+    features["is_independent"] = 1.0 if party_code == "FR" else 0.0
+
+    # 9. MP personal FOR rate (from historical votes)
+    mp_for_rate = await _historical_personal_for_rate(db, member_uuid, voting.get("votingTime"))
+    features["mp_personal_for_rate"] = mp_for_rate
+
+    # 10. Opposition majority direction from this voting
+    opp_decisions = []
+    coalition = await _detect_coalition(db)
+    for voter in voting.get("voters", []):
+        vp = extract_party_code(voter.get("faction"))
+        if vp not in coalition and voter.get("decision", "ABSENT") != "ABSENT":
+            opp_decisions.append(voter["decision"])
+    if opp_decisions:
+        opp_maj = Counter(opp_decisions).most_common(1)[0][0]
+        direction_map_opp = {"FOR": 1.0, "AGAINST": -1.0, "ABSTAIN": 0.0}
+        features["opposition_majority_direction"] = direction_map_opp.get(opp_maj, 0.0)
+    else:
+        features["opposition_majority_direction"] = 0.0
 
     return features
 
@@ -583,3 +619,57 @@ def _get_mp_and_party_decision(
 
     party_majority = Counter(party_decisions).most_common(1)[0][0]
     return mp_decision, party_majority
+
+
+async def _historical_personal_for_rate(
+    db: AsyncIOMotorDatabase,
+    member_uuid: str,
+    before_date: str | None = None,
+) -> float:
+    """Compute this MP's personal FOR rate from their voting history."""
+    query = {"voters.memberUuid": member_uuid}
+    if before_date:
+        query["votingTime"] = {"$lt": before_date}
+
+    cursor = db.votings.find(query, {"voters": 1}).sort("votingTime", -1).limit(100)
+
+    for_count = 0
+    total = 0
+    async for voting in cursor:
+        for voter in voting.get("voters", []):
+            if voter.get("memberUuid") == member_uuid:
+                d = voter.get("decision", "ABSENT")
+                if d != "ABSENT":
+                    total += 1
+                    if d == "FOR":
+                        for_count += 1
+                break
+
+    return for_count / total if total > 0 else 0.7
+
+
+async def _historical_opposition_direction(db: AsyncIOMotorDatabase) -> float:
+    """Estimate opposition block's majority direction from recent votes."""
+    coalition = await _detect_coalition(db)
+
+    votings = await db.votings.find(
+        {}, {"voters": 1}
+    ).sort("votingTime", -1).limit(100).to_list(100)
+
+    opp_for = 0
+    opp_total = 0
+    for voting in votings:
+        opp_decisions = []
+        for voter in voting.get("voters", []):
+            party = extract_party_code(voter.get("faction"))
+            d = voter.get("decision", "ABSENT")
+            if party not in coalition and d != "ABSENT":
+                opp_decisions.append(d)
+        if opp_decisions:
+            opp_total += 1
+            majority = Counter(opp_decisions).most_common(1)[0][0]
+            if majority == "FOR":
+                opp_for += 1
+
+    rate = opp_for / max(opp_total, 1)
+    return (rate - 0.5) * 2.0

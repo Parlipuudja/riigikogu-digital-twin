@@ -41,8 +41,10 @@ export interface Voting {
 }
 
 export interface Voter {
-  firstName: string;
-  lastName: string;
+  memberUuid?: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
   faction: string;
   decision: VoteDecision;
 }
@@ -121,6 +123,40 @@ export interface HealthStatus {
   model_version: string;
   accuracy: number;
   last_sync: string;
+}
+
+export type DetectionType = "coalition_shift" | "mp_shift" | "party_split";
+export type DetectionSeverity = "high" | "medium";
+
+export interface Detection {
+  type: DetectionType;
+  severity: DetectionSeverity;
+  description: string;
+  detectedAt: string;
+  // Type-specific fields
+  party?: string;
+  mp?: string;
+  from?: string;
+  to?: string;
+  delta?: number;
+  splitFaction?: string[];
+  mainFaction?: string[];
+}
+
+export interface DetectionsResponse {
+  detections: Detection[];
+  lastDetectionAt: string;
+}
+
+export interface ModelStatus {
+  version: string;
+  features: string[];
+  featureImportances: Record<string, number>;
+  accuracy: number;
+  errorCategories: Record<string, number>;
+  improvementPriorities: string[];
+  weakestMPs: { slug: string; name: string; accuracy: number; count: number }[];
+  weakestTopics: { topic: string; accuracy: number; count: number }[];
 }
 
 export type PartyCode =

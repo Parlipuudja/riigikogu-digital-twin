@@ -13,23 +13,27 @@ _backtest_running = False
 
 
 async def _run_backtest():
-    """Run baseline backtest, then train the model."""
+    """Run baseline backtest, train ML model, then hybrid backtest (best wins)."""
     global _backtest_running
     _backtest_running = True
     try:
         db = await get_db()
 
-        # Run baseline backtest first (establishes the floor)
-        from app.prediction.baseline import run_backtest
+        # 1. Run baseline backtest (establishes the accuracy floor)
+        from app.prediction.baseline import run_backtest, run_hybrid_backtest
         baseline_results = await run_backtest(db)
         logger.info(f"Baseline backtest results: {baseline_results}")
 
-        # Train the statistical model
+        # 2. Train the statistical model (won't overwrite if worse than current best)
         from app.prediction.features import reset_training_caches
         from app.prediction.model import train_model
         reset_training_caches()
         model_results = await train_model(db)
         logger.info(f"Model training results: {model_results}")
+
+        # 3. Run hybrid backtest last (overwrites version if it beats everything)
+        hybrid_results = await run_hybrid_backtest(db)
+        logger.info(f"Hybrid backtest results: {hybrid_results.get('overall', 'N/A')}%")
 
     except Exception as e:
         logger.error(f"Backtest/training failed: {e}", exc_info=True)

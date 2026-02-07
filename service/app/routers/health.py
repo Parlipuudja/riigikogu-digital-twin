@@ -31,9 +31,10 @@ async def health():
         model_state = await db.model_state.find_one({"_id": "current"})
         if model_state:
             result["accuracy"] = model_state.get("accuracy", {}).get("overall")
-            # Show DB version if in-memory model hasn't loaded yet
-            if live_version == "untrained" and model_state.get("version"):
-                result["model_version"] = model_state["version"]
+            # Show DB version if in-memory model is baseline or untrained
+            db_version = model_state.get("version")
+            if db_version and live_version in ("untrained", "baseline-v1"):
+                result["model_version"] = db_version
 
         sync_votings = await db.sync_progress.find_one({"_id": "votings"})
         if sync_votings:

@@ -8,6 +8,8 @@ import type {
   PredictionResponse,
   SimulationResult,
   BillInput,
+  DetectionsResponse,
+  ModelStatus,
 } from "@/types/domain";
 
 const SERVICE_URL =
@@ -63,10 +65,19 @@ export const api = {
   votings: (params?: { skip?: number; limit?: number }) =>
     fetchService<Voting[]>(`/votings${qs(params)}`, { revalidate: 300 }),
 
+  voting: (uuid: string) =>
+    fetchService<Voting>(`/votings/${uuid}`, { revalidate: 300 }),
+
   drafts: (params?: { skip?: number; limit?: number }) =>
     fetchService<Draft[]>(`/drafts${qs(params)}`, { revalidate: 300 }),
 
   stats: () => fetchService<Stats>("/stats", { revalidate: 60 }),
 
   accuracy: () => fetchService<AccuracyData>("/accuracy", { revalidate: 300 }),
+
+  detections: () =>
+    fetchService<DetectionsResponse>("/detections", { revalidate: 120 }),
+
+  modelStatus: () =>
+    fetchService<ModelStatus>("/model/status", { revalidate: 300 }),
 };

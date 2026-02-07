@@ -59,7 +59,9 @@ async def _backtest():
 
 
 async def _retrain_model():
+    """Train ML model, then run hybrid backtest (best version wins)."""
     from app.db import get_db
+    from app.prediction.baseline import run_hybrid_backtest
     from app.prediction.features import reset_training_caches
     from app.prediction.model import train_model
 
@@ -68,6 +70,10 @@ async def _retrain_model():
     reset_training_caches()
     result = await train_model(db)
     logger.info(f"Model retrain result: {result}")
+
+    # Hybrid backtest runs last — overwrites version if it beats everything
+    hybrid = await run_hybrid_backtest(db)
+    logger.info(f"Hybrid backtest: {hybrid.get('overall', 'N/A')}%")
 
 
 async def _diagnose_errors():
@@ -159,6 +165,7 @@ async def _startup_train():
     from app.prediction.model import get_model_version
     if get_model_version() == "untrained":
         logger.info("No trained model found, starting initial training...")
+        # _retrain_model handles the full sequence: ML train → hybrid backtest
         asyncio.create_task(_retrain_model())
 
 

@@ -4,7 +4,9 @@
     "mps": "MPs",
     "simulate": "Simulate",
     "drafts": "Drafts",
+    "votings": "Votings",
     "accuracy": "Accuracy",
+    "intelligence": "Intelligence",
     "about": "About"
   },
   "home": {
@@ -73,6 +75,19 @@
     "number": "Number",
     "noDrafts": "No drafts found"
   },
+  "votings": {
+    "title": "Votings",
+    "result": "Result",
+    "voters": "Voters",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "for": "For",
+    "against": "Against",
+    "abstain": "Abstain",
+    "absent": "Absent",
+    "noVotings": "No votings found",
+    "votingTime": "Voting time"
+  },
   "accuracy": {
     "title": "Prediction accuracy",
     "subtitle": "Honest measurement — post-cutoff data only",
@@ -97,6 +112,34 @@
     "dataSourcesText": "All data comes from the public Riigikogu API. Models are trained on historical voting data.",
     "philosophy": "Philosophy",
     "philosophyText": "Transparency > magic. Accuracy > speed. Autonomy > dependency."
+  },
+  "intelligence": {
+    "title": "Intelligence",
+    "subtitle": "Detections and model diagnostics",
+    "detections": "Detections",
+    "totalDetections": "Total detections",
+    "lastDetection": "Last detection",
+    "coalitionShifts": "Coalition shifts",
+    "mpShifts": "MP shifts",
+    "partySplits": "Party splits",
+    "severity": "Severity",
+    "high": "High",
+    "medium": "Medium",
+    "description": "Description",
+    "detectedAt": "Detected at",
+    "noDetections": "No detections found",
+    "errorCategories": "Error categories",
+    "freeVote": "Free vote",
+    "partySplit": "Party split",
+    "staleProfile": "Stale profile",
+    "featureGap": "Feature gap",
+    "weakestMPs": "Weakest MPs",
+    "mpName": "MP name",
+    "accuracy": "Accuracy",
+    "count": "Votes",
+    "improvementPriorities": "Improvement priorities",
+    "modelDiagnostics": "Model diagnostics",
+    "modelVersion": "Model version"
   },
   "common": {
     "loading": "Loading...",

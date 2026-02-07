@@ -253,3 +253,260 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
 
     logger.info(f"Baseline backtest: {result['overall']}% on {total} votes, weakest MPs: {[m['fullName'] for m in weakest_mps[:3]]}")
     return result
+
+
+async def compute_fr_alignments(db: AsyncIOMotorDatabase) -> dict[str, str]:
+    """Compute which real party each FR member aligns with most.
+
+    For each non-affiliated MP, find the party whose majority they agree
+    with most often. This captures ex-EKRE members who still vote with EKRE,
+    or independents who align with the coalition.
+
+    Uses pre-cutoff data only to avoid leakage.
+    """
+    cutoff = settings.model_cutoff_date
+
+    votings = await db.votings.find(
+        {"votingTime": {"$lt": cutoff}},
+        {"voters": 1},
+    ).sort("votingTime", -1).limit(500).to_list(500)
+
+    if not votings:
+        return {}
+
+    # Track per-FR-member agreement with each real party
+    # {memberUuid: {party: {agree: int, total: int}}}
+    fr_agreement: dict[str, dict[str, dict[str, int]]] = {}
+
+    for voting in votings:
+        voters = voting.get("voters", [])
+        if not voters:
+            continue
+
+        # Compute real party majorities (excluding FR)
+        party_decisions: dict[str, list[str]] = {}
+        fr_voters: list[dict] = []
+
+        for voter in voters:
+            party = extract_party_code(voter.get("faction"))
+            decision = voter.get("decision", "ABSENT")
+            if decision == "ABSENT":
+                continue
+            if party == "FR":
+                fr_voters.append(voter)
+            else:
+                party_decisions.setdefault(party, []).append(decision)
+
+        party_majority: dict[str, str] = {}
+        for party, decisions in party_decisions.items():
+            if len(decisions) >= 3:
+                party_majority[party] = Counter(decisions).most_common(1)[0][0]
+
+        # For each FR voter, check agreement with each party
+        for voter in fr_voters:
+            uuid = voter["memberUuid"]
+            decision = voter.get("decision", "ABSENT")
+            if decision == "ABSENT":
+                continue
+
+            if uuid not in fr_agreement:
+                fr_agreement[uuid] = {}
+
+            for party, majority in party_majority.items():
+                if party not in fr_agreement[uuid]:
+                    fr_agreement[uuid][party] = {"agree": 0, "total": 0}
+                fr_agreement[uuid][party]["total"] += 1
+                if decision == majority:
+                    fr_agreement[uuid][party]["agree"] += 1
+
+    # Find best alignment for each FR member
+    alignments: dict[str, str] = {}
+    for uuid, parties in fr_agreement.items():
+        best_party = None
+        best_rate = 0.0
+        for party, counts in parties.items():
+            if counts["total"] >= 10:
+                rate = counts["agree"] / counts["total"]
+                if rate > best_rate:
+                    best_rate = rate
+                    best_party = party
+        if best_party and best_rate > 0.5:
+            alignments[uuid] = best_party
+
+    logger.info(f"FR alignments computed: {len(alignments)} members mapped")
+    for uuid, party in list(alignments.items())[:5]:
+        rate = fr_agreement[uuid][party]["agree"] / fr_agreement[uuid][party]["total"]
+        logger.info(f"  {uuid[:8]}... -> {party} ({rate:.1%})")
+
+    return alignments
+
+
+async def run_hybrid_backtest(db: AsyncIOMotorDatabase) -> dict:
+    """Hybrid backtest: party majority for party MPs, alignment-party for FR.
+
+    This is the smart baseline that should beat the naive party-line floor.
+    """
+    cutoff = settings.model_cutoff_date
+    logger.info(f"Running hybrid backtest on votes after {cutoff}...")
+
+    # Compute FR alignments from pre-cutoff data
+    fr_alignments = await compute_fr_alignments(db)
+
+    # Get post-cutoff votings
+    votings = await db.votings.find(
+        {"votingTime": {"$gte": cutoff}},
+        {"uuid": 1, "voters": 1, "votingTime": 1},
+    ).to_list(None)
+
+    if not votings:
+        return {"error": "No post-cutoff votings"}
+
+    correct = 0
+    total = 0
+    by_party: dict[str, dict] = {}
+    by_decision: dict[str, dict] = {}
+    by_mp: dict[str, dict] = {}
+
+    for voting in votings:
+        voters = voting.get("voters", [])
+        if not voters:
+            continue
+
+        # Compute all party majorities (including FR)
+        party_decisions: dict[str, list[str]] = {}
+        for voter in voters:
+            party = extract_party_code(voter.get("faction"))
+            decision = voter.get("decision", "ABSENT")
+            if decision != "ABSENT":
+                party_decisions.setdefault(party, []).append(decision)
+
+        party_majority: dict[str, str] = {}
+        for party, decisions in party_decisions.items():
+            party_majority[party] = Counter(decisions).most_common(1)[0][0]
+
+        # Score each voter
+        for voter in voters:
+            decision = voter.get("decision", "ABSENT")
+            if decision == "ABSENT":
+                continue
+
+            party = extract_party_code(voter.get("faction"))
+            uuid = voter.get("memberUuid", "")
+            name = voter.get("fullName", "")
+
+            # Smart prediction: for FR with alignment, use alignment party
+            if party == "FR" and uuid in fr_alignments:
+                align_party = fr_alignments[uuid]
+                predicted = party_majority.get(align_party, party_majority.get("FR"))
+            else:
+                predicted = party_majority.get(party)
+
+            if predicted is None:
+                continue
+
+            total += 1
+            is_correct = decision == predicted
+
+            if is_correct:
+                correct += 1
+
+            # Track by party
+            if party not in by_party:
+                by_party[party] = {"correct": 0, "total": 0}
+            by_party[party]["total"] += 1
+            if is_correct:
+                by_party[party]["correct"] += 1
+
+            # Track by decision
+            if decision not in by_decision:
+                by_decision[decision] = {"correct": 0, "total": 0}
+            by_decision[decision]["total"] += 1
+            if is_correct:
+                by_decision[decision]["correct"] += 1
+
+            # Track by MP
+            if uuid not in by_mp:
+                by_mp[uuid] = {"correct": 0, "total": 0, "fullName": name, "party": party}
+            by_mp[uuid]["total"] += 1
+            if is_correct:
+                by_mp[uuid]["correct"] += 1
+
+    overall_accuracy = (correct / total * 100) if total > 0 else 0
+
+    party_accuracy = {}
+    for party, counts in by_party.items():
+        party_accuracy[party] = round(counts["correct"] / counts["total"] * 100, 1)
+
+    decision_accuracy = {}
+    for dec, counts in by_decision.items():
+        decision_accuracy[dec] = round(counts["correct"] / counts["total"] * 100, 1)
+
+    mp_accuracy_list = []
+    for uuid, counts in by_mp.items():
+        if counts["total"] >= 10:
+            acc = round(counts["correct"] / counts["total"] * 100, 1)
+            mp_accuracy_list.append({
+                "memberUuid": uuid,
+                "fullName": counts["fullName"],
+                "party": counts["party"],
+                "accuracy": acc,
+                "total": counts["total"],
+            })
+    mp_accuracy_list.sort(key=lambda x: x["accuracy"])
+    weakest_mps = mp_accuracy_list[:10]
+
+    party_count_map = {p: counts["total"] for p, counts in by_party.items()}
+    decision_count_map = {d: counts["total"] for d, counts in by_decision.items()}
+
+    result = {
+        "overall": round(overall_accuracy, 1),
+        "correct": correct,
+        "total": total,
+        "byParty": party_accuracy,
+        "byVoteType": decision_accuracy,
+        "votingsEvaluated": len(votings),
+        "cutoffDate": cutoff,
+        "frAlignments": fr_alignments,
+    }
+
+    logger.info(f"Hybrid backtest: {result['overall']}% on {total} votes (FR: {party_accuracy.get('FR', 'N/A')}%)")
+
+    # Only update model_state if hybrid beats current baseline
+    current = await db.model_state.find_one({"_id": "current"})
+    baseline_acc = current.get("baselineAccuracy", 0) if current else 0
+
+    if overall_accuracy > baseline_acc:
+        logger.info(f"Hybrid ({overall_accuracy:.1f}%) beats baseline ({baseline_acc:.1f}%), updating model_state")
+        await db.model_state.update_one(
+            {"_id": "current"},
+            {"$set": {
+                "version": "hybrid-baseline-v1",
+                "trainedAt": datetime.now(timezone.utc),
+                "trainingSize": total,
+                "features": ["party_majority", "fr_alignment_party"],
+                "accuracy": {
+                    "overall": result["overall"],
+                    "byParty": party_accuracy,
+                    "byVoteType": decision_accuracy,
+                    "byMP": mp_accuracy_list,
+                },
+                "backtestCounts": {
+                    "byParty": party_count_map,
+                    "byVoteType": decision_count_map,
+                },
+                "improvementOverBaseline": round(overall_accuracy - baseline_acc, 1),
+                "weakestMPs": weakest_mps,
+                "frAlignments": fr_alignments,
+            },
+            "$push": {
+                "trend": {
+                    "$each": [{"date": datetime.now(timezone.utc).isoformat()[:10], "accuracy": result["overall"]}],
+                    "$slice": -100,
+                },
+            }},
+            upsert=True,
+        )
+    else:
+        logger.info(f"Hybrid ({overall_accuracy:.1f}%) didn't beat baseline ({baseline_acc:.1f}%)")
+
+    return result

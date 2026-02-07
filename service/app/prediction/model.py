@@ -222,29 +222,28 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         except Exception as e:
             logger.warning(f"Per-decision accuracy failed: {e}")
 
-    # When model doesn't beat baseline, preserve the baseline's accuracy breakdown
-    # (byParty, byVoteType, byMP) which was set by run_backtest
+    # When model doesn't beat baseline, preserve the current best version/accuracy
+    # which may have been set by run_hybrid_backtest
     update_fields = {
-        "version": version,
         "trainedAt": datetime.now(timezone.utc),
         "trainingSize": len(X_train),
         "features": FEATURE_NAMES,
         "featureImportances": feature_importances,
-        "improvementOverBaseline": improvement,
-        "baselineAccuracy": baseline_accuracy,
+        "mlModelVersion": version,
+        "mlModelAccuracy": round(test_accuracy, 1),
     }
 
     if _model is not None:
-        # Model beats baseline: write model's accuracy data
+        # Model beats baseline: write model's accuracy data and version
+        update_fields["version"] = version
+        update_fields["improvementOverBaseline"] = improvement
+        update_fields["baselineAccuracy"] = baseline_accuracy
         update_fields["accuracy"] = {
             "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
             "byParty": by_party,
             "byVoteType": by_vote_type,
         }
-    else:
-        # Falling back to baseline: only update overall and model-specific fields,
-        # preserve baseline's byParty/byVoteType/byMP from run_backtest
-        update_fields["accuracy.overall"] = round(test_accuracy, 1) if test_accuracy > 0 else None
+    # else: preserve current version/accuracy (could be hybrid-baseline-v1 at 99.2%)
 
     await db.model_state.update_one(
         {"_id": "current"},
@@ -270,13 +269,12 @@ async def predict(
     bill: BillInput,
     bill_embedding: list[float] | None = None,
 ) -> dict:
-    """Make a prediction using the trained model. Falls back to baseline."""
+    """Make a prediction using the trained model. Falls back to smart baseline."""
     global _model, _label_encoder, _model_version
 
     if _model is None or _label_encoder is None:
-        # Fall back to baseline
-        from app.prediction.baseline import predict_party_line
-        return await predict_party_line(db, mp, bill)
+        # Fall back to smart baseline (alignment-party for FR, party-line for others)
+        return await _smart_baseline_predict(db, mp, bill)
 
     # Compute features
     features = await compute_features(
@@ -391,17 +389,20 @@ async def _build_training_data(
     logger.info(f"Building training data from {len(votings)} votings...")
 
     # Batch precompute per-MP stats from the mps collection
-    mp_stats: dict[str, dict] = {}  # memberUuid -> {loyalty, attendance}
+    mp_stats: dict[str, dict] = {}  # memberUuid -> {loyalty, attendance, personal_for_rate}
     async for mp in db.mps.find({}, {"memberUuid": 1, "partyCode": 1, "stats": 1}):
         uuid = mp.get("memberUuid")
         if uuid:
             stats = mp.get("stats", {})
             loyalty = stats.get("partyAlignmentRate", 85.0) / 100.0
+            total_v = stats.get("totalVotes", 1) or 1
+            votes_for = stats.get("votesFor", 0) or 0
             mp_stats[uuid] = {
                 "loyalty": loyalty,
                 "defection_rate": 1.0 - loyalty,
                 "attendance": stats.get("attendance", 80.0) / 100.0,
                 "partyCode": mp.get("partyCode", "FR"),
+                "personal_for_rate": votes_for / max(total_v, 1),
             }
 
     # Detect coalition once
@@ -434,6 +435,18 @@ async def _build_training_data(
             party_cohesion[party] = aligned / len(decisions) if decisions else 1.0
             party_margin[party] = aligned / len(decisions) if decisions else 0.5
 
+        # Compute opposition majority direction for this voting
+        direction_map = {"FOR": 1.0, "AGAINST": -1.0, "ABSTAIN": 0.0}
+        opp_decisions = []
+        for party, decisions in party_decisions.items():
+            if party not in coalition:
+                opp_decisions.extend(decisions)
+        if opp_decisions:
+            opp_maj = Counter(opp_decisions).most_common(1)[0][0]
+            opp_direction = direction_map.get(opp_maj, 0.0)
+        else:
+            opp_direction = 0.0
+
         for voter in voters:
             decision = voter.get("decision", "ABSENT")
             if decision == "ABSENT":
@@ -444,7 +457,6 @@ async def _build_training_data(
 
             mp_info = mp_stats.get(member_uuid, {})
             maj = party_majority.get(party_code, "FOR")
-            direction_map = {"FOR": 1.0, "AGAINST": -1.0, "ABSTAIN": 0.0}
 
             features = {
                 "party_loyalty_rate": mp_info.get("loyalty", 0.85),
@@ -454,6 +466,9 @@ async def _build_training_data(
                 "mp_defection_rate": mp_info.get("defection_rate", 0.15),
                 "party_majority_direction": direction_map.get(maj, 0.0),
                 "party_majority_margin": party_margin.get(party_code, 0.5),
+                "is_independent": 1.0 if party_code == "FR" else 0.0,
+                "mp_personal_for_rate": mp_info.get("personal_for_rate", 0.7),
+                "opposition_majority_direction": opp_direction,
             }
 
             feature_vec = [features.get(name, 0.0) for name in FEATURE_NAMES]
@@ -466,6 +481,67 @@ async def _build_training_data(
 
     logger.info(f"Built training data: {len(X)} samples from {len(votings)} votings")
     return X, y, parties
+
+
+async def _smart_baseline_predict(
+    db: AsyncIOMotorDatabase,
+    mp: dict,
+    bill: BillInput,
+) -> dict:
+    """Smart baseline: party-line for party MPs, alignment-party for FR.
+
+    For FR members, looks up their alignment party from model_state.frAlignments
+    and predicts based on that party's historical majority instead of the
+    meaningless FR "party" majority.
+    """
+    party_code = mp.get("partyCode", "FR")
+
+    if party_code != "FR":
+        # Party-affiliated: use standard party-line baseline
+        from app.prediction.baseline import predict_party_line
+        return await predict_party_line(db, mp, bill)
+
+    # FR member: check alignment party
+    member_uuid = mp.get("memberUuid", "")
+    model_state = await db.model_state.find_one({"_id": "current"}, {"frAlignments": 1})
+    fr_alignments = (model_state or {}).get("frAlignments", {})
+    align_party = fr_alignments.get(member_uuid)
+
+    if not align_party:
+        # No alignment data — fall back to standard baseline
+        from app.prediction.baseline import predict_party_line
+        return await predict_party_line(db, mp, bill)
+
+    # Use alignment party's voting pattern for prediction
+    party_votes: list[str] = []
+    cursor = db.votings.find(
+        {}, {"voters": 1},
+    ).sort("votingTime", -1).limit(200)
+
+    async for voting in cursor:
+        for voter in voting.get("voters", []):
+            voter_party = extract_party_code(voter.get("faction"))
+            if voter_party == align_party and voter.get("decision") not in ("ABSENT", None):
+                party_votes.append(voter["decision"])
+
+    if not party_votes:
+        from app.prediction.baseline import predict_party_line
+        return await predict_party_line(db, mp, bill)
+
+    majority = Counter(party_votes).most_common(1)[0][0]
+    alignment_rate = mp.get("stats", {}).get("partyAlignmentRate", 85.0)
+    confidence = alignment_rate / 100.0 if alignment_rate else 0.85
+
+    return {
+        "prediction": majority,
+        "confidence": round(min(confidence, 0.99), 3),
+        "modelVersion": "hybrid-baseline-v1",
+        "features": [
+            {"name": "alignment_party", "value": align_party},
+            {"name": "alignment_party_majority", "value": majority},
+            {"name": "party_loyalty_rate", "value": alignment_rate},
+        ],
+    }
 
 
 async def _detect_coalition_cached(db: AsyncIOMotorDatabase) -> set[str]:
