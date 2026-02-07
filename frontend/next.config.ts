@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.riigikogu.ee",
       },
+      {
+        protocol: "https",
+        hostname: "api.riigikogu.ee",
+      },
     ],
   },
 };
