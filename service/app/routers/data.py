@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Query
 
+from app.config import settings
 from app.db import get_db
 
 router = APIRouter()
@@ -148,7 +149,7 @@ async def accuracy():
         "overall": acc.get("overall"),
         "baseline": model_state.get("baselineAccuracy"),
         "improvement": model_state.get("improvementOverBaseline"),
-        "honestPeriod": f"post-{model_state.get('features', ['?'])[0] if not isinstance(model_state.get('trainedAt'), str) else ''}cutoff",
+        "honestPeriod": f"post-{settings.model_cutoff_date}",
         "sampleSize": model_state.get("trainingSize", 0),
         "byParty": acc.get("byParty", {}),
         "byVoteType": acc.get("byVoteType", {}),
