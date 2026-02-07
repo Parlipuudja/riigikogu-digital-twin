@@ -146,12 +146,12 @@ async def _prune_cache():
 
 
 async def _startup_train():
-    """Train model on startup if not yet trained."""
+    """Train model on startup if not yet trained (non-blocking)."""
     await asyncio.sleep(10)  # Let the app fully start
     from app.prediction.model import get_model_version
     if get_model_version() == "untrained":
-        logger.info("No trained model found, running initial training...")
-        await _retrain_model()
+        logger.info("No trained model found, starting initial training...")
+        asyncio.create_task(_retrain_model())
 
 
 def start_scheduler():
