@@ -3,6 +3,7 @@ services:
     build: ./service
     ports:
       - "8000:8000"
+      - "3000:8000"
     env_file: .env
     restart: unless-stopped
     healthcheck:
