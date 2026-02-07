@@ -21,17 +21,30 @@ async def _run_simulation(sim_id: str, bill: BillInput):
     db = await get_db()
     mps = await db.mps.find(
         {"isCurrentMember": True},
-        {"slug": 1, "name": 1, "partyCode": 1, "memberUuid": 1},
+        {"slug": 1, "name": 1, "partyCode": 1, "memberUuid": 1, "party": 1, "stats": 1},
     ).to_list(None)
 
     results = []
     _simulations[sim_id]["progress"] = {"total": len(mps), "completed": 0}
 
-    from app.prediction.baseline import predict_party_line
+    # Generate bill embedding once for all predictions
+    bill_embedding = None
+    try:
+        from app.sync.embeddings import embed_texts
+        text = bill.title
+        if bill.description:
+            text += " " + bill.description
+        embeddings = await embed_texts([text])
+        if embeddings and len(embeddings) > 0:
+            bill_embedding = embeddings[0]
+    except Exception as e:
+        logger.warning(f"Bill embedding for simulation failed: {e}")
+
+    from app.prediction.model import predict
 
     for mp in mps:
         try:
-            prediction = await predict_party_line(db, mp, bill)
+            prediction = await predict(db, mp, bill, bill_embedding=bill_embedding)
             results.append({
                 "slug": mp["slug"],
                 "name": mp.get("name", ""),

@@ -10,6 +10,7 @@ Each task maps to a loop from SOUL.md:
 - Operator: operator_check
 """
 
+import asyncio
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -59,10 +60,14 @@ async def _backtest():
 
 async def _retrain_model():
     from app.db import get_db
+    from app.prediction.features import reset_training_caches
     from app.prediction.model import train_model
 
+    logger.info("Retraining model...")
     db = await get_db()
-    await train_model(db)
+    reset_training_caches()
+    result = await train_model(db)
+    logger.info(f"Model retrain result: {result}")
 
 
 async def _diagnose_errors():
@@ -99,6 +104,15 @@ async def _health_check():
         logger.error("Health check FAILED: database unreachable")
 
 
+async def _startup_train():
+    """Train model on startup if not yet trained."""
+    await asyncio.sleep(10)  # Let the app fully start
+    from app.prediction.model import get_model_version
+    if get_model_version() == "untrained":
+        logger.info("No trained model found, running initial training...")
+        await _retrain_model()
+
+
 def start_scheduler():
     """Start all scheduled tasks."""
     # Metabolic loop
@@ -126,6 +140,9 @@ def start_scheduler():
     # Operator loop
     scheduler.add_job(_operator_check, CronTrigger(day_of_week="sun", hour=8),
                       id="operator_check", replace_existing=True)
+
+    # Initial model training on startup
+    scheduler.add_job(_startup_train, "date", id="startup_train", replace_existing=True)
 
     scheduler.start()
     logger.info("Scheduler started with all autonomy loops")

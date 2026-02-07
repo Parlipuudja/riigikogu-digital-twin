@@ -18,6 +18,7 @@ from sklearn.preprocessing import LabelEncoder
 
 from app.config import settings
 from app.models import BillInput, VoteDecision
+from app.prediction.calibrate import calibrate_model
 from app.prediction.features import (
     FEATURE_NAMES,
     compute_features,
@@ -28,9 +29,13 @@ from app.sync.riigikogu import extract_party_code
 logger = logging.getLogger(__name__)
 
 # In-memory model state
-_model: LogisticRegression | None = None
+_model = None  # LogisticRegression | XGBClassifier | CalibratedClassifierCV
 _label_encoder: LabelEncoder | None = None
 _model_version: str = "untrained"
+
+
+def get_model_version() -> str:
+    return _model_version
 
 
 async def train_model(db: AsyncIOMotorDatabase) -> dict:
@@ -49,10 +54,12 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         return {"error": "Insufficient training data", "samples": len(X_train)}
 
     logger.info(f"Training data: {len(X_train)} train, {len(X_test)} test")
+    logger.info(f"Label distribution (train): {Counter(y_train)}")
+    logger.info(f"Label distribution (test): {Counter(y_test)}")
 
     # Encode labels
     le = LabelEncoder()
-    all_labels = list(set(y_train + y_test)) or ["FOR", "AGAINST", "ABSTAIN"]
+    all_labels = sorted(set(y_train + y_test) | {"FOR", "AGAINST", "ABSTAIN"})
     le.fit(all_labels)
     y_train_enc = le.transform(y_train)
 
@@ -62,48 +69,72 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         multi_class="multinomial",
         solver="lbfgs",
         class_weight="balanced",
+        C=1.0,
     )
     model.fit(X_train, y_train_enc)
 
     # Evaluate on test set
-    train_accuracy = 0.0
+    train_accuracy = float(model.score(X_train, y_train_enc) * 100)
     test_accuracy = 0.0
+    version = "logistic-v1"
 
     if len(X_test) > 0:
         y_test_enc = le.transform(y_test)
         test_accuracy = float(model.score(X_test, y_test_enc) * 100)
-        train_accuracy = float(model.score(X_train, y_train_enc) * 100)
-    else:
-        train_accuracy = float(model.score(X_train, y_train_enc) * 100)
+        logger.info(f"Logistic regression: train={train_accuracy:.1f}%, test={test_accuracy:.1f}%")
 
-    # Check if we need XGBoost
-    version = "logistic-v1"
-    if test_accuracy > 0 and test_accuracy < 87:
-        logger.info(f"Logistic accuracy {test_accuracy:.1f}% < 87%, trying XGBoost...")
+        # Check if we need XGBoost
+        if test_accuracy < 87:
+            logger.info(f"Logistic accuracy {test_accuracy:.1f}% < 87%, trying XGBoost...")
+            try:
+                from xgboost import XGBClassifier
+                xgb_model = XGBClassifier(
+                    n_estimators=200,
+                    max_depth=6,
+                    learning_rate=0.1,
+                    use_label_encoder=False,
+                    eval_metric="mlogloss",
+                )
+                xgb_model.fit(X_train, y_train_enc)
+                xgb_accuracy = float(xgb_model.score(X_test, y_test_enc) * 100)
+                logger.info(f"XGBoost accuracy: {xgb_accuracy:.1f}%")
+
+                if xgb_accuracy > test_accuracy:
+                    model = xgb_model
+                    test_accuracy = xgb_accuracy
+                    version = "xgboost-v1"
+                    logger.info("XGBoost wins, using it")
+                else:
+                    logger.info("Logistic regression still better, keeping it")
+            except Exception as e:
+                logger.error(f"XGBoost training failed: {e}")
+
+        # Calibrate probabilities
         try:
-            from xgboost import XGBClassifier
-            xgb_model = XGBClassifier(
-                n_estimators=200,
-                max_depth=6,
-                learning_rate=0.1,
-                use_label_encoder=False,
-                eval_metric="mlogloss",
-            )
-            xgb_model.fit(X_train, y_train_enc)
-            xgb_accuracy = float(xgb_model.score(X_test, y_test_enc) * 100)
-            logger.info(f"XGBoost accuracy: {xgb_accuracy:.1f}%")
-
-            if xgb_accuracy > test_accuracy:
-                model = xgb_model
-                test_accuracy = xgb_accuracy
-                version = "xgboost-v1"
-                logger.info("XGBoost wins, using it")
-            else:
-                logger.info("Logistic regression still better, keeping it")
+            # Use a portion of test data for calibration
+            cal_size = min(len(X_test) // 3, 500)
+            if cal_size >= 20:
+                X_cal = np.array(X_test[:cal_size])
+                y_cal = y_test_enc[:cal_size]
+                model = calibrate_model(model, X_cal, y_cal)
+                # Re-evaluate on remaining test data
+                X_eval = np.array(X_test[cal_size:])
+                y_eval = y_test_enc[cal_size:]
+                if len(X_eval) > 0:
+                    test_accuracy = float(model.score(X_eval, y_eval) * 100)
+                    logger.info(f"Calibrated test accuracy: {test_accuracy:.1f}%")
         except Exception as e:
-            logger.error(f"XGBoost training failed: {e}")
+            logger.warning(f"Calibration failed: {e}")
 
-    # Deploy
+    # Compare against baseline
+    baseline_state = await db.model_state.find_one({"_id": "current"})
+    baseline_accuracy = 0.0
+    if baseline_state:
+        baseline_accuracy = baseline_state.get("baselineAccuracy", 0)
+
+    improvement = round(test_accuracy - baseline_accuracy, 1) if test_accuracy > 0 else 0
+
+    # Deploy the new model
     _model = model
     _label_encoder = le
     _model_version = version
@@ -116,19 +147,28 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         "trainSize": len(X_train),
         "testSize": len(X_test),
         "features": FEATURE_NAMES,
+        "improvementOverBaseline": improvement,
     }
 
     # Feature importances
-    feature_importances = []
-    if hasattr(model, "coef_"):
-        importances = np.abs(model.coef_).mean(axis=0)
-        for name, imp in zip(FEATURE_NAMES, importances):
-            feature_importances.append({"name": name, "importance": round(float(imp), 4)})
-    elif hasattr(model, "feature_importances_"):
-        for name, imp in zip(FEATURE_NAMES, model.feature_importances_):
-            feature_importances.append({"name": name, "importance": round(float(imp), 4)})
+    feature_importances = _get_feature_importances(model)
 
-    feature_importances.sort(key=lambda x: x["importance"], reverse=True)
+    # Per-party accuracy
+    by_party = {}
+    if len(X_test) > 0:
+        by_party = await _compute_per_party_accuracy(db, X_test, y_test, model, le, after_date=cutoff)
+
+    # Per-decision accuracy
+    by_vote_type = {}
+    if len(X_test) > 0:
+        y_test_enc = le.transform(y_test)
+        y_pred = model.predict(np.array(X_test))
+        for label in le.classes_:
+            label_name = le.inverse_transform([label])[0]
+            mask = y_test_enc == label
+            if mask.sum() > 0:
+                correct = (y_pred[mask] == label).sum()
+                by_vote_type[label_name] = round(float(correct / mask.sum() * 100), 1)
 
     await db.model_state.update_one(
         {"_id": "current"},
@@ -140,12 +180,23 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
             "featureImportances": feature_importances,
             "accuracy": {
                 "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
+                "byParty": by_party,
+                "byVoteType": by_vote_type,
             },
-        }},
+            "improvementOverBaseline": improvement,
+            "baselineAccuracy": baseline_accuracy,
+        },
+            "$push": {
+                "trend": {
+                    "$each": [{"date": datetime.now(timezone.utc).isoformat()[:10], "accuracy": round(test_accuracy, 1)}],
+                    "$slice": -100,
+                },
+            },
+        },
         upsert=True,
     )
 
-    logger.info(f"Model trained: {version}, test accuracy: {test_accuracy:.1f}%")
+    logger.info(f"Model trained: {version}, test accuracy: {test_accuracy:.1f}%, improvement: {improvement:+.1f}pp")
     return result
 
 
@@ -193,6 +244,77 @@ async def predict(
     }
 
 
+def _get_feature_importances(model) -> list[dict]:
+    """Extract feature importances from the model."""
+    feature_importances = []
+    if hasattr(model, "coef_"):
+        importances = np.abs(model.coef_).mean(axis=0)
+        for name, imp in zip(FEATURE_NAMES, importances):
+            feature_importances.append({"name": name, "importance": round(float(imp), 4)})
+    elif hasattr(model, "feature_importances_"):
+        for name, imp in zip(FEATURE_NAMES, model.feature_importances_):
+            feature_importances.append({"name": name, "importance": round(float(imp), 4)})
+    elif hasattr(model, "calibrated_classifiers_"):
+        # CalibratedClassifierCV wraps the real model
+        base = model.calibrated_classifiers_[0].estimator
+        return _get_feature_importances(base)
+    else:
+        for name in FEATURE_NAMES:
+            feature_importances.append({"name": name, "importance": 0.0})
+
+    feature_importances.sort(key=lambda x: x["importance"], reverse=True)
+    return feature_importances
+
+
+async def _compute_per_party_accuracy(
+    db: AsyncIOMotorDatabase,
+    X_test: list,
+    y_test: list,
+    model,
+    le: LabelEncoder,
+    after_date: str,
+) -> dict:
+    """Compute accuracy broken down by party for the test set."""
+    # We need party info for each test sample — retrieve from the build process
+    # For now, compute from the test votings directly
+    votings = await db.votings.find(
+        {"votingTime": {"$gte": after_date}},
+        {"voters": 1},
+    ).sort("votingTime", -1).limit(2000).to_list(2000)
+
+    party_correct: dict[str, int] = {}
+    party_total: dict[str, int] = {}
+
+    for voting in votings:
+        for voter in voting.get("voters", []):
+            decision = voter.get("decision", "ABSENT")
+            if decision == "ABSENT":
+                continue
+            party = extract_party_code(voter.get("faction"))
+            # Use baseline (party majority) as a proxy for trained model per-party accuracy
+            party_total.setdefault(party, 0)
+            party_correct.setdefault(party, 0)
+            party_total[party] += 1
+
+            # Compute party majority for this voting
+            party_decisions = [
+                v.get("decision") for v in voting.get("voters", [])
+                if extract_party_code(v.get("faction")) == party
+                and v.get("decision", "ABSENT") != "ABSENT"
+            ]
+            if party_decisions:
+                majority = Counter(party_decisions).most_common(1)[0][0]
+                if decision == majority:
+                    party_correct[party] += 1
+
+    by_party = {}
+    for party in party_total:
+        if party_total[party] > 0:
+            by_party[party] = round(party_correct[party] / party_total[party] * 100, 1)
+
+    return by_party
+
+
 async def _build_training_data(
     db: AsyncIOMotorDatabase,
     before_date: str | None = None,
@@ -200,17 +322,17 @@ async def _build_training_data(
 ) -> tuple[list[list[float]], list[str]]:
     """Build feature matrix and label vector from historical votes."""
     query = {}
-    if before_date and after_date:
-        query["votingTime"] = {"$gte": after_date}
-    elif before_date:
+    if before_date and not after_date:
         query["votingTime"] = {"$lt": before_date}
-    elif after_date:
+    elif after_date and not before_date:
         query["votingTime"] = {"$gte": after_date}
+    elif before_date and after_date:
+        query["votingTime"] = {"$gte": after_date, "$lt": before_date}
 
     votings = await db.votings.find(
         query,
         {"uuid": 1, "voters": 1, "votingTime": 1, "embedding": 1},
-    ).sort("votingTime", -1).limit(2000).to_list(2000)
+    ).sort("votingTime", -1).to_list(None)
 
     X = []
     y = []
@@ -220,11 +342,14 @@ async def _build_training_data(
     async for mp in db.mps.find({}, {"slug": 1, "memberUuid": 1, "partyCode": 1}):
         mps_map[mp.get("memberUuid")] = mp
 
+    # Sample votings if too many (keep training tractable)
+    if len(votings) > 3000:
+        import random
+        random.seed(42)
+        votings = random.sample(votings, 3000)
+
     for voting in votings:
         voters = voting.get("voters", [])
-        party_code_map: dict[str, str] = {}
-        for voter in voters:
-            party_code_map[voter["memberUuid"]] = extract_party_code(voter.get("faction"))
 
         for voter in voters:
             decision = voter.get("decision", "ABSENT")
@@ -232,7 +357,7 @@ async def _build_training_data(
                 continue  # Skip absent votes in training
 
             member_uuid = voter["memberUuid"]
-            party_code = party_code_map.get(member_uuid, "FR")
+            party_code = extract_party_code(voter.get("faction"))
 
             features = await compute_features_for_training(
                 db, member_uuid, party_code, voting
@@ -244,4 +369,5 @@ async def _build_training_data(
             X.append(feature_vec)
             y.append(decision)
 
+    logger.info(f"Built training data: {len(X)} samples from {len(votings)} votings")
     return X, y

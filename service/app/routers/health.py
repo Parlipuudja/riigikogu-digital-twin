@@ -14,18 +14,22 @@ async def health():
     db_ok = await check_db()
     uptime = int(time.time() - _start_time)
 
+    # Get live model version from in-memory state
+    from app.prediction.model import get_model_version
+    live_version = get_model_version()
+
     result = {
         "status": "ok" if db_ok else "degraded",
         "db": "connected" if db_ok else "disconnected",
         "uptime_seconds": uptime,
+        "model_version": live_version,
     }
 
-    # Add model and sync info if available
+    # Add accuracy and sync info if available
     try:
         db = await get_db()
         model_state = await db.model_state.find_one({"_id": "current"})
         if model_state:
-            result["model_version"] = model_state.get("version")
             result["accuracy"] = model_state.get("accuracy", {}).get("overall")
 
         sync_votings = await db.sync_progress.find_one({"_id": "votings"})

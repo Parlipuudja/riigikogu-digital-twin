@@ -1,13 +1,13 @@
-"""Prediction endpoint — Phase 2 will fill in the real model."""
+"""Prediction endpoint — uses trained model with baseline fallback."""
 
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter
 
 from app.db import get_db
-from app.models import BillInput, PredictionResponse, VoteDecision
+from app.models import BillInput
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,13 +34,32 @@ async def predict_mp(slug: str, bill: BillInput):
         pred["cached"] = True
         return pred
 
-    # Phase 2 will replace this with the real statistical model.
-    # For now, use the naive party-line baseline.
-    from app.prediction.baseline import predict_party_line
+    # Generate embedding for the bill if possible
+    bill_embedding = await _get_bill_embedding(bill)
 
-    prediction = await predict_party_line(db, mp, bill)
+    # Use the trained model (falls back to baseline internally)
+    from app.prediction.model import predict
+    prediction = await predict(db, mp, bill, bill_embedding=bill_embedding)
 
-    # Cache
+    # Generate explanation
+    try:
+        from app.prediction.explain import generate_explanation
+        reasoning = await generate_explanation(
+            mp_name=mp.get("name", ""),
+            party=mp.get("party", mp.get("partyCode", "")),
+            prediction=prediction["prediction"],
+            confidence=prediction["confidence"],
+            features=prediction.get("features", []),
+            bill_title=bill.title,
+        )
+        if reasoning:
+            prediction["reasoning"] = reasoning
+    except Exception as e:
+        logger.warning(f"Explanation generation failed: {e}")
+
+    # Cache with TTL
+    from app.config import settings
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.prediction_cache_ttl_days)
     await db.prediction_cache.update_one(
         {"cacheKey": f"{slug}:{bill_hash}"},
         {"$set": {
@@ -49,7 +68,7 @@ async def predict_mp(slug: str, bill: BillInput):
             "billHash": bill_hash,
             "prediction": prediction,
             "createdAt": datetime.now(timezone.utc),
-            "expiresAt": datetime.now(timezone.utc),  # TTL index handles expiry
+            "expiresAt": expires_at,
         }},
         upsert=True,
     )
@@ -73,3 +92,18 @@ async def predict_mp(slug: str, bill: BillInput):
     })
 
     return prediction
+
+
+async def _get_bill_embedding(bill: BillInput) -> list[float] | None:
+    """Generate or retrieve embedding for a bill."""
+    try:
+        from app.sync.embeddings import embed_texts
+        text = bill.title
+        if bill.description:
+            text += " " + bill.description
+        embeddings = await embed_texts([text])
+        if embeddings and len(embeddings) > 0:
+            return embeddings[0]
+    except Exception as e:
+        logger.warning(f"Bill embedding failed: {e}")
+    return None

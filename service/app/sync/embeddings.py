@@ -19,6 +19,16 @@ BATCH_SIZE = 128
 MODEL = "voyage-multilingual-2"
 
 
+async def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Embed a list of texts and return their embeddings."""
+    client = voyageai.Client(api_key=settings.voyage_api_key)
+    valid = [t for t in texts if t.strip()]
+    if not valid:
+        return []
+    result = client.embed(valid, model=MODEL)
+    return result.embeddings
+
+
 async def generate_embeddings(db: AsyncIOMotorDatabase) -> dict:
     """Generate embeddings for votings and drafts that don't have them yet."""
     client = voyageai.Client(api_key=settings.voyage_api_key)

@@ -13,16 +13,26 @@ _backtest_running = False
 
 
 async def _run_backtest():
-    """Run backtest against post-cutoff votes."""
+    """Run baseline backtest, then train the model."""
     global _backtest_running
     _backtest_running = True
     try:
         db = await get_db()
+
+        # Run baseline backtest first (establishes the floor)
         from app.prediction.baseline import run_backtest
-        results = await run_backtest(db)
-        logger.info(f"Backtest results: {results}")
+        baseline_results = await run_backtest(db)
+        logger.info(f"Baseline backtest results: {baseline_results}")
+
+        # Train the statistical model
+        from app.prediction.features import reset_training_caches
+        from app.prediction.model import train_model
+        reset_training_caches()
+        model_results = await train_model(db)
+        logger.info(f"Model training results: {model_results}")
+
     except Exception as e:
-        logger.error(f"Backtest failed: {e}")
+        logger.error(f"Backtest/training failed: {e}", exc_info=True)
     finally:
         _backtest_running = False
 

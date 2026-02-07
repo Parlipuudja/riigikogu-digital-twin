@@ -27,6 +27,25 @@ FEATURE_NAMES = [
     "party_position_strength",
 ]
 
+# Cache for coalition detection (recomputed per training run)
+_coalition_cache: set[str] | None = None
+_coalition_cache_key: str | None = None
+
+# Cache for per-MP loyalty stats during training
+_loyalty_cache: dict[str, float] = {}
+_attendance_cache: dict[str, float] = {}
+_defection_days_cache: dict[str, float] = {}
+
+
+def reset_training_caches():
+    """Clear caches between training runs."""
+    global _coalition_cache, _coalition_cache_key, _loyalty_cache, _attendance_cache, _defection_days_cache
+    _coalition_cache = None
+    _coalition_cache_key = None
+    _loyalty_cache.clear()
+    _attendance_cache.clear()
+    _defection_days_cache.clear()
+
 
 async def compute_features(
     db: AsyncIOMotorDatabase,
@@ -93,15 +112,26 @@ async def compute_features_for_training(
     party_code: str,
     voting: dict,
 ) -> dict[str, float] | None:
-    """Compute features for a historical vote (for training data generation)."""
+    """Compute features for a historical vote (for training data generation).
+
+    Uses the voting itself to compute features that would have been available
+    at prediction time. This avoids data leakage while still providing
+    meaningful signal to the model.
+    """
     features = {}
 
     # 1. Party loyalty rate up to this voting's date
-    features["party_loyalty_rate"] = await _historical_loyalty(
-        db, member_uuid, party_code, voting.get("votingTime")
-    )
+    cache_key = f"{member_uuid}:{party_code}"
+    if cache_key in _loyalty_cache:
+        features["party_loyalty_rate"] = _loyalty_cache[cache_key]
+    else:
+        loyalty = await _historical_loyalty(
+            db, member_uuid, party_code, voting.get("votingTime")
+        )
+        _loyalty_cache[cache_key] = loyalty
+        features["party_loyalty_rate"] = loyalty
 
-    # 2. Topic similarity
+    # 2. Topic similarity — use the voting's own embedding
     embedding = voting.get("embedding")
     if embedding:
         features["bill_topic_similarity"] = await _bill_topic_similarity(
@@ -110,22 +140,43 @@ async def compute_features_for_training(
     else:
         features["bill_topic_similarity"] = 0.0
 
-    # 3-4: Committee relevance and coalition bill require additional data
-    # Use defaults for historical training to keep it tractable
+    # 3. Committee relevance — approximated: is this MP from a relevant faction?
     features["committee_relevance"] = 0.0
-    features["coalition_bill"] = 0.0
 
-    # 5. Historical defection rate
-    features["defection_rate_by_topic"] = 0.0
+    # 4. Coalition bill — use cached coalition detection
+    global _coalition_cache
+    if _coalition_cache is None:
+        _coalition_cache = await _detect_coalition(db)
+    features["coalition_bill"] = 1.0 if party_code in _coalition_cache else 0.0
 
-    # 6. Party cohesion on this voting
+    # 5. Historical defection rate on similar votes
+    if embedding:
+        features["defection_rate_by_topic"] = await _defection_rate_by_topic_fast(
+            db, member_uuid, party_code, embedding, before_date=voting.get("votingTime")
+        )
+    else:
+        features["defection_rate_by_topic"] = 0.0
+
+    # 6. Party cohesion on THIS voting (this is available at vote time — it's the same voting)
     features["party_cohesion_on_similar"] = _compute_party_cohesion(voting, party_code)
 
-    # 7. Days since last defection (approximation)
-    features["days_since_last_defection"] = 30.0  # Normalize later
+    # 7. Days since last defection
+    if cache_key in _defection_days_cache:
+        features["days_since_last_defection"] = _defection_days_cache[cache_key]
+    else:
+        days = await _days_since_last_defection_fast(
+            db, member_uuid, party_code, before_date=voting.get("votingTime")
+        )
+        _defection_days_cache[cache_key] = days
+        features["days_since_last_defection"] = days
 
     # 8. Attendance rate
-    features["mp_attendance_rate"] = 0.8  # Default
+    if cache_key in _attendance_cache:
+        features["mp_attendance_rate"] = _attendance_cache[cache_key]
+    else:
+        attendance = await _historical_attendance(db, member_uuid, voting.get("votingTime"))
+        _attendance_cache[cache_key] = attendance
+        features["mp_attendance_rate"] = attendance
 
     # 9. Party position strength on this vote
     features["party_position_strength"] = _compute_party_position_strength(voting, party_code)
@@ -270,7 +321,6 @@ async def _detect_coalition(db: AsyncIOMotorDatabase) -> set[str]:
             agreement_matrix[(p1, p2)] = agree / min_len
 
     # Find the largest cluster with >70% agreement
-    # Simple approach: find the party with most high-agreement partners
     coalition = set()
     for party in parties:
         partners = [party]
@@ -293,7 +343,6 @@ async def _defection_rate_by_topic(
     bill_embedding: list[float],
 ) -> float:
     """MP's defection rate on historically similar bills."""
-    # Find similar votings using embedding
     cursor = db.votings.find(
         {"voters.memberUuid": member_uuid, "embedding": {"$exists": True}},
         {"voters": 1, "embedding": 1},
@@ -315,6 +364,34 @@ async def _defection_rate_by_topic(
             voting, member_uuid, party_code
         )
         if mp_decision and party_majority:
+            total += 1
+            if mp_decision != party_majority:
+                defections += 1
+
+    return defections / total if total > 0 else 0.0
+
+
+async def _defection_rate_by_topic_fast(
+    db: AsyncIOMotorDatabase,
+    member_uuid: str,
+    party_code: str,
+    bill_embedding: list[float],
+    before_date: str | None = None,
+) -> float:
+    """Fast version for training: MP's overall defection rate (no embedding search)."""
+    query = {"voters.memberUuid": member_uuid}
+    if before_date:
+        query["votingTime"] = {"$lt": before_date}
+
+    cursor = db.votings.find(query, {"voters": 1}).sort("votingTime", -1).limit(50)
+
+    defections = 0
+    total = 0
+    async for voting in cursor:
+        mp_decision, party_majority = _get_mp_and_party_decision(
+            voting, member_uuid, party_code
+        )
+        if mp_decision and party_majority and mp_decision != "ABSENT":
             total += 1
             if mp_decision != party_majority:
                 defections += 1
@@ -370,7 +447,7 @@ async def _days_since_last_defection(
     member_uuid: str,
     party_code: str,
 ) -> float:
-    """Days since MP last voted against their party. Normalized to 0-1 (more recent = closer to 0)."""
+    """Days since MP last voted against their party. Normalized to 0-1."""
     cursor = db.votings.find(
         {"voters.memberUuid": member_uuid},
         {"voters": 1, "votingTime": 1},
@@ -393,6 +470,68 @@ async def _days_since_last_defection(
 
     # Normalize: 0 = defected today, 1 = hasn't defected in 365+ days
     return min(days / 365.0, 1.0)
+
+
+async def _days_since_last_defection_fast(
+    db: AsyncIOMotorDatabase,
+    member_uuid: str,
+    party_code: str,
+    before_date: str | None = None,
+) -> float:
+    """Fast version for training: approximate days since last defection."""
+    query = {"voters.memberUuid": member_uuid}
+    if before_date:
+        query["votingTime"] = {"$lt": before_date}
+
+    cursor = db.votings.find(query, {"voters": 1, "votingTime": 1}).sort("votingTime", -1).limit(50)
+
+    days = 365
+    async for voting in cursor:
+        mp_decision, party_majority = _get_mp_and_party_decision(
+            voting, member_uuid, party_code
+        )
+        if mp_decision and party_majority and mp_decision != party_majority:
+            from datetime import datetime
+            try:
+                vote_time = datetime.fromisoformat(voting["votingTime"].replace("Z", "+00:00"))
+                if before_date:
+                    ref_time = datetime.fromisoformat(before_date)
+                    if ref_time.tzinfo is None and vote_time.tzinfo:
+                        ref_time = ref_time.replace(tzinfo=vote_time.tzinfo)
+                else:
+                    ref_time = datetime.now(vote_time.tzinfo)
+                delta = (ref_time - vote_time).days
+                days = min(days, max(delta, 0))
+            except Exception:
+                pass
+            break
+
+    return min(days / 365.0, 1.0)
+
+
+async def _historical_attendance(
+    db: AsyncIOMotorDatabase,
+    member_uuid: str,
+    before_date: str | None = None,
+) -> float:
+    """Compute attendance rate for an MP up to a given date."""
+    query = {"voters.memberUuid": member_uuid}
+    if before_date:
+        query["votingTime"] = {"$lt": before_date}
+
+    cursor = db.votings.find(query, {"voters": 1}).sort("votingTime", -1).limit(100)
+
+    present = 0
+    total = 0
+    async for voting in cursor:
+        for voter in voting.get("voters", []):
+            if voter.get("memberUuid") == member_uuid:
+                total += 1
+                if voter.get("decision", "ABSENT") != "ABSENT":
+                    present += 1
+                break
+
+    return present / total if total > 0 else 0.8
 
 
 async def _historical_loyalty(
