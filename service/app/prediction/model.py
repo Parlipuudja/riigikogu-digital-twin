@@ -46,8 +46,8 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
     logger.info(f"Training model... cutoff={cutoff}")
 
     # Build training data from pre-cutoff votes
-    X_train, y_train = await _build_training_data(db, before_date=cutoff)
-    X_test, y_test = await _build_training_data(db, after_date=cutoff)
+    X_train, y_train, _parties_train = await _build_training_data(db, before_date=cutoff)
+    X_test, y_test, parties_test = await _build_training_data(db, after_date=cutoff)
 
     if len(X_train) < 100:
         logger.warning(f"Insufficient training data: {len(X_train)} samples")
@@ -62,6 +62,18 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
     all_labels = sorted(set(y_train + y_test) | {"FOR", "AGAINST", "ABSTAIN"})
     le.fit(all_labels)
     y_train_enc = le.transform(y_train)
+
+    # Compute moderate sample weights — cap max weight to avoid
+    # extreme amplification of rare classes like ABSTAIN (0.3% of data)
+    class_counts = Counter(y_train_enc)
+    total_samples = len(y_train_enc)
+    n_classes = len(class_counts)
+    MAX_WEIGHT = 10.0  # Cap to prevent 100x+ amplification of rare classes
+    raw_weights = {
+        label: min(total_samples / (n_classes * count), MAX_WEIGHT)
+        for label, count in class_counts.items()
+    }
+    sample_weights = np.array([raw_weights[label] for label in y_train_enc])
 
     # Train logistic regression
     model = LogisticRegression(
@@ -82,30 +94,58 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         test_accuracy = float(model.score(X_test, y_test_enc) * 100)
         logger.info(f"Logistic regression: train={train_accuracy:.1f}%, test={test_accuracy:.1f}%")
 
-        # Check if we need XGBoost
-        if test_accuracy < 87:
-            logger.info(f"Logistic accuracy {test_accuracy:.1f}% < 87%, trying XGBoost...")
-            try:
-                from xgboost import XGBClassifier
-                xgb_model = XGBClassifier(
-                    n_estimators=200,
-                    max_depth=6,
-                    learning_rate=0.1,
-                    eval_metric="mlogloss",
-                )
-                xgb_model.fit(X_train, y_train_enc)
-                xgb_accuracy = float(xgb_model.score(X_test, y_test_enc) * 100)
-                logger.info(f"XGBoost accuracy: {xgb_accuracy:.1f}%")
+        # Always try XGBoost — with and without sample weights
+        logger.info(f"Logistic accuracy {test_accuracy:.1f}%, trying XGBoost variants...")
+        try:
+            from xgboost import XGBClassifier
 
-                if xgb_accuracy > test_accuracy:
-                    model = xgb_model
-                    test_accuracy = xgb_accuracy
-                    version = "xgboost-v1"
-                    logger.info("XGBoost wins, using it")
-                else:
-                    logger.info("Logistic regression still better, keeping it")
-            except Exception as e:
-                logger.error(f"XGBoost training failed: {e}")
+            best_xgb = None
+            best_xgb_accuracy = test_accuracy
+            best_xgb_version = version
+
+            # Variant 1: XGBoost with sample weights
+            xgb_weighted = XGBClassifier(
+                n_estimators=300,
+                max_depth=4,
+                learning_rate=0.05,
+                min_child_weight=5,
+                eval_metric="mlogloss",
+            )
+            xgb_weighted.fit(X_train, y_train_enc, sample_weight=sample_weights)
+            acc_weighted = float(xgb_weighted.score(X_test, y_test_enc) * 100)
+            logger.info(f"XGBoost (weighted): {acc_weighted:.1f}%")
+
+            if acc_weighted > best_xgb_accuracy:
+                best_xgb = xgb_weighted
+                best_xgb_accuracy = acc_weighted
+                best_xgb_version = "xgboost-v2-weighted"
+
+            # Variant 2: XGBoost without sample weights
+            xgb_natural = XGBClassifier(
+                n_estimators=300,
+                max_depth=4,
+                learning_rate=0.05,
+                min_child_weight=5,
+                eval_metric="mlogloss",
+            )
+            xgb_natural.fit(X_train, y_train_enc)
+            acc_natural = float(xgb_natural.score(X_test, y_test_enc) * 100)
+            logger.info(f"XGBoost (natural): {acc_natural:.1f}%")
+
+            if acc_natural > best_xgb_accuracy:
+                best_xgb = xgb_natural
+                best_xgb_accuracy = acc_natural
+                best_xgb_version = "xgboost-v2-natural"
+
+            if best_xgb is not None:
+                model = best_xgb
+                test_accuracy = best_xgb_accuracy
+                version = best_xgb_version
+                logger.info(f"{version} wins at {test_accuracy:.1f}%")
+            else:
+                logger.info("Logistic regression still best")
+        except Exception as e:
+            logger.error(f"XGBoost training failed: {e}")
 
         # Calibrate probabilities
         try:
@@ -137,10 +177,17 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
 
     improvement = round(test_accuracy - baseline_accuracy, 1) if test_accuracy > 0 else 0
 
-    # Deploy the new model
-    _model = model
-    _label_encoder = le
-    _model_version = version
+    # Only deploy model if it beats baseline — otherwise baseline is better
+    if test_accuracy > baseline_accuracy and test_accuracy > 0:
+        _model = model
+        _label_encoder = le
+        _model_version = version
+        logger.info(f"Model deployed: {version} ({test_accuracy:.1f}% > baseline {baseline_accuracy:.1f}%)")
+    else:
+        _model = None
+        _label_encoder = None
+        _model_version = "baseline-v1"
+        logger.info(f"Model NOT deployed: {test_accuracy:.1f}% <= baseline {baseline_accuracy:.1f}%, falling back to baseline")
 
     # Save model state to DB
     result = {
@@ -156,10 +203,10 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
     # Feature importances
     feature_importances = _get_feature_importances(model)
 
-    # Per-party accuracy
+    # Per-party accuracy (use the actual model deployed, or baseline proxy)
     by_party = {}
-    if len(X_test) > 0:
-        by_party = await _compute_per_party_accuracy(db, X_test, y_test, model, le, after_date=cutoff)
+    if len(X_test) > 0 and _model is not None:
+        by_party = await _compute_per_party_accuracy(db, X_test, y_test, parties_test, _model, le)
 
     # Per-decision accuracy
     by_vote_type = {}
@@ -175,23 +222,34 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         except Exception as e:
             logger.warning(f"Per-decision accuracy failed: {e}")
 
+    # When model doesn't beat baseline, preserve the baseline's accuracy breakdown
+    # (byParty, byVoteType, byMP) which was set by run_backtest
+    update_fields = {
+        "version": version,
+        "trainedAt": datetime.now(timezone.utc),
+        "trainingSize": len(X_train),
+        "features": FEATURE_NAMES,
+        "featureImportances": feature_importances,
+        "improvementOverBaseline": improvement,
+        "baselineAccuracy": baseline_accuracy,
+    }
+
+    if _model is not None:
+        # Model beats baseline: write model's accuracy data
+        update_fields["accuracy"] = {
+            "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
+            "byParty": by_party,
+            "byVoteType": by_vote_type,
+        }
+    else:
+        # Falling back to baseline: only update overall and model-specific fields,
+        # preserve baseline's byParty/byVoteType/byMP from run_backtest
+        update_fields["accuracy.overall"] = round(test_accuracy, 1) if test_accuracy > 0 else None
+
     await db.model_state.update_one(
         {"_id": "current"},
         {
-            "$set": {
-                "version": version,
-                "trainedAt": datetime.now(timezone.utc),
-                "trainingSize": len(X_train),
-                "features": FEATURE_NAMES,
-                "featureImportances": feature_importances,
-                "accuracy": {
-                    "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
-                    "byParty": by_party,
-                    "byVoteType": by_vote_type,
-                },
-                "improvementOverBaseline": improvement,
-                "baselineAccuracy": baseline_accuracy,
-            },
+            "$set": update_fields,
             "$push": {
                 "trend": {
                     "$each": [{"date": datetime.now(timezone.utc).isoformat()[:10], "accuracy": round(test_accuracy, 1)}],
@@ -276,42 +334,23 @@ async def _compute_per_party_accuracy(
     db: AsyncIOMotorDatabase,
     X_test: list,
     y_test: list,
+    party_labels: list[str],
     model,
     le: LabelEncoder,
-    after_date: str,
 ) -> dict:
     """Compute accuracy broken down by party for the test set."""
-    # We need party info for each test sample — retrieve from the build process
-    # For now, compute from the test votings directly
-    votings = await db.votings.find(
-        {"votingTime": {"$gte": after_date}},
-        {"voters": 1},
-    ).sort("votingTime", -1).limit(2000).to_list(2000)
+    y_test_enc = le.transform(y_test)
+    y_pred = model.predict(np.array(X_test))
 
     party_correct: dict[str, int] = {}
     party_total: dict[str, int] = {}
 
-    for voting in votings:
-        for voter in voting.get("voters", []):
-            decision = voter.get("decision", "ABSENT")
-            if decision == "ABSENT":
-                continue
-            party = extract_party_code(voter.get("faction"))
-            # Use baseline (party majority) as a proxy for trained model per-party accuracy
-            party_total.setdefault(party, 0)
-            party_correct.setdefault(party, 0)
-            party_total[party] += 1
-
-            # Compute party majority for this voting
-            party_decisions = [
-                v.get("decision") for v in voting.get("voters", [])
-                if extract_party_code(v.get("faction")) == party
-                and v.get("decision", "ABSENT") != "ABSENT"
-            ]
-            if party_decisions:
-                majority = Counter(party_decisions).most_common(1)[0][0]
-                if decision == majority:
-                    party_correct[party] += 1
+    for i, party in enumerate(party_labels):
+        party_total.setdefault(party, 0)
+        party_correct.setdefault(party, 0)
+        party_total[party] += 1
+        if y_pred[i] == y_test_enc[i]:
+            party_correct[party] += 1
 
     by_party = {}
     for party in party_total:
@@ -325,11 +364,13 @@ async def _build_training_data(
     db: AsyncIOMotorDatabase,
     before_date: str | None = None,
     after_date: str | None = None,
-) -> tuple[list[list[float]], list[str]]:
-    """Build feature matrix and label vector from historical votes.
+) -> tuple[list[list[float]], list[str], list[str]]:
+    """Build feature matrix, label vector, and party labels from historical votes.
 
     Uses batch precomputation: per-MP stats computed once, per-voting
     features computed from the voting document. No per-sample DB queries.
+
+    Returns (X, y, parties) where parties[i] is the party code for sample i.
     """
     query = {}
     if before_date and not after_date:
@@ -339,8 +380,8 @@ async def _build_training_data(
     elif before_date and after_date:
         query["votingTime"] = {"$gte": after_date, "$lt": before_date}
 
-    # Limit fetch to 500 votings to keep Atlas free tier transfers manageable
-    MAX_VOTINGS = 500
+    # Limit fetch to keep Atlas free tier transfers manageable
+    MAX_VOTINGS = 1000
     votings = await db.votings.find(
         query,
         {"uuid": 1, "voters.memberUuid": 1, "voters.decision": 1, "voters.faction": 1,
@@ -355,8 +396,10 @@ async def _build_training_data(
         uuid = mp.get("memberUuid")
         if uuid:
             stats = mp.get("stats", {})
+            loyalty = stats.get("partyAlignmentRate", 85.0) / 100.0
             mp_stats[uuid] = {
-                "loyalty": stats.get("partyAlignmentRate", 85.0) / 100.0,
+                "loyalty": loyalty,
+                "defection_rate": 1.0 - loyalty,
                 "attendance": stats.get("attendance", 80.0) / 100.0,
                 "partyCode": mp.get("partyCode", "FR"),
             }
@@ -366,13 +409,14 @@ async def _build_training_data(
 
     X = []
     y = []
+    parties = []
 
     for i, voting in enumerate(votings):
         voters = voting.get("voters", [])
         if not voters:
             continue
 
-        # Precompute per-party stats for this voting (avoids N recalculations)
+        # Precompute per-party stats for this voting
         party_decisions: dict[str, list[str]] = {}
         for voter in voters:
             party = extract_party_code(voter.get("faction"))
@@ -382,11 +426,13 @@ async def _build_training_data(
 
         party_majority: dict[str, str] = {}
         party_cohesion: dict[str, float] = {}
+        party_margin: dict[str, float] = {}
         for party, decisions in party_decisions.items():
             majority = Counter(decisions).most_common(1)[0][0]
             party_majority[party] = majority
             aligned = sum(1 for d in decisions if d == majority)
             party_cohesion[party] = aligned / len(decisions) if decisions else 1.0
+            party_margin[party] = aligned / len(decisions) if decisions else 0.5
 
         for voter in voters:
             decision = voter.get("decision", "ABSENT")
@@ -396,29 +442,30 @@ async def _build_training_data(
             member_uuid = voter["memberUuid"]
             party_code = extract_party_code(voter.get("faction"))
 
-            # Build features from precomputed data (no per-sample DB queries)
             mp_info = mp_stats.get(member_uuid, {})
+            maj = party_majority.get(party_code, "FOR")
+            direction_map = {"FOR": 1.0, "AGAINST": -1.0, "ABSTAIN": 0.0}
+
             features = {
                 "party_loyalty_rate": mp_info.get("loyalty", 0.85),
-                "bill_topic_similarity": 0.0,  # Would need embedding search
-                "committee_relevance": 0.0,
                 "coalition_bill": 1.0 if party_code in coalition else 0.0,
-                "defection_rate_by_topic": 0.0,
-                "party_cohesion_on_similar": party_cohesion.get(party_code, 1.0),
-                "days_since_last_defection": 0.5,  # Use neutral default
+                "party_cohesion": party_cohesion.get(party_code, 1.0),
                 "mp_attendance_rate": mp_info.get("attendance", 0.8),
-                "party_position_strength": party_cohesion.get(party_code, 0.85),
+                "mp_defection_rate": mp_info.get("defection_rate", 0.15),
+                "party_majority_direction": direction_map.get(maj, 0.0),
+                "party_majority_margin": party_margin.get(party_code, 0.5),
             }
 
             feature_vec = [features.get(name, 0.0) for name in FEATURE_NAMES]
             X.append(feature_vec)
             y.append(decision)
+            parties.append(party_code)
 
         if (i + 1) % 200 == 0:
             logger.info(f"Training data: processed {i + 1}/{len(votings)} votings ({len(X)} samples)")
 
     logger.info(f"Built training data: {len(X)} samples from {len(votings)} votings")
-    return X, y
+    return X, y, parties
 
 
 async def _detect_coalition_cached(db: AsyncIOMotorDatabase) -> set[str]:

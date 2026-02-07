@@ -383,13 +383,14 @@ class RiigikoguSync:
             # Iterate by year from 2023 (XV Riigikogu) to now
             current_year = datetime.now().year
             for year in range(2023, current_year + 1):
-                if await self._is_year_completed("votings", year):
+                # Never skip the current year — new votes arrive throughout the year
+                if year < current_year and await self._is_year_completed("votings", year):
                     logger.info(f"Votings {year}: already completed, skipping")
                     continue
 
                 count = await self._sync_votings_year(year)
                 total_count += count
-                await self._save_checkpoint("votings", year, count, completed=True)
+                await self._save_checkpoint("votings", year, count, completed=(year < current_year))
 
                 if not await self._check_db_size():
                     logger.warning("DB size limit reached, pausing votings sync")
@@ -425,11 +426,11 @@ class RiigikoguSync:
 
         count = 0
         for session in sessions:
-            # Flatten: each session may contain nested votings
+            # Flatten: each session contains nested votings
             nested_votings = session.get("votings", [])
             if not nested_votings:
-                # The session itself might be a voting
-                nested_votings = [session]
+                # Sessions without votings are empty sittings — skip them
+                continue
 
             for voting_ref in nested_votings:
                 voting_uuid = voting_ref.get("uuid")
@@ -534,13 +535,13 @@ class RiigikoguSync:
             total_count = 0
             current_year = datetime.now().year
             for year in range(2023, current_year + 1):
-                if await self._is_year_completed("stenograms", year):
+                if year < current_year and await self._is_year_completed("stenograms", year):
                     logger.info(f"Stenograms {year}: already completed, skipping")
                     continue
 
                 count = await self._sync_stenograms_year(year)
                 total_count += count
-                await self._save_checkpoint("stenograms", year, count, completed=True)
+                await self._save_checkpoint("stenograms", year, count, completed=(year < current_year))
 
                 if not await self._check_db_size():
                     logger.warning("DB size limit reached, pausing stenograms sync")
@@ -637,13 +638,13 @@ class RiigikoguSync:
             total_count = 0
             current_year = datetime.now().year
             for year in range(2023, current_year + 1):
-                if await self._is_year_completed("drafts", year):
+                if year < current_year and await self._is_year_completed("drafts", year):
                     logger.info(f"Drafts {year}: already completed, skipping")
                     continue
 
                 count = await self._sync_drafts_year(year)
                 total_count += count
-                await self._save_checkpoint("drafts", year, count, completed=True)
+                await self._save_checkpoint("drafts", year, count, completed=(year < current_year))
 
                 if not await self._check_db_size():
                     logger.warning("DB size limit reached, pausing drafts sync")

@@ -21,15 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def diagnose_errors(db: AsyncIOMotorDatabase) -> dict:
-    """Categorize all undiagnosed prediction failures."""
-    # Find incorrect, resolved predictions
-    cursor = db.prediction_log.find({"correct": False, "resolvedAt": {"$ne": None}})
-    errors = await cursor.to_list(None)
-
-    if not errors:
-        logger.info("No errors to diagnose")
-        return {"total": 0}
-
+    """Categorize prediction failures from prediction_log AND backtest data."""
     categories = {
         "free_vote": 0,
         "party_split": 0,
@@ -37,10 +29,26 @@ async def diagnose_errors(db: AsyncIOMotorDatabase) -> dict:
         "coalition_shift": 0,
         "feature_gap": 0,
     }
+    total_diagnosed = 0
+
+    # Path 1: Resolved prediction_log entries (live predictions)
+    cursor = db.prediction_log.find({"correct": False, "resolvedAt": {"$ne": None}})
+    errors = await cursor.to_list(None)
 
     for error in errors:
         category = await _categorize_error(db, error)
         categories[category] = categories.get(category, 0) + 1
+        total_diagnosed += 1
+
+    # Path 2: Backtest data — analyze weakest MPs from model_state
+    backtest_cats = await _diagnose_from_backtest(db)
+    for cat, count in backtest_cats.items():
+        categories[cat] = categories.get(cat, 0) + count
+        total_diagnosed += count
+
+    if total_diagnosed == 0:
+        logger.info("No errors to diagnose")
+        return {"total": 0}
 
     # Update model_state
     await db.model_state.update_one(
@@ -52,8 +60,8 @@ async def diagnose_errors(db: AsyncIOMotorDatabase) -> dict:
         upsert=True,
     )
 
-    logger.info(f"Diagnosed {len(errors)} errors: {categories}")
-    return {"total": len(errors), "categories": categories}
+    logger.info(f"Diagnosed {total_diagnosed} error sources: {categories}")
+    return {"total": total_diagnosed, "categories": categories}
 
 
 async def _categorize_error(db: AsyncIOMotorDatabase, error: dict) -> str:
@@ -111,3 +119,66 @@ async def _categorize_error(db: AsyncIOMotorDatabase, error: dict) -> str:
             return "stale_profile"
 
     return "feature_gap"
+
+
+async def _diagnose_from_backtest(db: AsyncIOMotorDatabase) -> dict:
+    """Diagnose error patterns from backtest weakest MPs."""
+    model_state = await db.model_state.find_one({"_id": "current"})
+    if not model_state:
+        return {}
+
+    weak_mps = model_state.get("weakestMPs", [])
+    if not weak_mps:
+        return {}
+
+    from app.config import settings
+    cutoff = settings.model_cutoff_date
+    categories: dict[str, int] = {}
+
+    for mp_entry in weak_mps:
+        mp_uuid = mp_entry.get("memberUuid")
+        party = mp_entry.get("party")
+        if not mp_uuid or not party:
+            continue
+
+        # Sample recent votings where this MP voted against party majority
+        votings = await db.votings.find(
+            {"votingTime": {"$gte": cutoff}, "voters.memberUuid": mp_uuid},
+            {"voters": 1},
+        ).sort("votingTime", -1).limit(50).to_list(50)
+
+        for voting in votings:
+            # Get MP's decision
+            mp_decision = None
+            party_decisions = []
+            for voter in voting.get("voters", []):
+                if voter.get("memberUuid") == mp_uuid:
+                    mp_decision = voter.get("decision", "ABSENT")
+                if extract_party_code(voter.get("faction")) == party:
+                    d = voter.get("decision", "ABSENT")
+                    if d != "ABSENT":
+                        party_decisions.append(d)
+
+            if not party_decisions or not mp_decision or mp_decision == "ABSENT":
+                continue
+
+            majority = Counter(party_decisions).most_common(1)[0][0]
+            if mp_decision == majority:
+                continue  # Correct prediction, skip
+
+            # This was a baseline miss — categorize it
+            cohesion = sum(1 for d in party_decisions if d == majority) / len(party_decisions)
+
+            if cohesion < 0.6:
+                cat = "free_vote"
+            elif cohesion < 0.7:
+                cat = "party_split"
+            elif mp_entry.get("accuracy", 100) < 70:
+                cat = "stale_profile"
+            else:
+                cat = "feature_gap"
+
+            categories[cat] = categories.get(cat, 0) + 1
+
+    logger.info(f"Backtest diagnosis for {len(weak_mps)} weak MPs: {categories}")
+    return categories

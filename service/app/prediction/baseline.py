@@ -162,6 +162,55 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
     for dec, counts in by_decision.items():
         decision_accuracy[dec] = round(counts["correct"] / counts["total"] * 100, 1)
 
+    # Compute per-MP accuracy
+    by_mp: dict[str, dict] = {}
+    for voting in votings:
+        voters = voting.get("voters", [])
+        if not voters:
+            continue
+
+        party_decisions_per: dict[str, list[str]] = {}
+        for voter in voters:
+            party = extract_party_code(voter.get("faction"))
+            decision = voter.get("decision", "ABSENT")
+            if decision != "ABSENT":
+                party_decisions_per.setdefault(party, []).append(decision)
+
+        party_majority_per: dict[str, str] = {}
+        for party, decisions in party_decisions_per.items():
+            party_majority_per[party] = Counter(decisions).most_common(1)[0][0]
+
+        for voter in voters:
+            decision = voter.get("decision", "ABSENT")
+            if decision == "ABSENT":
+                continue
+            uuid = voter.get("memberUuid", "")
+            name = voter.get("fullName", "")
+            party = extract_party_code(voter.get("faction"))
+            predicted = party_majority_per.get(party)
+            if predicted is None:
+                continue
+            if uuid not in by_mp:
+                by_mp[uuid] = {"correct": 0, "total": 0, "fullName": name, "party": party}
+            by_mp[uuid]["total"] += 1
+            if decision == predicted:
+                by_mp[uuid]["correct"] += 1
+
+    # Compute weakest MPs (sorted by accuracy ascending)
+    mp_accuracy_list = []
+    for uuid, counts in by_mp.items():
+        if counts["total"] >= 10:  # Only MPs with enough votes
+            acc = round(counts["correct"] / counts["total"] * 100, 1)
+            mp_accuracy_list.append({
+                "memberUuid": uuid,
+                "fullName": counts["fullName"],
+                "party": counts["party"],
+                "accuracy": acc,
+                "total": counts["total"],
+            })
+    mp_accuracy_list.sort(key=lambda x: x["accuracy"])
+    weakest_mps = mp_accuracy_list[:10]
+
     result = {
         "overall": round(overall_accuracy, 1),
         "correct": correct,
@@ -188,6 +237,7 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
                 "overall": result["overall"],
                 "byParty": party_accuracy,
                 "byVoteType": decision_accuracy,
+                "byMP": mp_accuracy_list,
             },
             "backtestCounts": {
                 "byParty": party_count_map,
@@ -195,10 +245,11 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
             },
             "baselineAccuracy": result["overall"],
             "improvementOverBaseline": 0,
+            "weakestMPs": weakest_mps,
             "trend": [{"date": datetime.now(timezone.utc).isoformat()[:10], "accuracy": result["overall"]}],
         }},
         upsert=True,
     )
 
-    logger.info(f"Baseline backtest: {result['overall']}% on {total} votes")
+    logger.info(f"Baseline backtest: {result['overall']}% on {total} votes, weakest MPs: {[m['fullName'] for m in weakest_mps[:3]]}")
     return result

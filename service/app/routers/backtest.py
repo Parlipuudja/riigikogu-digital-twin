@@ -56,4 +56,20 @@ async def backtest_status():
     return model_state
 
 
+@router.post("/diagnose")
+async def trigger_diagnose():
+    from app.tasks.diagnose import diagnose_errors
+    db = await get_db()
+    result = await diagnose_errors(db)
+    return result
+
+
+@router.post("/plan")
+async def trigger_plan():
+    from app.tasks.plan import plan_improvements
+    db = await get_db()
+    result = await plan_improvements(db)
+    return result
+
+
 # Note: /accuracy is served from data.py router (included first in main.py)

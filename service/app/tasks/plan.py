@@ -23,18 +23,21 @@ async def plan_improvements(db: AsyncIOMotorDatabase) -> dict:
     accuracy = model_state.get("accuracy", {})
     error_cats = model_state.get("errorCategories", {})
     feature_importances = model_state.get("featureImportances", [])
+    baseline_acc = model_state.get("baselineAccuracy", 98)
+    model_version = model_state.get("version", "unknown")
 
-    # 1. Weakest MPs (accuracy below baseline)
-    baseline = model_state.get("baselineAccuracy", 85)
+    # 1. Weakest MPs (accuracy below baseline - 5pp)
     by_mp = accuracy.get("byMP", [])
-    weak_mps = [mp for mp in by_mp if mp.get("accuracy", 100) < baseline - 5]
+    threshold = baseline_acc - 5
+    weak_mps = [mp for mp in by_mp if mp.get("accuracy", 100) < threshold]
     if weak_mps:
         weak_mps.sort(key=lambda x: x.get("accuracy", 100))
+        names = [m.get("fullName", m.get("memberUuid", "?")) for m in weak_mps[:5]]
         priorities.append({
             "area": "weak_mps",
-            "expectedGain": len(weak_mps) * 0.1,  # Rough estimate
-            "action": f"Investigate {len(weak_mps)} MPs with accuracy below baseline: "
-                      f"{', '.join(m.get('slug', '?') for m in weak_mps[:5])}",
+            "expectedGain": len(weak_mps) * 0.1,
+            "action": f"Investigate {len(weak_mps)} MPs with accuracy below {threshold:.0f}%: "
+                      f"{', '.join(names)}",
         })
 
     # 2. Most common error category
@@ -65,15 +68,36 @@ async def plan_improvements(db: AsyncIOMotorDatabase) -> dict:
                           f"{', '.join(f['name'] for f in low_features)}",
             })
 
-    # 4. Overall accuracy vs target
+    # 4. Per-party weaknesses
+    by_party = accuracy.get("byParty", {})
+    weak_parties = [(p, acc) for p, acc in by_party.items() if acc < baseline_acc - 3]
+    if weak_parties:
+        weak_parties.sort(key=lambda x: x[1])
+        party_strs = [f"{p} ({acc:.1f}%)" for p, acc in weak_parties[:5]]
+        priorities.append({
+            "area": "weak_parties",
+            "expectedGain": len(weak_parties) * 0.3,
+            "action": f"Parties below baseline: {', '.join(party_strs)}",
+        })
+
+    # 5. Model vs baseline gap
+    improvement = model_state.get("improvementOverBaseline", 0)
+    if model_version == "baseline-v1" or improvement < 0:
+        priorities.append({
+            "area": "model_vs_baseline",
+            "expectedGain": 2.0,
+            "action": f"Model ({model_version}) not beating baseline ({baseline_acc:.1f}%). "
+                      f"Need better features or training approach.",
+        })
+
+    # 6. Overall accuracy vs baseline target
     overall = accuracy.get("overall")
-    if overall is not None and overall < 88:
-        gap = 88 - overall
+    if overall is not None and overall < baseline_acc:
+        gap = baseline_acc - overall
         priorities.append({
             "area": "overall_accuracy",
             "expectedGain": gap,
-            "action": f"Overall accuracy {overall:.1f}% is {gap:.1f}pp below 88% target. "
-                      f"Focus on highest-impact improvements.",
+            "action": f"Overall accuracy {overall:.1f}% is {gap:.1f}pp below baseline {baseline_acc:.1f}%.",
         })
 
     # Sort by expected gain

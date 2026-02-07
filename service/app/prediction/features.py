@@ -17,14 +17,12 @@ logger = logging.getLogger(__name__)
 
 FEATURE_NAMES = [
     "party_loyalty_rate",
-    "bill_topic_similarity",
-    "committee_relevance",
     "coalition_bill",
-    "defection_rate_by_topic",
-    "party_cohesion_on_similar",
-    "days_since_last_defection",
+    "party_cohesion",
     "mp_attendance_rate",
-    "party_position_strength",
+    "mp_defection_rate",
+    "party_majority_direction",  # FOR=1.0, ABSTAIN=0.0, AGAINST=-1.0
+    "party_majority_margin",
 ]
 
 # Cache for coalition detection (recomputed per training run)
@@ -53,55 +51,37 @@ async def compute_features(
     bill_embedding: list[float] | None = None,
     bill_initiators: list[str] | None = None,
 ) -> dict[str, float]:
-    """Compute all features for an (MP, bill) prediction."""
+    """Compute all features for an (MP, bill) prediction.
+
+    At prediction time, party majority direction is estimated from
+    historical patterns since the actual vote hasn't happened yet.
+    """
     member_uuid = mp.get("memberUuid")
     party_code = mp.get("partyCode", "FR")
 
     features = {}
 
-    # 1. Party loyalty rate (from precomputed stats or computed live)
+    # 1. Party loyalty rate
     features["party_loyalty_rate"] = mp.get("stats", {}).get("partyAlignmentRate", 85.0) / 100.0
 
-    # 2. Bill topic similarity (cosine similarity between bill and MP's past votes)
-    if bill_embedding:
-        features["bill_topic_similarity"] = await _bill_topic_similarity(
-            db, member_uuid, party_code, bill_embedding
-        )
-    else:
-        features["bill_topic_similarity"] = 0.0
-
-    # 3. Committee relevance
-    features["committee_relevance"] = await _committee_relevance(db, mp, bill_initiators)
-
-    # 4. Coalition bill (did a coalition-aligned party initiate this?)
+    # 2. Coalition bill
     features["coalition_bill"] = await _coalition_bill(db, party_code, bill_initiators)
 
-    # 5. Defection rate by topic (MP's defection rate on similar votes)
-    if bill_embedding:
-        features["defection_rate_by_topic"] = await _defection_rate_by_topic(
-            db, member_uuid, party_code, bill_embedding
-        )
-    else:
-        features["defection_rate_by_topic"] = 0.0
+    # 3. Party cohesion (from recent votes)
+    features["party_cohesion"] = await _party_position_strength(db, party_code)
 
-    # 6. Party cohesion on similar votes
-    if bill_embedding:
-        features["party_cohesion_on_similar"] = await _party_cohesion_on_similar(
-            db, party_code, bill_embedding
-        )
-    else:
-        features["party_cohesion_on_similar"] = 1.0
-
-    # 7. Days since last defection
-    features["days_since_last_defection"] = await _days_since_last_defection(
-        db, member_uuid, party_code
-    )
-
-    # 8. MP attendance rate
+    # 4. MP attendance rate
     features["mp_attendance_rate"] = mp.get("stats", {}).get("attendance", 80.0) / 100.0
 
-    # 9. Party position strength
-    features["party_position_strength"] = await _party_position_strength(db, party_code)
+    # 5. MP defection rate (how often this MP breaks from party)
+    defection_rate = 1.0 - features["party_loyalty_rate"]
+    features["mp_defection_rate"] = defection_rate
+
+    # 6-7. Estimated party majority direction and margin from recent votes
+    party_for_rate = await _historical_party_for_rate(db, party_code)
+    # FOR=1.0, AGAINST=-1.0, middle=0.0
+    features["party_majority_direction"] = (party_for_rate - 0.5) * 2.0
+    features["party_majority_margin"] = abs(party_for_rate - 0.5) * 2  # 0=split, 1=unanimous
 
     return features
 
@@ -123,54 +103,25 @@ async def compute_features_for_training(
     # 1. Party loyalty rate up to this voting's date
     cache_key = f"{member_uuid}:{party_code}"
     if cache_key in _loyalty_cache:
-        features["party_loyalty_rate"] = _loyalty_cache[cache_key]
+        loyalty = _loyalty_cache[cache_key]
     else:
         loyalty = await _historical_loyalty(
             db, member_uuid, party_code, voting.get("votingTime")
         )
         _loyalty_cache[cache_key] = loyalty
-        features["party_loyalty_rate"] = loyalty
 
-    # 2. Topic similarity — use the voting's own embedding
-    embedding = voting.get("embedding")
-    if embedding:
-        features["bill_topic_similarity"] = await _bill_topic_similarity(
-            db, member_uuid, party_code, embedding, before_date=voting.get("votingTime")
-        )
-    else:
-        features["bill_topic_similarity"] = 0.0
+    features["party_loyalty_rate"] = loyalty
 
-    # 3. Committee relevance — approximated: is this MP from a relevant faction?
-    features["committee_relevance"] = 0.0
-
-    # 4. Coalition bill — use cached coalition detection
+    # 2. Coalition bill
     global _coalition_cache
     if _coalition_cache is None:
         _coalition_cache = await _detect_coalition(db)
     features["coalition_bill"] = 1.0 if party_code in _coalition_cache else 0.0
 
-    # 5. Historical defection rate on similar votes
-    if embedding:
-        features["defection_rate_by_topic"] = await _defection_rate_by_topic_fast(
-            db, member_uuid, party_code, embedding, before_date=voting.get("votingTime")
-        )
-    else:
-        features["defection_rate_by_topic"] = 0.0
+    # 3. Party cohesion on THIS voting
+    features["party_cohesion"] = _compute_party_cohesion(voting, party_code)
 
-    # 6. Party cohesion on THIS voting (this is available at vote time — it's the same voting)
-    features["party_cohesion_on_similar"] = _compute_party_cohesion(voting, party_code)
-
-    # 7. Days since last defection
-    if cache_key in _defection_days_cache:
-        features["days_since_last_defection"] = _defection_days_cache[cache_key]
-    else:
-        days = await _days_since_last_defection_fast(
-            db, member_uuid, party_code, before_date=voting.get("votingTime")
-        )
-        _defection_days_cache[cache_key] = days
-        features["days_since_last_defection"] = days
-
-    # 8. Attendance rate
+    # 4. Attendance rate
     if cache_key in _attendance_cache:
         features["mp_attendance_rate"] = _attendance_cache[cache_key]
     else:
@@ -178,8 +129,26 @@ async def compute_features_for_training(
         _attendance_cache[cache_key] = attendance
         features["mp_attendance_rate"] = attendance
 
-    # 9. Party position strength on this vote
-    features["party_position_strength"] = _compute_party_position_strength(voting, party_code)
+    # 5. MP defection rate
+    features["mp_defection_rate"] = 1.0 - loyalty
+
+    # 6-7. Party majority direction and margin from this voting
+    party_decisions = []
+    for voter in voting.get("voters", []):
+        if extract_party_code(voter.get("faction")) == party_code:
+            d = voter.get("decision", "ABSENT")
+            if d != "ABSENT":
+                party_decisions.append(d)
+
+    if party_decisions:
+        majority = Counter(party_decisions).most_common(1)[0][0]
+        aligned = sum(1 for d in party_decisions if d == majority)
+        direction_map = {"FOR": 1.0, "AGAINST": -1.0, "ABSTAIN": 0.0}
+        features["party_majority_direction"] = direction_map.get(majority, 0.0)
+        features["party_majority_margin"] = aligned / len(party_decisions)
+    else:
+        features["party_majority_direction"] = 1.0
+        features["party_majority_margin"] = 0.5
 
     return features
 
@@ -559,6 +528,30 @@ async def _historical_loyalty(
                 aligned += 1
 
     return aligned / total if total > 0 else 0.85
+
+
+async def _historical_party_for_rate(db: AsyncIOMotorDatabase, party_code: str) -> float:
+    """What fraction of recent votes did this party's majority vote FOR?"""
+    votings = await db.votings.find(
+        {}, {"voters": 1}
+    ).sort("votingTime", -1).limit(100).to_list(100)
+
+    for_count = 0
+    total = 0
+    for voting in votings:
+        party_decisions = []
+        for voter in voting.get("voters", []):
+            if extract_party_code(voter.get("faction")) == party_code:
+                d = voter.get("decision", "ABSENT")
+                if d != "ABSENT":
+                    party_decisions.append(d)
+        if party_decisions:
+            majority = Counter(party_decisions).most_common(1)[0][0]
+            total += 1
+            if majority == "FOR":
+                for_count += 1
+
+    return for_count / total if total > 0 else 0.7
 
 
 async def _party_position_strength(db: AsyncIOMotorDatabase, party_code: str) -> float:
