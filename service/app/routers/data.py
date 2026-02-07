@@ -102,6 +102,7 @@ async def stats():
 
     total_votings = await db.votings.count_documents({})
     total_mps = await db.mps.count_documents({})
+    active_mps = await db.mps.count_documents({"isCurrentMember": True})
     total_drafts = await db.drafts.count_documents({})
 
     # Latest voting date
@@ -109,6 +110,12 @@ async def stats():
         {}, {"votingTime": 1}, sort=[("votingTime", -1)]
     )
     last_voting_date = latest.get("votingTime") if latest else None
+
+    # Last sync date
+    sync_state = await db.sync_progress.find_one(
+        {"status": "completed"}, {"lastRunAt": 1}, sort=[("lastRunAt", -1)]
+    )
+    last_sync_date = sync_state.get("lastRunAt") if sync_state else None
 
     # Party counts
     pipeline = [
@@ -123,8 +130,10 @@ async def stats():
     return {
         "totalVotings": total_votings,
         "totalMPs": total_mps,
+        "activeMPs": active_mps,
         "totalDrafts": total_drafts,
         "lastVotingDate": last_voting_date,
+        "lastSyncDate": str(last_sync_date) if last_sync_date else None,
         "partyCounts": party_counts,
     }
 
