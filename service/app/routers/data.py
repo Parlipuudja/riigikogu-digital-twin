@@ -90,6 +90,25 @@ def _normalize_mp(mp: dict) -> dict:
     # Pull committees from info if available
     committees = info.get("committees", [])
     mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
+
+    # Extract profile data from instruction for the frontend
+    instruction = mp.pop("instruction", None) or {}
+    if instruction and not mp.get("politicalProfile"):
+        pp = instruction.get("politicalProfile", {})
+        key_issues = pp.get("keyIssues", [])
+        if key_issues:
+            mp["politicalProfile"] = "\n".join(
+                f"{ki.get('issue', '')}: {ki.get('stance', '')}" for ki in key_issues
+            )
+            mp["politicalProfileEn"] = "\n".join(
+                f"{ki.get('issueEn', '')}: {ki.get('stanceEn', '')}" for ki in key_issues
+            )
+            mp["keyIssues"] = [ki.get("issue", "") for ki in key_issues]
+        bp = instruction.get("behavioralPatterns", {})
+        indicators = bp.get("independenceIndicators", [])
+        if indicators:
+            mp["behavioralPatterns"] = indicators
+
     return mp
 
 
