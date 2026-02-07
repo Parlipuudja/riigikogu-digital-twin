@@ -35,6 +35,7 @@ def test_normalize_decision_none():
 
 
 def test_extract_party_code():
+    # Full faction names
     assert extract_party_code("Eesti Konservatiivne Rahvaerakond") == "EKRE"
     assert extract_party_code("Isamaa Erakond") == "I"
     assert extract_party_code("Eesti Reformierakond") == "RE"
@@ -44,6 +45,14 @@ def test_extract_party_code():
     assert extract_party_code("Fraktsioonitud") == "FR"
     assert extract_party_code(None) == "FR"
     assert extract_party_code("") == "FR"
+    # Already-extracted party codes (as stored in voting data)
+    assert extract_party_code("EKRE") == "EKRE"
+    assert extract_party_code("I") == "I"
+    assert extract_party_code("RE") == "RE"
+    assert extract_party_code("SDE") == "SDE"
+    assert extract_party_code("K") == "K"
+    assert extract_party_code("E200") == "E200"
+    assert extract_party_code("FR") == "FR"
 
 
 def test_make_slug():

@@ -56,27 +56,4 @@ async def backtest_status():
     return model_state
 
 
-@router.get("/accuracy")
-async def public_accuracy():
-    db = await get_db()
-    model_state = await db.model_state.find_one({"_id": "current"})
-    if model_state is None:
-        return {
-            "overall": None,
-            "baseline": None,
-            "improvement": None,
-            "sampleSize": 0,
-            "message": "No accuracy data yet — run a backtest first",
-        }
-
-    accuracy = model_state.get("accuracy", {})
-    return {
-        "overall": accuracy.get("overall"),
-        "baseline": model_state.get("baselineAccuracy"),
-        "improvement": model_state.get("improvementOverBaseline"),
-        "byParty": accuracy.get("byParty"),
-        "byVoteType": accuracy.get("byVoteType"),
-        "trend": model_state.get("trend", []),
-        "sampleSize": model_state.get("trainingSize", 0),
-        "honestPeriod": f"Post {model_state.get('version', 'unknown')} cutoff",
-    }
+# Note: /accuracy is served from data.py router (included first in main.py)

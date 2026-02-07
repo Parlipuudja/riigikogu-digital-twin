@@ -126,31 +126,31 @@ export interface HealthStatus {
 export type PartyCode =
   | "RE"
   | "EKRE"
-  | "KE"
+  | "K"
   | "I"
   | "SDE"
   | "E200"
-  | "EP"
+  | "PAREMPOOLSED"
   | "FR";
 
 export const PARTY_COLORS: Record<string, string> = {
   RE: "#FFE200",
   EKRE: "#00355F",
-  KE: "#00853E",
+  K: "#00853E",
   I: "#009FE3",
   SDE: "#E30613",
   E200: "#009FE3",
-  EP: "#8B4513",
+  PAREMPOOLSED: "#8B4513",
   FR: "#999999",
 };
 
 export const PARTY_NAMES: Record<string, { et: string; en: string }> = {
   RE: { et: "Reformierakond", en: "Reform Party" },
   EKRE: { et: "EKRE", en: "EKRE" },
-  KE: { et: "Keskerakond", en: "Centre Party" },
+  K: { et: "Keskerakond", en: "Centre Party" },
   I: { et: "Isamaa", en: "Isamaa" },
   SDE: { et: "Sotsiaaldemokraadid", en: "Social Democrats" },
   E200: { et: "Eesti 200", en: "Eesti 200" },
-  EP: { et: "Erakond Parempoolsed", en: "Right Party" },
+  PAREMPOOLSED: { et: "Erakond Parempoolsed", en: "Right Party" },
   FR: { et: "Fraktsioonitu", en: "Non-affiliated" },
 };

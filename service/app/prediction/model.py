@@ -66,7 +66,6 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
     # Train logistic regression
     model = LogisticRegression(
         max_iter=1000,
-        multi_class="multinomial",
         solver="lbfgs",
         class_weight="balanced",
         C=1.0,
@@ -92,7 +91,6 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
                     n_estimators=200,
                     max_depth=6,
                     learning_rate=0.1,
-                    use_label_encoder=False,
                     eval_metric="mlogloss",
                 )
                 xgb_model.fit(X_train, y_train_enc)
@@ -112,8 +110,11 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
         # Calibrate probabilities
         try:
             # Use a portion of test data for calibration
+            # Ensure all classes present in calibration data for cv splits
             cal_size = min(len(X_test) // 3, 500)
-            if cal_size >= 20:
+            unique_in_cal = set(y_test_enc[:cal_size]) if cal_size >= 20 else set()
+            all_classes = set(y_train_enc)
+            if cal_size >= 20 and unique_in_cal >= all_classes:
                 X_cal = np.array(X_test[:cal_size])
                 y_cal = y_test_enc[:cal_size]
                 model = calibrate_model(model, X_cal, y_cal)
@@ -123,6 +124,8 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
                 if len(X_eval) > 0:
                     test_accuracy = float(model.score(X_eval, y_eval) * 100)
                     logger.info(f"Calibrated test accuracy: {test_accuracy:.1f}%")
+            elif cal_size >= 20:
+                logger.info(f"Skipping calibration: cal subset has {unique_in_cal} but need {all_classes}")
         except Exception as e:
             logger.warning(f"Calibration failed: {e}")
 
@@ -161,31 +164,34 @@ async def train_model(db: AsyncIOMotorDatabase) -> dict:
     # Per-decision accuracy
     by_vote_type = {}
     if len(X_test) > 0:
-        y_test_enc = le.transform(y_test)
-        y_pred = model.predict(np.array(X_test))
-        for label in le.classes_:
-            label_name = le.inverse_transform([label])[0]
-            mask = y_test_enc == label
-            if mask.sum() > 0:
-                correct = (y_pred[mask] == label).sum()
-                by_vote_type[label_name] = round(float(correct / mask.sum() * 100), 1)
+        try:
+            y_test_enc = le.transform(y_test)
+            y_pred = model.predict(np.array(X_test))
+            for label_idx, label_name in enumerate(le.classes_):
+                mask = y_test_enc == label_idx
+                if mask.sum() > 0:
+                    correct = (y_pred[mask] == label_idx).sum()
+                    by_vote_type[label_name] = round(float(correct / mask.sum() * 100), 1)
+        except Exception as e:
+            logger.warning(f"Per-decision accuracy failed: {e}")
 
     await db.model_state.update_one(
         {"_id": "current"},
-        {"$set": {
-            "version": version,
-            "trainedAt": datetime.now(timezone.utc),
-            "trainingSize": len(X_train),
-            "features": FEATURE_NAMES,
-            "featureImportances": feature_importances,
-            "accuracy": {
-                "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
-                "byParty": by_party,
-                "byVoteType": by_vote_type,
+        {
+            "$set": {
+                "version": version,
+                "trainedAt": datetime.now(timezone.utc),
+                "trainingSize": len(X_train),
+                "features": FEATURE_NAMES,
+                "featureImportances": feature_importances,
+                "accuracy": {
+                    "overall": round(test_accuracy, 1) if test_accuracy > 0 else None,
+                    "byParty": by_party,
+                    "byVoteType": by_vote_type,
+                },
+                "improvementOverBaseline": improvement,
+                "baselineAccuracy": baseline_accuracy,
             },
-            "improvementOverBaseline": improvement,
-            "baselineAccuracy": baseline_accuracy,
-        },
             "$push": {
                 "trend": {
                     "$each": [{"date": datetime.now(timezone.utc).isoformat()[:10], "accuracy": round(test_accuracy, 1)}],
@@ -320,7 +326,11 @@ async def _build_training_data(
     before_date: str | None = None,
     after_date: str | None = None,
 ) -> tuple[list[list[float]], list[str]]:
-    """Build feature matrix and label vector from historical votes."""
+    """Build feature matrix and label vector from historical votes.
+
+    Uses batch precomputation: per-MP stats computed once, per-voting
+    features computed from the voting document. No per-sample DB queries.
+    """
     query = {}
     if before_date and not after_date:
         query["votingTime"] = {"$lt": before_date}
@@ -329,45 +339,89 @@ async def _build_training_data(
     elif before_date and after_date:
         query["votingTime"] = {"$gte": after_date, "$lt": before_date}
 
+    # Limit fetch to 500 votings to keep Atlas free tier transfers manageable
+    MAX_VOTINGS = 500
     votings = await db.votings.find(
         query,
-        {"uuid": 1, "voters": 1, "votingTime": 1, "embedding": 1},
-    ).sort("votingTime", -1).to_list(None)
+        {"uuid": 1, "voters.memberUuid": 1, "voters.decision": 1, "voters.faction": 1,
+         "votingTime": 1},
+    ).sort("votingTime", -1).limit(MAX_VOTINGS).to_list(MAX_VOTINGS)
+
+    logger.info(f"Building training data from {len(votings)} votings...")
+
+    # Batch precompute per-MP stats from the mps collection
+    mp_stats: dict[str, dict] = {}  # memberUuid -> {loyalty, attendance}
+    async for mp in db.mps.find({}, {"memberUuid": 1, "partyCode": 1, "stats": 1}):
+        uuid = mp.get("memberUuid")
+        if uuid:
+            stats = mp.get("stats", {})
+            mp_stats[uuid] = {
+                "loyalty": stats.get("partyAlignmentRate", 85.0) / 100.0,
+                "attendance": stats.get("attendance", 80.0) / 100.0,
+                "partyCode": mp.get("partyCode", "FR"),
+            }
+
+    # Detect coalition once
+    coalition = await _detect_coalition_cached(db)
 
     X = []
     y = []
 
-    # Get all MPs for reference
-    mps_map = {}
-    async for mp in db.mps.find({}, {"slug": 1, "memberUuid": 1, "partyCode": 1}):
-        mps_map[mp.get("memberUuid")] = mp
-
-    # Sample votings if too many (keep training tractable)
-    if len(votings) > 3000:
-        import random
-        random.seed(42)
-        votings = random.sample(votings, 3000)
-
-    for voting in votings:
+    for i, voting in enumerate(votings):
         voters = voting.get("voters", [])
+        if not voters:
+            continue
+
+        # Precompute per-party stats for this voting (avoids N recalculations)
+        party_decisions: dict[str, list[str]] = {}
+        for voter in voters:
+            party = extract_party_code(voter.get("faction"))
+            decision = voter.get("decision", "ABSENT")
+            if decision != "ABSENT":
+                party_decisions.setdefault(party, []).append(decision)
+
+        party_majority: dict[str, str] = {}
+        party_cohesion: dict[str, float] = {}
+        for party, decisions in party_decisions.items():
+            majority = Counter(decisions).most_common(1)[0][0]
+            party_majority[party] = majority
+            aligned = sum(1 for d in decisions if d == majority)
+            party_cohesion[party] = aligned / len(decisions) if decisions else 1.0
 
         for voter in voters:
             decision = voter.get("decision", "ABSENT")
             if decision == "ABSENT":
-                continue  # Skip absent votes in training
+                continue
 
             member_uuid = voter["memberUuid"]
             party_code = extract_party_code(voter.get("faction"))
 
-            features = await compute_features_for_training(
-                db, member_uuid, party_code, voting
-            )
-            if features is None:
-                continue
+            # Build features from precomputed data (no per-sample DB queries)
+            mp_info = mp_stats.get(member_uuid, {})
+            features = {
+                "party_loyalty_rate": mp_info.get("loyalty", 0.85),
+                "bill_topic_similarity": 0.0,  # Would need embedding search
+                "committee_relevance": 0.0,
+                "coalition_bill": 1.0 if party_code in coalition else 0.0,
+                "defection_rate_by_topic": 0.0,
+                "party_cohesion_on_similar": party_cohesion.get(party_code, 1.0),
+                "days_since_last_defection": 0.5,  # Use neutral default
+                "mp_attendance_rate": mp_info.get("attendance", 0.8),
+                "party_position_strength": party_cohesion.get(party_code, 0.85),
+            }
 
             feature_vec = [features.get(name, 0.0) for name in FEATURE_NAMES]
             X.append(feature_vec)
             y.append(decision)
 
+        if (i + 1) % 200 == 0:
+            logger.info(f"Training data: processed {i + 1}/{len(votings)} votings ({len(X)} samples)")
+
     logger.info(f"Built training data: {len(X)} samples from {len(votings)} votings")
     return X, y
+
+
+async def _detect_coalition_cached(db: AsyncIOMotorDatabase) -> set[str]:
+    """Detect coalition with import."""
+    from app.prediction.features import _detect_coalition
+    return await _detect_coalition(db)

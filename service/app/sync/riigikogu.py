@@ -76,10 +76,17 @@ def normalize_decision(raw: str | dict | None) -> VoteDecision:
     return DECISION_MAP.get(raw, VoteDecision.ABSENT)
 
 
+VALID_PARTY_CODES = {"EKRE", "I", "RE", "SDE", "K", "E200", "PAREMPOOLSED", "FR"}
+
+
 def extract_party_code(faction_name: str | None) -> str:
-    """Extract party code from Estonian faction name."""
+    """Extract party code from Estonian faction name or return if already a code."""
     if not faction_name:
         return "FR"
+    # If it's already a valid party code, return it directly
+    stripped = faction_name.strip()
+    if stripped in VALID_PARTY_CODES:
+        return stripped
     for pattern, code in PARTY_CODE_PATTERNS:
         if pattern.lower() in faction_name.lower():
             return code

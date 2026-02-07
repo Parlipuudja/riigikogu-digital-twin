@@ -12,10 +12,44 @@ from app.models import BillInput
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+FEATURE_DESCRIPTIONS = {
+    "party_loyalty_rate": "Party loyalty rate",
+    "bill_topic_similarity": "Topic similarity to past votes",
+    "committee_relevance": "Committee relevance",
+    "coalition_bill": "Coalition-initiated bill",
+    "defection_rate_by_topic": "Defection rate on similar topics",
+    "party_cohesion_on_similar": "Party cohesion on similar bills",
+    "days_since_last_defection": "Days since last defection",
+    "mp_attendance_rate": "Attendance rate",
+    "party_position_strength": "Party position strength",
+    "party_majority_decision": "Party majority decision",
+    "sample_size": "Sample size",
+    "data_available": "Data available",
+}
+
 
 def _bill_hash(bill: BillInput) -> str:
     text = "|".join(filter(None, [bill.title, bill.description, bill.fullText]))
     return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+
+def _format_prediction(prediction: dict) -> dict:
+    """Transform raw prediction into frontend-expected format."""
+    # Map reasoning {et, en} to explanation/explanationEn
+    reasoning = prediction.pop("reasoning", None)
+    if reasoning and isinstance(reasoning, dict):
+        prediction["explanation"] = reasoning.get("et") or reasoning.get("en", "")
+        prediction["explanationEn"] = reasoning.get("en", "")
+    elif reasoning and isinstance(reasoning, str):
+        prediction["explanation"] = reasoning
+
+    # Add description to each feature
+    features = prediction.get("features", [])
+    for f in features:
+        if "description" not in f:
+            f["description"] = FEATURE_DESCRIPTIONS.get(f["name"], f["name"])
+
+    return prediction
 
 
 @router.post("/predict/{slug}")
@@ -32,7 +66,7 @@ async def predict_mp(slug: str, bill: BillInput):
     if cached:
         pred = cached["prediction"]
         pred["cached"] = True
-        return pred
+        return _format_prediction(pred)
 
     # Generate embedding for the bill if possible
     bill_embedding = await _get_bill_embedding(bill)
@@ -91,7 +125,7 @@ async def predict_mp(slug: str, bill: BillInput):
         "resolvedAt": None,
     })
 
-    return prediction
+    return _format_prediction(prediction)
 
 
 async def _get_bill_embedding(bill: BillInput) -> list[float] | None:

@@ -172,6 +172,10 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
         "cutoffDate": cutoff,
     }
 
+    # Build count maps for frontend display
+    party_count_map = {p: counts["total"] for p, counts in by_party.items()}
+    decision_count_map = {d: counts["total"] for d, counts in by_decision.items()}
+
     # Save to model_state
     await db.model_state.update_one(
         {"_id": "current"},
@@ -184,6 +188,10 @@ async def run_backtest(db: AsyncIOMotorDatabase) -> dict:
                 "overall": result["overall"],
                 "byParty": party_accuracy,
                 "byVoteType": decision_accuracy,
+            },
+            "backtestCounts": {
+                "byParty": party_count_map,
+                "byVoteType": decision_count_map,
             },
             "baselineAccuracy": result["overall"],
             "improvementOverBaseline": 0,

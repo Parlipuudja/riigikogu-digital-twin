@@ -14,6 +14,8 @@ async def list_mps(
     sort: str = "name",
     order: str = "asc",
     active: str | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=500),
 ):
     db = await get_db()
     query = {}
@@ -37,11 +39,12 @@ async def list_mps(
             "slug": 1, "name": 1, "firstName": 1, "lastName": 1,
             "party": 1, "partyCode": 1, "photoUrl": 1,
             "status": 1, "isCurrentMember": 1, "stats": 1,
+            "info": 1,
             "_id": 0,
         },
-    ).sort(sort_field, sort_dir)
+    ).sort(sort_field, sort_dir).skip(skip).limit(limit)
 
-    raw = await cursor.to_list(None)
+    raw = await cursor.to_list(limit)
     # Normalize for frontend: ensure firstName/lastName exist, stats as decimals
     results = []
     for mp in raw:
@@ -52,6 +55,9 @@ async def list_mps(
         if not mp.get("firstName"):
             mp["firstName"] = mp.get("slug", "").replace("-", " ").title().split(" ")[0]
             mp["lastName"] = " ".join(mp.get("slug", "").replace("-", " ").title().split(" ")[1:])
+
+        # Use info.votingStats if stats are missing, and info for committees
+        info = mp.pop("info", None) or {}
         stats = mp.get("stats")
         if stats:
             mp["stats"] = {
@@ -64,8 +70,24 @@ async def list_mps(
                 "partyAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
                 "recentAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
             }
+        elif info.get("votingStats"):
+            vs = info["votingStats"]
+            dist = vs.get("distribution", {})
+            total = vs.get("total", 0)
+            mp["stats"] = {
+                "totalVotes": total,
+                "forVotes": dist.get("FOR", 0),
+                "againstVotes": dist.get("AGAINST", 0),
+                "abstainVotes": dist.get("ABSTAIN", 0),
+                "absentVotes": dist.get("ABSENT", 0),
+                "attendanceRate": vs.get("attendancePercent", 0) / 100,
+                "partyAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
+                "recentAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
+            }
         mp["isActive"] = mp.get("isCurrentMember", False)
-        mp["committees"] = []
+        # Pull committees from info if available
+        committees = info.get("committees", [])
+        mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
         results.append(mp)
     return results
 
@@ -208,14 +230,42 @@ async def accuracy():
         }
 
     acc = model_state.get("accuracy", {})
+
+    # Normalize byParty and byVoteType to {accuracy, count} format
+    # Backend may store either plain numbers or {accuracy, count} objects
+    raw_party = acc.get("byParty", {})
+    by_party = {}
+    for k, v in raw_party.items():
+        if isinstance(v, dict):
+            by_party[k] = v
+        else:
+            by_party[k] = {"accuracy": round((v / 100) if v > 1 else v, 4), "count": 0}
+
+    raw_vote = acc.get("byVoteType", {})
+    by_vote_type = {}
+    for k, v in raw_vote.items():
+        if isinstance(v, dict):
+            by_vote_type[k] = v
+        else:
+            by_vote_type[k] = {"accuracy": round((v / 100) if v > 1 else v, 4), "count": 0}
+
+    # Fill in counts from backtest_counts if available
+    bt_counts = model_state.get("backtestCounts", {})
+    for k in by_party:
+        if k in bt_counts.get("byParty", {}):
+            by_party[k]["count"] = bt_counts["byParty"][k]
+    for k in by_vote_type:
+        if k in bt_counts.get("byVoteType", {}):
+            by_vote_type[k]["count"] = bt_counts["byVoteType"][k]
+
     return {
         "overall": acc.get("overall"),
         "baseline": model_state.get("baselineAccuracy"),
         "improvement": model_state.get("improvementOverBaseline"),
         "honestPeriod": f"post-{settings.model_cutoff_date}",
         "sampleSize": model_state.get("trainingSize", 0),
-        "byParty": acc.get("byParty", {}),
-        "byVoteType": acc.get("byVoteType", {}),
+        "byParty": by_party,
+        "byVoteType": by_vote_type,
         "trend": model_state.get("trend", []),
     }
 

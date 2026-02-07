@@ -31,7 +31,9 @@ def calibrate_model(model, X_val, y_val, method: str = "sigmoid"):
         return model
 
     try:
-        calibrated = CalibratedClassifierCV(model, method=method, cv="prefit")
+        from sklearn.frozen import FrozenEstimator
+        frozen = FrozenEstimator(model)
+        calibrated = CalibratedClassifierCV(frozen, method=method, cv=2)
         calibrated.fit(X_val, y_val)
         logger.info(f"Model calibrated with {method} method on {len(X_val)} samples")
         return calibrated
