@@ -1,12 +1,12 @@
 """Parliament simulation — predict all MPs on a bill."""
 
-import asyncio
+import hashlib
 import logging
 import uuid as uuid_lib
 from collections import Counter
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from app.db import get_db
 from app.models import BillInput
@@ -83,6 +83,33 @@ async def _run_simulation(sim_id: str, bill: BillInput):
     }
     _simulations[sim_id]["predictions"] = results
 
+    # Log all predictions to prediction_log for the learning loop
+    bill_text = "|".join(filter(None, [bill.title, bill.description, bill.fullText]))
+    bill_hash = hashlib.sha256(bill_text.encode()).hexdigest()[:16]
+    now = datetime.now(timezone.utc)
+    log_entries = []
+    for r in results:
+        log_entries.append({
+            "mpSlug": r["slug"],
+            "mpUuid": None,
+            "votingUuid": None,
+            "draftUuid": bill.draftUuid,
+            "billTitle": bill.title,
+            "billHash": bill_hash,
+            "predicted": r["prediction"],
+            "confidence": r["confidence"],
+            "featuresUsed": [],
+            "modelVersion": "baseline-v1",
+            "predictedAt": now,
+            "actual": None,
+            "correct": None,
+            "resolvedAt": None,
+            "source": "simulation",
+            "simulationId": sim_id,
+        })
+    if log_entries:
+        await db.prediction_log.insert_many(log_entries)
+
 
 @router.post("/simulate")
 async def start_simulation(bill: BillInput, background_tasks: BackgroundTasks):
@@ -101,5 +128,5 @@ async def start_simulation(bill: BillInput, background_tasks: BackgroundTasks):
 async def simulation_status(sim_id: str):
     sim = _simulations.get(sim_id)
     if not sim:
-        return {"error": "Simulation not found"}
+        raise HTTPException(status_code=404, detail="Simulation not found")
     return sim

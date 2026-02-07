@@ -86,6 +86,14 @@ async def _plan_improvements():
     await plan_improvements(db)
 
 
+async def _detect_anomalies():
+    from app.db import get_db
+    from app.tasks.detect import detect_anomalies
+
+    db = await get_db()
+    await detect_anomalies(db)
+
+
 async def _operator_check():
     if not settings.operator_enabled:
         return
@@ -174,8 +182,12 @@ def start_scheduler():
     scheduler.add_job(_diagnose_errors, CronTrigger(day_of_week="sun", hour=6),
                       id="diagnose_errors", replace_existing=True)
 
+    # Detection loop (Chapter 3)
+    scheduler.add_job(_detect_anomalies, CronTrigger(day_of_week="sun", hour=7),
+                      id="detect_anomalies", replace_existing=True)
+
     # Planning loop
-    scheduler.add_job(_plan_improvements, CronTrigger(day_of_week="sun", hour=7),
+    scheduler.add_job(_plan_improvements, CronTrigger(day_of_week="sun", hour=8),
                       id="plan_improvements", replace_existing=True)
 
     # Pruning loop
@@ -185,7 +197,7 @@ def start_scheduler():
                       id="prune_cache", replace_existing=True)
 
     # Operator loop
-    scheduler.add_job(_operator_check, CronTrigger(day_of_week="sun", hour=8),
+    scheduler.add_job(_operator_check, CronTrigger(day_of_week="sun", hour=9),
                       id="operator_check", replace_existing=True)
 
     # Initial model training on startup

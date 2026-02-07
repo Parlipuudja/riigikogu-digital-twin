@@ -48,6 +48,10 @@ export function SimulationForm() {
           }
           attempts++;
         }
+        // Polling timed out
+        setError(t("timeout"));
+        setLoading(false);
+        return;
       }
       setResult(data);
     } catch (e) {

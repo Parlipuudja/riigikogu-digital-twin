@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ const DECISION_COLORS: Record<string, string> = {
 
 export function PredictForm({ slug }: PredictFormProps) {
   const t = useTranslations("mps");
+  const locale = useLocale();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,12 +59,12 @@ export function PredictForm({ slug }: PredictFormProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <Input
-          placeholder="Bill title"
+          placeholder={t("billTitle")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <Textarea
-          placeholder="Bill description (optional)"
+          placeholder={t("billDescription")}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
@@ -91,9 +92,11 @@ export function PredictForm({ slug }: PredictFormProps) {
                 {(result.confidence * 100).toFixed(1)}%
               </span>
             </div>
-            {result.explanation && (
+            {(result.explanation || result.explanationEn) && (
               <p className="text-sm text-muted-foreground">
-                {result.explanation}
+                {locale === "en" && result.explanationEn
+                  ? result.explanationEn
+                  : result.explanation || result.explanationEn}
               </p>
             )}
             {result.features && result.features.length > 0 && (

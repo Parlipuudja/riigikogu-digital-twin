@@ -85,7 +85,7 @@ export default async function MPDetailPage({
         {mp.stats && (
           <Card>
             <CardHeader>
-              <CardTitle>Statistics</CardTitle>
+              <CardTitle>{t("statistics")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
@@ -113,7 +113,7 @@ export default async function MPDetailPage({
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    Recent loyalty
+                    {t("recentLoyalty")}
                   </p>
                   <p className="text-2xl font-bold">
                     {(mp.stats.recentAlignmentRate * 100).toFixed(1)}%
@@ -128,25 +128,25 @@ export default async function MPDetailPage({
                   <div className="font-bold text-green-500">
                     {mp.stats.forVotes}
                   </div>
-                  <div className="text-xs text-muted-foreground">For</div>
+                  <div className="text-xs text-muted-foreground">{t("for")}</div>
                 </div>
                 <div>
                   <div className="font-bold text-red-500">
                     {mp.stats.againstVotes}
                   </div>
-                  <div className="text-xs text-muted-foreground">Against</div>
+                  <div className="text-xs text-muted-foreground">{t("against")}</div>
                 </div>
                 <div>
                   <div className="font-bold text-amber-500">
                     {mp.stats.abstainVotes}
                   </div>
-                  <div className="text-xs text-muted-foreground">Abstain</div>
+                  <div className="text-xs text-muted-foreground">{t("abstain")}</div>
                 </div>
                 <div>
                   <div className="font-bold text-slate-400">
                     {mp.stats.absentVotes}
                   </div>
-                  <div className="text-xs text-muted-foreground">Absent</div>
+                  <div className="text-xs text-muted-foreground">{t("absent")}</div>
                 </div>
               </div>
             </CardContent>
@@ -190,7 +190,7 @@ export default async function MPDetailPage({
         {mp.behavioralPatterns && mp.behavioralPatterns.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Behavioral patterns</CardTitle>
+              <CardTitle>{t("behavioralPatterns")}</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="list-disc space-y-1 pl-5 text-sm">

@@ -37,7 +37,16 @@
     "keyIssues": "Key issues",
     "votingHistory": "Voting history",
     "predict": "Predict vote",
-    "committees": "Committees"
+    "committees": "Committees",
+    "statistics": "Statistics",
+    "recentLoyalty": "Recent loyalty",
+    "behavioralPatterns": "Behavioral patterns",
+    "for": "For",
+    "against": "Against",
+    "abstain": "Abstain",
+    "absent": "Absent",
+    "billTitle": "Bill title",
+    "billDescription": "Bill description (optional)"
   },
   "simulate": {
     "title": "Parliament simulation",
@@ -53,13 +62,16 @@
     "against": "Against",
     "abstain": "Abstain",
     "absent": "Absent",
-    "outcome": "Predicted outcome"
+    "outcome": "Predicted outcome",
+    "timeout": "Simulation timed out. Please try again."
   },
   "drafts": {
     "title": "Legislative drafts",
     "status": "Status",
     "initiators": "Initiators",
-    "type": "Type"
+    "type": "Type",
+    "number": "Number",
+    "noDrafts": "No drafts found"
   },
   "accuracy": {
     "title": "Prediction accuracy",
@@ -73,7 +85,8 @@
     "trend": "Accuracy trend",
     "party": "Party",
     "count": "Votes",
-    "honest": "Honest period"
+    "honest": "Honest period",
+    "noData": "Accuracy data not available. Run a backtest first."
   },
   "about": {
     "title": "About Riigikogu Radar",

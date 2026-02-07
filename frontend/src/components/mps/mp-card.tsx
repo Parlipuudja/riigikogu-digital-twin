@@ -48,10 +48,12 @@ export function MPCard({ mp, locale }: MPCardProps) {
             {mp.stats && (
               <div className="mt-2 grid grid-cols-2 gap-x-4 text-xs text-muted-foreground">
                 <span>
-                  {(mp.stats.attendanceRate * 100).toFixed(0)}% attendance
+                  {(mp.stats.attendanceRate * 100).toFixed(0)}%{" "}
+                  {locale === "et" ? "osavõtt" : "attendance"}
                 </span>
                 <span>
-                  {(mp.stats.partyAlignmentRate * 100).toFixed(0)}% loyalty
+                  {(mp.stats.partyAlignmentRate * 100).toFixed(0)}%{" "}
+                  {locale === "et" ? "lojaalsus" : "loyalty"}
                 </span>
               </div>
             )}

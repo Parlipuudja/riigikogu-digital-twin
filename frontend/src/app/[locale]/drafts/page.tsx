@@ -51,7 +51,7 @@ export default async function DraftsPage() {
       </div>
 
       {drafts.length === 0 && (
-        <p className="mt-8 text-center text-muted-foreground">No drafts found</p>
+        <p className="mt-8 text-center text-muted-foreground">{t("noDrafts")}</p>
       )}
     </div>
   );

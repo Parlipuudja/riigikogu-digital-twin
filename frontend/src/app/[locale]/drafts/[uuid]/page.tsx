@@ -7,12 +7,11 @@ const SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://localhost:8000";
 
 async function getDraft(uuid: string) {
-  const res = await fetch(`${SERVICE_URL}/drafts?limit=500`, {
+  const res = await fetch(`${SERVICE_URL}/drafts/${uuid}`, {
     next: { revalidate: 300 },
   });
   if (!res.ok) return null;
-  const drafts = await res.json();
-  return drafts.find((d: { uuid: string }) => d.uuid === uuid) || null;
+  return res.json();
 }
 
 export default async function DraftDetailPage({
@@ -39,7 +38,7 @@ export default async function DraftDetailPage({
           {draft.number && (
             <div>
               <span className="text-sm font-medium text-muted-foreground">
-                Number:{" "}
+                {t("number")}:{" "}
               </span>
               <span className="font-mono">#{draft.number}</span>
             </div>

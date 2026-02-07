@@ -1,6 +1,6 @@
 """Data endpoints — making the parliament legible."""
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from app.config import settings
 from app.db import get_db
@@ -45,51 +45,52 @@ async def list_mps(
     ).sort(sort_field, sort_dir).skip(skip).limit(limit)
 
     raw = await cursor.to_list(limit)
-    # Normalize for frontend: ensure firstName/lastName exist, stats as decimals
-    results = []
-    for mp in raw:
-        if not mp.get("firstName") and mp.get("name"):
-            parts = mp["name"].split(" ", 1)
-            mp["firstName"] = parts[0]
-            mp["lastName"] = parts[1] if len(parts) > 1 else ""
-        if not mp.get("firstName"):
-            mp["firstName"] = mp.get("slug", "").replace("-", " ").title().split(" ")[0]
-            mp["lastName"] = " ".join(mp.get("slug", "").replace("-", " ").title().split(" ")[1:])
+    return [_normalize_mp(mp) for mp in raw]
 
-        # Use info.votingStats if stats are missing, and info for committees
-        info = mp.pop("info", None) or {}
-        stats = mp.get("stats")
-        if stats:
-            mp["stats"] = {
-                "totalVotes": stats.get("totalVotes", 0),
-                "forVotes": stats.get("votesFor", 0),
-                "againstVotes": stats.get("votesAgainst", 0),
-                "abstainVotes": stats.get("votesAbstain", 0),
-                "absentVotes": stats.get("totalVotes", 0) - stats.get("votesFor", 0) - stats.get("votesAgainst", 0) - stats.get("votesAbstain", 0),
-                "attendanceRate": stats.get("attendance", 0) / 100,
-                "partyAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
-                "recentAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
-            }
-        elif info.get("votingStats"):
-            vs = info["votingStats"]
-            dist = vs.get("distribution", {})
-            total = vs.get("total", 0)
-            mp["stats"] = {
-                "totalVotes": total,
-                "forVotes": dist.get("FOR", 0),
-                "againstVotes": dist.get("AGAINST", 0),
-                "abstainVotes": dist.get("ABSTAIN", 0),
-                "absentVotes": dist.get("ABSENT", 0),
-                "attendanceRate": vs.get("attendancePercent", 0) / 100,
-                "partyAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
-                "recentAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
-            }
-        mp["isActive"] = mp.get("isCurrentMember", False)
-        # Pull committees from info if available
-        committees = info.get("committees", [])
-        mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
-        results.append(mp)
-    return results
+
+def _normalize_mp(mp: dict) -> dict:
+    """Normalize raw MP document for the frontend."""
+    if not mp.get("firstName") and mp.get("name"):
+        parts = mp["name"].split(" ", 1)
+        mp["firstName"] = parts[0]
+        mp["lastName"] = parts[1] if len(parts) > 1 else ""
+    if not mp.get("firstName"):
+        mp["firstName"] = mp.get("slug", "").replace("-", " ").title().split(" ")[0]
+        mp["lastName"] = " ".join(mp.get("slug", "").replace("-", " ").title().split(" ")[1:])
+
+    # Use info.votingStats if stats are missing, and info for committees
+    info = mp.pop("info", None) or {}
+    stats = mp.get("stats")
+    if stats:
+        mp["stats"] = {
+            "totalVotes": stats.get("totalVotes", 0),
+            "forVotes": stats.get("votesFor", 0),
+            "againstVotes": stats.get("votesAgainst", 0),
+            "abstainVotes": stats.get("votesAbstain", 0),
+            "absentVotes": stats.get("totalVotes", 0) - stats.get("votesFor", 0) - stats.get("votesAgainst", 0) - stats.get("votesAbstain", 0),
+            "attendanceRate": stats.get("attendance", 0) / 100,
+            "partyAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
+            "recentAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
+        }
+    elif info.get("votingStats"):
+        vs = info["votingStats"]
+        dist = vs.get("distribution", {})
+        total = vs.get("total", 0)
+        mp["stats"] = {
+            "totalVotes": total,
+            "forVotes": dist.get("FOR", 0),
+            "againstVotes": dist.get("AGAINST", 0),
+            "abstainVotes": dist.get("ABSTAIN", 0),
+            "absentVotes": dist.get("ABSENT", 0),
+            "attendanceRate": vs.get("attendancePercent", 0) / 100,
+            "partyAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
+            "recentAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
+        }
+    mp["isActive"] = mp.get("isCurrentMember", False)
+    # Pull committees from info if available
+    committees = info.get("committees", [])
+    mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
+    return mp
 
 
 @router.get("/mps/{slug}")
@@ -97,8 +98,8 @@ async def get_mp(slug: str):
     db = await get_db()
     mp = await db.mps.find_one({"slug": slug}, {"_id": 0})
     if mp is None:
-        return {"error": "MP not found"}, 404
-    return mp
+        raise HTTPException(status_code=404, detail="MP not found")
+    return _normalize_mp(mp)
 
 
 @router.get("/votings")
@@ -170,6 +171,24 @@ async def list_drafts(
             "billType": d.get("type", {}).get("value", "") if isinstance(d.get("type"), dict) else "",
         })
     return results
+
+
+@router.get("/drafts/{uuid}")
+async def get_draft(uuid: str):
+    db = await get_db()
+    draft = await db.drafts.find_one({"uuid": uuid}, {"_id": 0})
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    status = draft.get("status")
+    return {
+        "uuid": draft.get("uuid"),
+        "title": draft.get("title"),
+        "titleEn": draft.get("titleEn"),
+        "number": draft.get("number", draft.get("mark", "")),
+        "status": status.get("value", "") if isinstance(status, dict) else str(status or ""),
+        "initiators": draft.get("initiators", []),
+        "billType": draft.get("type", {}).get("value", "") if isinstance(draft.get("type"), dict) else "",
+    }
 
 
 @router.get("/stats")
@@ -258,10 +277,16 @@ async def accuracy():
         if k in bt_counts.get("byVoteType", {}):
             by_vote_type[k]["count"] = bt_counts["byVoteType"][k]
 
+    # Normalize to decimals (0-1) for frontend consistency
+    # These values are stored as percentages (e.g. 98.1) — always divide by 100
+    overall = acc.get("overall")
+    baseline = model_state.get("baselineAccuracy")
+    improvement = model_state.get("improvementOverBaseline")
+
     return {
-        "overall": acc.get("overall"),
-        "baseline": model_state.get("baselineAccuracy"),
-        "improvement": model_state.get("improvementOverBaseline"),
+        "overall": round(overall / 100, 4) if overall is not None else None,
+        "baseline": round(baseline / 100, 4) if baseline is not None else None,
+        "improvement": round(improvement / 100, 4) if improvement is not None else None,
         "honestPeriod": f"post-{settings.model_cutoff_date}",
         "sampleSize": model_state.get("trainingSize", 0),
         "byParty": by_party,

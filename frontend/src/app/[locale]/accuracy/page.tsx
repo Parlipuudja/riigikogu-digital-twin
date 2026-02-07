@@ -80,7 +80,7 @@ export default async function AccuracyPage() {
         </>
       ) : (
         <p className="text-center text-muted-foreground">
-          Accuracy data not available. Run a backtest first.
+          {t("noData")}
         </p>
       )}
     </div>

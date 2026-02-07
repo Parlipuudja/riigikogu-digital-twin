@@ -72,4 +72,24 @@ async def trigger_plan():
     return result
 
 
+@router.post("/detect")
+async def trigger_detect():
+    from app.tasks.detect import detect_anomalies
+    db = await get_db()
+    result = await detect_anomalies(db)
+    return result
+
+
+@router.get("/detections")
+async def get_detections():
+    db = await get_db()
+    model_state = await db.model_state.find_one({"_id": "current"})
+    if not model_state:
+        return {"detections": [], "lastDetectionAt": None}
+    return {
+        "detections": model_state.get("detections", []),
+        "lastDetectionAt": model_state.get("lastDetectionAt"),
+    }
+
+
 # Note: /accuracy is served from data.py router (included first in main.py)

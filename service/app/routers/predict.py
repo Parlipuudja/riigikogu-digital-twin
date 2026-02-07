@@ -4,7 +4,7 @@ import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.db import get_db
 from app.models import BillInput
@@ -57,7 +57,7 @@ async def predict_mp(slug: str, bill: BillInput):
     db = await get_db()
     mp = await db.mps.find_one({"slug": slug})
     if mp is None:
-        return {"error": "MP not found"}
+        raise HTTPException(status_code=404, detail="MP not found")
 
     bill_hash = _bill_hash(bill)
 
