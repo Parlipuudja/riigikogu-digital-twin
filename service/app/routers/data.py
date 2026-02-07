@@ -126,3 +126,53 @@ async def stats():
         "lastVotingDate": last_voting_date,
         "partyCounts": party_counts,
     }
+
+
+@router.get("/accuracy")
+async def accuracy():
+    """Public accuracy dashboard data."""
+    db = await get_db()
+    model_state = await db.model_state.find_one({"_id": "current"})
+
+    if not model_state:
+        return {
+            "overall": None,
+            "baseline": None,
+            "improvement": None,
+            "honestPeriod": None,
+            "sampleSize": 0,
+        }
+
+    acc = model_state.get("accuracy", {})
+    return {
+        "overall": acc.get("overall"),
+        "baseline": model_state.get("baselineAccuracy"),
+        "improvement": model_state.get("improvementOverBaseline"),
+        "honestPeriod": f"post-{model_state.get('features', ['?'])[0] if not isinstance(model_state.get('trainedAt'), str) else ''}cutoff",
+        "sampleSize": model_state.get("trainingSize", 0),
+        "byParty": acc.get("byParty", {}),
+        "byVoteType": acc.get("byVoteType", {}),
+        "trend": model_state.get("trend", []),
+    }
+
+
+@router.get("/model/status")
+async def model_status():
+    """Model info — version, features, weaknesses."""
+    db = await get_db()
+    model_state = await db.model_state.find_one({"_id": "current"})
+
+    if not model_state:
+        return {"version": "untrained", "trainedAt": None, "features": [], "weaknesses": {}}
+
+    return {
+        "version": model_state.get("version"),
+        "trainedAt": model_state.get("trainedAt"),
+        "features": model_state.get("features", []),
+        "featureImportances": model_state.get("featureImportances", []),
+        "accuracy": model_state.get("accuracy", {}),
+        "errorCategories": model_state.get("errorCategories", {}),
+        "improvementPriorities": model_state.get("improvementPriorities", []),
+        "weakestMPs": model_state.get("weakestMPs", []),
+        "weakestTopics": model_state.get("weakestTopics", []),
+    }

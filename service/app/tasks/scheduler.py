@@ -104,6 +104,47 @@ async def _health_check():
         logger.error("Health check FAILED: database unreachable")
 
 
+async def _regenerate_stale_profiles():
+    """Regenerate MP profiles where accuracy has dropped below threshold."""
+    from app.db import get_db
+
+    db = await get_db()
+    model_state = await db.model_state.find_one({"_id": "current"})
+    if not model_state:
+        return
+
+    baseline = model_state.get("baselineAccuracy", 85)
+    threshold = baseline - 5
+
+    # Find MPs with low accuracy in backtest
+    stale = await db.mps.find(
+        {"backtest.accuracy": {"$lt": threshold, "$exists": True}},
+        {"slug": 1, "backtest.accuracy": 1},
+    ).to_list(None)
+
+    if stale:
+        slugs = [m["slug"] for m in stale]
+        logger.info(f"Found {len(stale)} stale MP profiles: {slugs[:5]}")
+        # Mark them for regeneration
+        await db.mps.update_many(
+            {"slug": {"$in": slugs}},
+            {"$set": {"instruction.stale": True}},
+        )
+
+
+async def _prune_cache():
+    """Explicit cache pruning (supplements TTL index)."""
+    from datetime import datetime, timezone
+    from app.db import get_db
+
+    db = await get_db()
+    result = await db.prediction_cache.delete_many(
+        {"expiresAt": {"$lt": datetime.now(timezone.utc)}}
+    )
+    if result.deleted_count > 0:
+        logger.info(f"Pruned {result.deleted_count} expired cache entries")
+
+
 async def _startup_train():
     """Train model on startup if not yet trained."""
     await asyncio.sleep(10)  # Let the app fully start
@@ -136,6 +177,12 @@ def start_scheduler():
     # Planning loop
     scheduler.add_job(_plan_improvements, CronTrigger(day_of_week="sun", hour=7),
                       id="plan_improvements", replace_existing=True)
+
+    # Pruning loop
+    scheduler.add_job(_regenerate_stale_profiles, CronTrigger(day_of_week="sun", hour=4),
+                      id="regenerate_stale_profiles", replace_existing=True)
+    scheduler.add_job(_prune_cache, CronTrigger(hour=2),
+                      id="prune_cache", replace_existing=True)
 
     # Operator loop
     scheduler.add_job(_operator_check, CronTrigger(day_of_week="sun", hour=8),
