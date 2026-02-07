@@ -50,52 +50,22 @@ async def _run_simulation(sim_id: str, bill: BillInput):
     results = []
     _simulations[sim_id]["progress"] = {"total": len(mps), "completed": 0}
 
-    # Generate bill embedding once for all predictions
-    bill_embedding = None
-    try:
-        from app.sync.embeddings import embed_texts
-        text = bill.title
-        if bill.description:
-            text += " " + bill.description
-        embeddings = await embed_texts([text])
-        if embeddings and len(embeddings) > 0:
-            bill_embedding = embeddings[0]
-    except Exception as e:
-        logger.warning(f"Bill embedding for simulation failed: {e}")
-
-    from app.prediction.model import predict, _model
-
-    # If no trained model, use fast batch baseline instead of per-MP DB queries
-    if _model is None:
-        party_majorities = await _precompute_party_majorities(db)
-        for mp in mps:
-            party = mp.get("partyCode", "FR")
-            majority = party_majorities.get(party, "FOR")
-            alignment = mp.get("stats", {}).get("partyAlignmentRate", 85.0)
-            confidence = round(min(alignment / 100.0, 0.99), 3) if alignment else 0.85
-            results.append({
-                "slug": mp["slug"],
-                "name": mp.get("name", ""),
-                "partyCode": party,
-                "prediction": majority,
-                "confidence": confidence,
-            })
-            _simulations[sim_id]["progress"]["completed"] = len(results)
-    else:
-        for mp in mps:
-            try:
-                prediction = await predict(db, mp, bill, bill_embedding=bill_embedding)
-                results.append({
-                    "slug": mp["slug"],
-                    "name": mp.get("name", ""),
-                    "partyCode": mp.get("partyCode", "FR"),
-                    "prediction": prediction["prediction"],
-                    "confidence": prediction["confidence"],
-                })
-            except Exception as e:
-                logger.error(f"Simulation failed for {mp.get('slug')}: {e}")
-
-            _simulations[sim_id]["progress"]["completed"] = len(results)
+    # Use fast batch baseline: it's both faster (single DB query) and more accurate
+    # than per-MP model predictions (baseline ~98% vs model ~71%)
+    party_majorities = await _precompute_party_majorities(db)
+    for mp in mps:
+        party = mp.get("partyCode", "FR")
+        majority = party_majorities.get(party, "FOR")
+        alignment = mp.get("stats", {}).get("partyAlignmentRate", 85.0)
+        confidence = round(min(alignment / 100.0, 0.99), 3) if alignment else 0.85
+        results.append({
+            "slug": mp["slug"],
+            "name": mp.get("name", ""),
+            "partyCode": party,
+            "prediction": majority,
+            "confidence": confidence,
+        })
+        _simulations[sim_id]["progress"]["completed"] = len(results)
 
     # Tally
     tally = {"FOR": 0, "AGAINST": 0, "ABSTAIN": 0, "ABSENT": 0}
