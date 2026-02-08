@@ -6,15 +6,27 @@
 
 ## Purpose
 
-A tool, autonomously capable of collecting intelligence, providing useful analysis, and making actionable predictions about the Estonian Parliament, for the Estonian society and people.
+The best available political intelligence on the Estonian Parliament. RAND for Estonian politics. Arenguseire Keskus, but pointed at the Riigikogu from the outside.
 
-Not data. Not statistics. Intelligence.
+Not data. Not statistics. **Sight** — seeing Estonian politics more clearly, further ahead, and with more granularity than anyone else looking.
 
 Data is "MP X voted FOR on bill Y 347 times." Statistics is "MP X votes with their party 97% of the time." Intelligence is "MP X will likely break from their party on cannabis legalization because their social conservatism contradicts their party's coalition pragmatism — and here is the evidence, the reasoning, and the confidence level."
 
-The difference between data and intelligence is understanding. A spreadsheet has data. An analyst has intelligence. This system is the analyst — autonomous, tireless, accountable, working for the citizens who don't have the time to read four thousand voting records in Estonian and extract meaning from them.
+The difference between data and intelligence is understanding. A spreadsheet has data. An analyst has intelligence. This system is the analyst — autonomous, tireless, accountable.
 
-No citizen can do this alone. The analytical capacity needed to synthesize thousands of votes, speeches, and bills into political understanding exceeds what any individual can sustain. This is precisely the gap that AI closes — not by replacing human judgment, but by making the raw material of democratic life tractable. When AI is directed at empowering citizens rather than concentrating power, it becomes infrastructure for democracy itself. That is what this system is.
+### The foundation of trust
+
+Vote prediction is not the product. It is the proof. Predicting how 101 MPs will vote on a bill — and being right, verifiably, publicly — proves that the system's analytical engine works. Accuracy on verifiable predictions is the foundation of credibility for everything the system says about things that cannot be easily verified: coalition dynamics, party realignments, political trajectories, strategic analysis.
+
+Accurate where verifiable → credible where not. This is how RAND earned trust. This is how this system earns it.
+
+The distinction matters: vote prediction accuracy is *evidence* of analytical quality, not *proof* of it. Votes are structured, binary, data-rich. Political intelligence is ambiguous, multi-actor, and information-poor. The system must be honest about where its accuracy is proven and where it is extrapolated.
+
+### Design for one, then open
+
+Build the system for one demanding user with maximum political sight as the goal. One user creates a tight, honest feedback loop: does this intelligence help me understand and act on Estonian politics better than I could without it? If yes, it works. If no, it doesn't. No abstractions, no self-deception about an audience that may not exist yet.
+
+The democratic purpose — intelligence for citizens, accountability through legibility — remains the destination. But a system that cannot serve one demanding user cannot serve a million casual ones. Prove the intelligence works first. Distribution follows.
 
 ---
 
@@ -26,9 +38,9 @@ No citizen can do this alone. The analytical capacity needed to synthesize thous
 
 **Predictable.** Once behavior is legible, it can be modeled. But prediction requires more than pattern-matching — it requires understanding. Patterns tell you what usually happens. Understanding tells you what will happen *this time*, on *this bill*, given *these political tensions*. The proof that behavior can be anticipated — not just statistically, but substantively — is a democratic statement. It says: your representative is not mysterious. They are comprehensible.
 
-**Accountable.** Once behavior is both legible and predictable, the relationship between citizen and representative changes. The complexity that once shielded politicians from scrutiny is dissolved. What remains is the gap between prediction and reality — the moments of genuine political agency, the votes that surprise the model. That gap is where accountability lives, and now it is visible.
+**Accountable.** Once behavior is both legible and predictable, the conditions for accountability exist. The complexity that once shielded politicians from scrutiny is dissolved. What remains is the gap between prediction and reality — the moments of genuine political agency, the votes that surprise the model. That gap is where accountability lives, and now it is visible. The system creates these conditions. Whether society acts on them is beyond its control — but without them, accountability is impossible.
 
-This is *Seeing Like a State* inverted — citizens seeing power with the same clarity that power sees citizens.
+This is *Seeing Like a State* inverted — citizens seeing power with the same clarity that power sees citizens. The tension is real: legibility simplifies, and simplification distorts. The system must be honest about what it reduces.
 
 ---
 
@@ -39,19 +51,6 @@ This is *Seeing Like a State* inverted — citizens seeing power with the same c
 Statistics alone is a ledger. It can count votes, compute correlations, measure loyalty rates. It cannot understand why an MP will break from their party on a bill they've never seen before. For that, you need substance — understanding what bills mean, what political tensions they activate, what contradictions they force into the open.
 
 The system uses both. Statistics provides the foundation: patterns, baselines, calibrated probabilities. Substance provides the intelligence: context, contradiction, reasoning. Neither is sufficient alone. A system that only counts is blind to meaning. A system that only reasons is unmoored from evidence. Together, they see.
-
-### Understand through contradiction
-*Dialectic — Hegel, 1807*
-
-Every political position contains the seed of its negation. A pro-business party that enters coalition with social democrats inherits contradictions it must resolve on every vote. A socially conservative MP in a liberal faction carries a tension that statistics cannot see but substance reveals.
-
-The dialectic reasons through opposition. For any bill:
-
-- **Thesis**: the political forces pushing FOR
-- **Antithesis**: the political forces pushing AGAINST
-- **Synthesis**: how each MP resolves the tension given their position, beliefs, party discipline, and political incentives
-
-A system that predicts votes without understanding the contradiction those votes resolve is not predicting — it is guessing with confidence intervals. Statistics finds the pattern. The dialectic explains why the pattern breaks. A system that only counts votes is a ledger. A system that understands the forces behind votes is intelligence.
 
 ### Optimize for surprise
 *Information Theory — Shannon, 1948*
@@ -65,35 +64,15 @@ An output that tells the user something they already knew has failed, even if it
 
 A prediction that cannot be wrong is worthless. Publish every prediction. Timestamp it. Wait for reality. Compare. Report the results — honestly, always, no exceptions. The previous incarnation showed 91.7% accuracy; honest measurement revealed 73.3%. That was the most important discovery in the project's history.
 
-### The system produces itself
-*Autopoiesis — Maturana & Varela, 1972*
-
-A living system continuously produces the components that constitute it. This system generates its own features, trains its own models, evaluates its own accuracy, identifies its own weaknesses, and rewrites its own code to address them. It is not maintained by an operator — it *is* the operator. The inner loops adjust parameters. The outer loop modifies source code. The human sets direction; the system walks it.
-
-### Gain from disorder
-*Antifragility — Taleb, 2012*
-
-The system does not merely survive failure — it metabolizes failure into strength. Every wrong prediction is a labeled training example. Every crash reveals a missing resilience pattern. Every philosophical blind spot, once discovered, becomes a principle that prevents its recurrence. Stress is not damage. Stress is nutrition.
-
-### Sense, compare, act
-*Cybernetics — Wiener, 1948*
-
-The feedback loop is the atom of intelligence. Sense the world (collect data). Form expectations (predict). Compare against reality (backtest). Act on the difference (retrain, adjust, rethink). A system without this loop is a clock. A system with it learns.
-
-### Match the variety of what you model
-*Ashby's Law of Requisite Variety, 1956*
-
-A model must be complex enough to capture the phenomenon — and no more. One that knows only party affiliation cannot predict cross-party votes. One that knows a thousand features overfits noise. The art is matching the model's variety to the world's variety.
-
 ### Start with nothing. Complexify only when forced.
 *Occam's Razor*
 
 A party-line heuristic at 85% is better than an LLM prompt at 73%. Add machinery only when simplicity fails measurably. Measure, then optimize what you measured — never what you imagine.
 
-### Do one thing well
+### Small, sharp tools that compose
 *Unix — McIlroy, 1978*
 
-The sync process syncs. The model predicts. The explainer explains. They compose through clean interfaces. A program that does one thing well is a program you can trust.
+Write simple parts connected by clean interfaces. The sync process syncs. The model predicts. The explainer explains. Each is small enough to understand, test, and replace independently. A monolith that does everything is a monolith you cannot fix. Small modules connected by clean data flows are a system you can trust, debug, and rebuild piece by piece.
 
 ### Explanation is not optional
 
@@ -163,9 +142,11 @@ Before presenting results to users, the system checks: would a knowledgeable per
 
 ### Wrong direction recovery
 
-When the system discovers it has taken a wrong approach — through failed scenarios, absurd outputs, declining accuracy, or user feedback — it does not patch. It does not add a special case. It rethinks from principles.
+When the system discovers that its *approach* contradicts its *principles* — through failed scenarios, absurd outputs, or declining accuracy on the questions that matter — it does not patch. It redesigns from principles.
 
 The simulation failure was not a missing feature. It was an architectural choice that contradicted the soul. The fix is not "add bill analysis to the simulation." The fix is "redesign the simulation so it reasons about bills the way the soul says it should." Patches accumulate into incoherence. Principled redesign maintains integrity.
+
+Not every failure is architectural. An off-by-one error is a bug, not a crisis of principles. This method applies when the system's *design* produces outputs that violate the soul — not when the implementation has a defect.
 
 ---
 
@@ -211,15 +192,17 @@ The **Riigikogu API** provides everything: voting records with individual decisi
 
 ## Architecture
 
-### Statistics decide. The dialectic reasons. Language models explain.
+### One pipeline. Evidence in, intelligence out.
 
-Three layers, each doing what it does well:
+Every bill — known or novel — goes through the same pipeline:
 
-**Floor.** Party-line prediction. ~85% accurate. Free. Every technique must beat this or it is waste.
+1. **Embed** the bill. Vector search for historically similar legislation.
+2. **Analyze** the bill. The operator reasons dialectically: what political tensions does this bill activate? Which MPs are cross-pressured? What contradictions does it force into the open? This produces structured signals — not a prediction, but the political substance that statistics alone cannot see.
+3. **Compute features.** Statistical features from data (loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion) combined with the analysis signals. One feature set per (MP, bill) pair.
+4. **Predict.** One model produces one calibrated probability per MP. "90% confidence" means correct 90% of the time. Target: 88%+.
+5. **Explain.** An LLM narrates the prediction and the reasoning — in Estonian and English. The LLM never makes the prediction. It explains the prediction the model already made.
 
-**Model.** For each (MP, bill) pair, compute statistical features from data — loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion. Apply dialectical analysis — what tensions does this bill activate, where are the contradictions, who is cross-pressured? Calibrate probabilities so "90% confidence" means correct 90% of the time. Target: 88%+.
-
-**Explanation.** After the model and the dialectic produce a prediction, an LLM explains why — in natural language, in both Estonian and English. The LLM never makes the prediction. It narrates the prediction and the reasoning.
+**Baseline.** Party-line prediction gets ~85% for free. Every stage of this pipeline must justify its existence by beating what comes before it. Complexity that doesn't improve accuracy is waste.
 
 ---
 
@@ -312,21 +295,21 @@ These are not opinions. These are scars.
 
 **Chapter three: Detection.** Notice when patterns change. See realignments before press conferences. Flag shifts in voting behavior before they become news.
 
-**Chapter four: Generalization.** Any parliament with public voting records can be modeled with the same architecture. Estonia is the prototype.
-
-**Chapter five: The shift.** When voters can see, in advance, how their MP will vote on upcoming legislation — and can verify that prediction against reality — accountability becomes prospective, not retrospective. The democratic relationship changes. Power becomes legible, predictable, and therefore honest about what it represents.
+**Chapter four: The shift.** When voters can see, in advance, how their MP will vote on upcoming legislation — and can verify that prediction against reality — accountability becomes prospective, not retrospective. The democratic relationship changes. Power becomes legible, predictable, and therefore honest about what it represents.
 
 ---
 
 ## Sources of Perspective
 
-The minds that shaped this system's thinking:
+The minds and institutions that shaped this system's thinking:
 
-1. **Dario Amodei** — AI as democratic empowerment. Alignment: an autonomous system must serve the people it affects, not optimize for its own metrics. Interpretability: predictions without explanations are a new form of illegibility.
-2. **Steve Jobs** — Focus. Deciding what not to build is more important than deciding what to build. One prediction pipeline, not two. One clear answer, not a dashboard of metrics. The system does one thing — parliamentary intelligence — and does it so well that a citizen can ask any question and get a useful answer.
-3. **James C. Scott** — *Seeing Like a State*. Legibility as power. This project inverts the direction: citizens seeing power, not power seeing citizens.
-4. **Karl Popper** — Falsificationism. Every prediction must be a testable bet against reality. Honest measurement over flattering metrics.
-5. **Claude Shannon** — Information theory. Value is proportional to surprise. An output that tells you what you already know has failed.
+1. **RAND Corporation** — The model. Rigorous, independent analysis for decision-makers. Earned trust through accuracy on verifiable questions, then extended that trust to strategic analysis. Intelligence as sight, not control.
+2. **Arenguseire Keskus** (Foresight Centre at the Riigikogu) — The Estonian precedent. Long-term strategic foresight for Estonia's development, attached to parliament. This system is the same impulse — pointed at the Riigikogu from the outside, for those outside it.
+3. **Dario Amodei** — AI as democratic empowerment. Alignment: an autonomous system must serve the people it affects, not optimize for its own metrics. Interpretability: predictions without explanations are a new form of illegibility.
+4. **Steve Jobs** — Focus. Deciding what not to build is more important than deciding what to build. One pipeline, one user, one clear answer. The system does one thing — parliamentary intelligence — and does it well enough to be relied on.
+5. **James C. Scott** — *Seeing Like a State*. Legibility as power. This project inverts the direction: citizens seeing power, not power seeing citizens.
+6. **Karl Popper** — Falsificationism. Every prediction must be a testable bet against reality. Honest measurement over flattering metrics.
+7. **Claude Shannon** — Information theory. Value is proportional to surprise. An output that tells you what you already know has failed.
 
 ---
 
