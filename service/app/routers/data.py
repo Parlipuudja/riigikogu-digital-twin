@@ -39,7 +39,7 @@ async def list_mps(
             "slug": 1, "name": 1, "firstName": 1, "lastName": 1,
             "party": 1, "partyCode": 1, "photoUrl": 1,
             "status": 1, "isCurrentMember": 1, "stats": 1,
-            "info": 1,
+            "committees": 1, "info": 1,
             "_id": 0,
         },
     ).sort(sort_field, sort_dir).skip(skip).limit(limit)
@@ -87,8 +87,8 @@ def _normalize_mp(mp: dict) -> dict:
             "recentAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
         }
     mp["isActive"] = mp.get("isCurrentMember", False)
-    # Pull committees from info if available
-    committees = info.get("committees", [])
+    # Pull committees from MP document directly, fall back to info
+    committees = mp.get("committees") or info.get("committees", [])
     mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
 
     # Extract profile data from instruction for the frontend

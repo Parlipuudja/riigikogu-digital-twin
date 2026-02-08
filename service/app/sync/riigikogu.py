@@ -287,13 +287,22 @@ class RiigikoguSync:
         # Handle both old and new faction format
         faction_name = None
         if "factions" in raw and isinstance(raw["factions"], list):
-            # New format: factions array — find the active one
+            # New format: factions array with membership sub-objects
+            # Find active membership (no endDate) that isn't "mittekuuluvad" (non-affiliated)
+            non_affiliated = "mittekuuluvad"
+            fallback = None
             for f in raw["factions"]:
-                if f.get("active") or not f.get("endDate"):
-                    faction_name = f.get("name")
+                mem = f.get("membership", {})
+                if mem.get("endDate") is not None:
+                    continue  # Ended membership, skip
+                name = f.get("name", "")
+                if non_affiliated in name.lower():
+                    fallback = name  # Remember as fallback
+                else:
+                    faction_name = name
                     break
-            if faction_name is None and raw["factions"]:
-                faction_name = raw["factions"][0].get("name")
+            if faction_name is None:
+                faction_name = fallback
         elif "faction" in raw and raw["faction"]:
             # Old format
             faction = raw["faction"]
@@ -323,26 +332,36 @@ class RiigikoguSync:
         }
 
     def _parse_committees(self, detail: dict) -> list[dict]:
-        """Extract committee memberships from member detail."""
+        """Extract committee memberships from member detail.
+
+        API structure: memberships[] each has a committees[] array with objects like:
+        { name: "Kultuurikomisjon", type: {...}, active: true, membership: { startDate, endDate, role: { value } } }
+        """
         committees = []
-        for m in detail.get("memberships", []):
-            body_type = m.get("bodyType", "")
-            if "committee" in body_type.lower() or "komisjon" in m.get("bodyName", "").lower():
+        seen = set()
+        for membership in detail.get("memberships", []):
+            for c in membership.get("committees", []):
+                name = c.get("name", "")
+                if not name or name in seen:
+                    continue
+                seen.add(name)
+                mem = c.get("membership", {})
+                role = mem.get("role", {})
                 committees.append({
-                    "name": m.get("bodyName", ""),
-                    "role": m.get("roleName"),
-                    "active": m.get("endDate") is None,
+                    "name": name,
+                    "role": role.get("value") if role else None,
+                    "active": mem.get("endDate") is None,
                 })
         return committees
 
     def _parse_convocations(self, detail: dict) -> list[int]:
         """Extract convocation numbers from member detail."""
         convocations = []
-        for c in detail.get("convocations", []):
-            num = c.get("number")
+        for m in detail.get("memberships", []):
+            num = m.get("membershipNumber")
             if num is not None:
                 convocations.append(int(num))
-        return sorted(convocations)
+        return sorted(set(convocations))
 
     async def _upsert_mp_profile(self, member: dict):
         """Create or update the enriched MP profile."""
@@ -350,20 +369,28 @@ class RiigikoguSync:
         party_code = member["partyCode"]
         party_names = PARTY_NAMES.get(party_code, ("", ""))
 
+        update_fields = {
+            "slug": slug,
+            "memberUuid": member["uuid"],
+            "name": member["fullName"],
+            "firstName": member["firstName"],
+            "lastName": member["lastName"],
+            "party": party_names[0] if party_names[0] else party_code,
+            "partyCode": party_code,
+            "photoUrl": member.get("photoUrl"),
+            "status": "active" if member.get("active") else "inactive",
+            "isCurrentMember": member.get("active", False),
+        }
+
+        # Include committees and convocations if present
+        if "committees" in member:
+            update_fields["committees"] = member["committees"]
+        if "convocations" in member:
+            update_fields["convocations"] = member["convocations"]
+
         await self.db.mps.update_one(
             {"slug": slug},
-            {"$set": {
-                "slug": slug,
-                "memberUuid": member["uuid"],
-                "name": member["fullName"],
-                "firstName": member["firstName"],
-                "lastName": member["lastName"],
-                "party": party_names[0] if party_names[0] else party_code,
-                "partyCode": party_code,
-                "photoUrl": member.get("photoUrl"),
-                "status": "active" if member.get("active") else "inactive",
-                "isCurrentMember": member.get("active", False),
-            }},
+            {"$set": update_fields},
             upsert=True,
         )
 
