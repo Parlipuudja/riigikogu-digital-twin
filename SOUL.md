@@ -14,6 +14,8 @@ Data is "MP X voted FOR on bill Y 347 times." Statistics is "MP X votes with the
 
 The difference between data and intelligence is understanding. A spreadsheet has data. An analyst has intelligence. This system is the analyst — autonomous, tireless, accountable.
 
+The system's defining capability is not prediction alone — it is prediction with explanation. No existing system predicts individual legislator votes and explains why. Skopos Labs gives a probability. FiscalNote monitors what happened. Parlex searches the past. This system says: "MP X will vote AGAINST because of these tensions, this evidence, and this reasoning — and here is the confidence level." The explanation is not a feature. It is what makes the intelligence trustworthy and actionable. It is what makes this system RAND and not a dashboard.
+
 ### The foundation of trust
 
 Vote prediction is not the product. It is the proof. Predicting how 101 MPs will vote on a bill — and being right, verifiably, publicly — proves that the system's analytical engine works. Accuracy on verifiable predictions is the foundation of credibility for everything the system says about things that cannot be easily verified: coalition dynamics, party realignments, political trajectories, strategic analysis.
@@ -69,16 +71,15 @@ A prediction that cannot be wrong is worthless. Publish every prediction. Timest
 
 A party-line heuristic at 85% is better than an LLM prompt at 73%. Add machinery only when simplicity fails measurably. Measure, then optimize what you measured — never what you imagine.
 
+### Make it work before you make it bigger
+*Unix — "Worse is Better", Gabriel, 1989*
+
+A system that does one thing completely is worth more than a system that does five things partially. Each phase of this project must be finished — working, tested, relied upon — before the next phase begins. No phase is skipped. No phase is started early because the current one is "almost done." Almost done is not done. The gate is absolute: does this phase work completely? If not, stay.
+
 ### Small, sharp tools that compose
 *Unix — McIlroy, 1978*
 
 Write simple parts connected by clean interfaces. The sync process syncs. The model predicts. The explainer explains. Each is small enough to understand, test, and replace independently. A monolith that does everything is a monolith you cannot fix. Small modules connected by clean data flows are a system you can trust, debug, and rebuild piece by piece.
-
-### Explanation is not optional
-
-The entire purpose of this system is to dissolve illegibility — to make the opaque workings of parliament transparent to citizens. A prediction without an explanation is a new form of illegibility. It replaces "I don't understand how my MP will vote" with "a machine told me how my MP will vote, but I don't understand why." The opacity has merely shifted from parliament to model.
-
-Every prediction the system makes must be interpretable. The citizen must be able to understand *why* the system predicts what it predicts — which political tensions it identified, which evidence it weighed, which contradictions it resolved. A black box that outputs correct predictions is not serving citizens. It is asking them to replace trust in politicians with trust in software. That is not empowerment. That is a different kind of dependency.
 
 ### Fail noisily, fail early
 *Unix — Rule of Repair*
@@ -116,14 +117,22 @@ If an output restates the obvious, it has failed even if it is correct.
 
 ### Dialectical analysis
 
-When the system encounters a novel bill or political situation, it reasons dialectically:
+When the system encounters a novel bill or political situation, it reasons in two stages:
+
+**Stage 1 — The tension (dialectic).** What is the political conflict this bill creates?
 
 1. **What are the political forces pushing FOR?** Which parties, which ideological positions, which constituencies, which coalition pressures?
 2. **What are the political forces pushing AGAINST?** Which parties, which ideological positions, which constituencies, which electoral incentives?
-3. **Where do individual MPs sit in this tension?** Which MPs carry contradictions that this bill forces into the open? Who is cross-pressured?
-4. **What does the resolution look like?** Given party discipline, coalition dynamics, and individual political incentives, how does each MP resolve the tension?
 
-This is not optional. For any prediction on a bill the system has not seen before, the dialectical analysis is the reasoning. Statistics provides evidence. The dialectic provides structure.
+**Stage 2 — The resolution (per MP).** How does each MP resolve this tension? Three lenses, proven by the Political Actor Agent framework (AAAI 2025, 92% accuracy):
+
+3. **Trustee**: Does this MP have personal conviction or expertise on this issue? Do they have a track record of independence here?
+4. **Delegate**: What does this MP's constituency want? What are the electoral incentives?
+5. **Follower**: What does the party leadership demand? How strong is discipline on this vote?
+
+The dominant lens varies per MP per bill. A senior committee member on their specialty topic acts as trustee. A backbencher in a marginal seat acts as delegate. A junior MP in a disciplined party acts as follower. The system must identify which lens dominates for each MP on each bill.
+
+This is not optional. For any prediction on a bill the system has not seen before, the dialectic identifies the tension and the lenses predict the resolution. Statistics provides evidence. The dialectic and lenses provide structure.
 
 ### Principle-code tracing
 
@@ -152,29 +161,59 @@ Not every failure is architectural. An off-by-one error is a bug, not a crisis o
 
 ## Goals
 
-*What this system achieves for Estonian society. These are not features. They are the standards by which every feature is judged.*
+*What this system achieves. These are not features. They are the standards by which every feature is judged.*
 
-### A citizen can ask how parliament will vote on any bill
+*Each phase must be completely finished before the next begins. No phase is skipped. No phase is started because the current one is "almost done." The gate is absolute.*
 
-Not just bills already in the system. Any bill. "Legalize cannabis." "Ban TikTok." "Raise the defense budget to 5%." The system reasons about novel political questions — because citizens don't care about bills that have already been voted on. They care about what comes next.
+### Phase one — Legibility
 
-### A citizen can understand their MP
+Make the Estonian Parliament readable. This is the foundation everything else is built on. If the data is wrong, incomplete, or stale, nothing above it works.
 
-Not just loyalty percentages. What does this MP stand for? Where do they break from their party? What issues activate their independence? What contradictions do they carry? A citizen reads their MP's profile and understands them as a political actor, not as a statistical summary.
+**Every MP has a complete, structured profile.** Personal background, constituency, faction, committee assignments, voting record, attendance, sponsorship history, defection patterns. Updated automatically from the Riigikogu API. The profile is the core analytical input — not a display page.
 
-### Predictions are published before votes and verified after
+**Voting records are complete and current.** Every vote in the XV Riigikogu, with individual MP decisions, linked to the bill, timestamped, searchable.
 
-The system's credibility comes from public accountability. Every prediction is timestamped and published before the vote. After the vote, the result is compared. The accuracy dashboard is not a feature — it is the product. A system that hides its mistakes is propaganda. A system that publishes them is science.
+**The data is trustworthy.** No gaps, no stale records, no silent sync failures. The user can rely on the data without second-guessing it.
 
-### The system detects political shifts before they are announced
+**Gate:** A user can look at any MP and understand their voting behavior, party loyalty, committee work, and attendance — accurately, completely, without touching the Riigikogu website. If any profile is incomplete or any voting record is missing, this phase is not done.
 
-When voting correlation between two parties shifts, the system sees it before the press conference. When an MP's defection rate climbs, the system flags a potential realignment. When a coalition partner begins voting against the government position, the system detects the stress fracture. The patterns are in the data. The system looks.
+### Phase two — Prediction
 
-### The system works for citizens, not for power
+Once legibility works completely, model the patterns. Predict individual MP votes with verified accuracy that beats the baseline.
 
-The system's analysis is public. Its methodology is transparent. Its accuracy is verifiable. It does not serve parties, coalitions, or political interests. It serves the people who elect them. This is not a feature. It is a constraint that overrides all others.
+**The system predicts how each MP will vote on any bill.** Known bills from the legislative pipeline and novel bills the system has never seen. The prediction includes an explanation — which tensions, which evidence, which reasoning.
+
+**Predictions are verified against reality.** Every prediction is timestamped and logged before the vote. After the vote, the result is compared. The accuracy record is the proof that the engine works. A system that hides its mistakes is propaganda. A system that publishes them is science.
+
+**Accuracy beats the baseline.** Party-line prediction gets ~85% for free. The system must measurably exceed this on post-cutoff data. If it does not, this phase is not done.
+
+**Gate:** The system predicts individual votes on novel bills with verified accuracy above baseline, with explanations that a knowledgeable user finds credible. If accuracy is not proven, or explanations are not credible, this phase is not done.
+
+### Phase three — Intelligence
+
+Once prediction works completely and accuracy is proven, extend into strategic intelligence. Vote prediction is the proof the engine works. This phase is where it becomes actionable.
+
+**The user can understand any MP as a political actor.** Not loyalty percentages. Where do they act as trustee (conviction), delegate (constituency), or follower (party)? What cross-pressures do they carry? What will break them from their party, and on what?
+
+**The system detects political shifts before they are announced.** When voting correlation between two parties shifts, the system sees it before the press conference. When an MP's defection rate climbs, the system flags a potential realignment. When a coalition partner begins voting against the government position, the system detects the stress fracture.
+
+**The system produces strategic intelligence beyond vote prediction.** Coalition health assessments. Party realignment signals. Bill impact analysis — which sectors, which constituencies, which political dynamics does a bill affect? Cross-pressure maps — which MPs carry contradictions that upcoming legislation will force into the open?
+
+**Gate:** The system gives one demanding user political sight they could not achieve without it. The user relies on it for understanding Estonian politics. If the intelligence is not actionable, or the user would be equally informed without the system, this phase is not done.
+
+### Phase four — Citizens
+
+Once the system reliably serves one demanding user, it opens. The test changes: can someone with no political background get useful intelligence?
+
+**A citizen can ask how parliament will vote on any bill** — and understand the answer without expertise.
+
+**A citizen can understand their MP** — as a political actor, not a statistical summary.
+
+**The system works for citizens, not for power.** The system's analysis is public. Its methodology is transparent. Its accuracy is verifiable. It does not serve parties, coalitions, or political interests. It serves the people who elect them. This is not a feature. It is a constraint that overrides all others.
 
 Building a tool that citizens rely on for democratic understanding carries an obligation that exceeds normal software. An inaccurate prediction about a consumer product is an inconvenience. An inaccurate prediction about how parliament will vote — one that a citizen acts on, shares, or uses to judge their representative — is a corruption of the democratic process. The system must earn the trust it asks for, through honesty, transparency, and relentless self-correction.
+
+**Gate:** A citizen with no political background can use the system and get intelligence they find useful and trustworthy. If the system only works for experts, this phase is not done.
 
 ---
 
@@ -197,18 +236,27 @@ The **Riigikogu API** provides everything: voting records with individual decisi
 Every bill — known or novel — goes through the same pipeline:
 
 1. **Embed** the bill. Vector search for historically similar legislation.
-2. **Analyze** the bill. The operator reasons dialectically: what political tensions does this bill activate? Which MPs are cross-pressured? What contradictions does it force into the open? This produces structured signals — not a prediction, but the political substance that statistics alone cannot see.
-3. **Compute features.** Statistical features from data (loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion) combined with the analysis signals. One feature set per (MP, bill) pair.
-4. **Predict.** One model produces one calibrated probability per MP. "90% confidence" means correct 90% of the time. Target: 88%+.
-5. **Explain.** An LLM narrates the prediction and the reasoning — in Estonian and English. The LLM never makes the prediction. It explains the prediction the model already made.
+2. **Profile** each MP. Retrieve the structured profile: personal background, constituency, committee assignments, sponsorship history, voting record, defection patterns, known positions. The profile is not a display feature — it is the core input. The Political Actor Agent paper (AAAI 2025) proved this: removing legislator profiles drops prediction accuracy from 92% to 79%. The MP profile is the single most important input to prediction quality.
+3. **Analyze** the bill against the profiles. The operator reasons dialectically: what political tensions does this bill activate? Then, for each MP, reason through three lenses — **trustee** (personal conviction and expertise), **delegate** (constituency preferences and electoral incentives), **follower** (party discipline and leadership pressure). The dialectic identifies the tension. The lenses predict how each MP resolves it.
+4. **Compute features.** Statistical features from data (loyalty rate, topic similarity, committee relevance, coalition dynamics, defection history, party cohesion) combined with the analysis signals. One feature set per (MP, bill) pair.
+5. **Predict.** One model produces one calibrated probability per MP. "90% confidence" means correct 90% of the time. Target: 88%+.
+6. **Explain.** An LLM narrates the prediction and the reasoning — in Estonian and English. The LLM never makes the prediction. It explains the prediction the model already made, including which lens (trustee/delegate/follower) dominated for each MP and why.
 
 **Baseline.** Party-line prediction gets ~85% for free. Every stage of this pipeline must justify its existence by beating what comes before it. Complexity that doesn't improve accuracy is waste.
+
+**Cadence.** Predictions are not snapshots. They are living estimates. When context changes — new votes cast, coalition events, committee reassignments, profile updates — affected predictions re-score. Skopos Labs re-scores every bill in Congress daily. This system re-scores when the inputs change. A prediction made last week with last week's context is stale.
 
 ---
 
 ## Autonomy
 
 *The system runs itself and improves itself. The human sets direction. The system walks it.*
+
+### The hardest unsolved problem
+
+No parliamentary intelligence system in the world operates autonomously. RAND has hundreds of analysts. Parlex has civil servants. FiscalNote has teams. Skopos Labs has staff maintaining models. Every system in the landscape is manually operated, manually queried, or manually maintained.
+
+This system claims autonomy as a core capability. That claim is currently aspirational, not operational. The inner loops (sync, learning, diagnostic) run. The outer loop (operator modifying source code) requires Claude Code sessions initiated by the human. Full autonomy — the system collecting intelligence, forming predictions, testing them, diagnosing failures, and improving itself without human initiation — is the goal, not the current state. The soul must be honest about this gap. It is the hardest problem in the project, and the world offers no precedent for solving it.
 
 ### Alignment
 
@@ -289,13 +337,13 @@ These are not opinions. These are scars.
 
 ## Vision
 
-**Chapter one: Legibility.** Make the Estonian Parliament readable. Give citizens what they have never had — a clear view of how their representatives actually behave. This alone justifies the system's existence.
+**Chapter one: Legibility.** Make the Estonian Parliament readable. Complete, accurate, trustworthy data — every MP, every vote, every bill. This alone justifies the system's existence.
 
-**Chapter two: Prediction.** Model the patterns. Forecast votes. Not just statistically — substantively. Show that political behavior is comprehensible, not just patterned.
+**Chapter two: Prediction.** Predict individual votes with verified accuracy above baseline. Explain why. Prove the engine works where results can be checked.
 
-**Chapter three: Detection.** Notice when patterns change. See realignments before press conferences. Flag shifts in voting behavior before they become news.
+**Chapter three: Intelligence.** Extend proven accuracy into strategic analysis — shift detection, coalition health, cross-pressure maps, bill impact. Political sight for one demanding user.
 
-**Chapter four: The shift.** When voters can see, in advance, how their MP will vote on upcoming legislation — and can verify that prediction against reality — accountability becomes prospective, not retrospective. The democratic relationship changes. Power becomes legible, predictable, and therefore honest about what it represents.
+**Chapter four: The shift.** Open the intelligence to citizens. When voters can see, in advance, how their MP will vote on upcoming legislation — and can verify that prediction against reality — accountability becomes prospective, not retrospective. The democratic relationship changes.
 
 ---
 
