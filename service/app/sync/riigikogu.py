@@ -931,13 +931,41 @@ async def compute_mp_stats(db: AsyncIOMotorDatabase):
 
 
 async def migrate_legacy_fields(db: AsyncIOMotorDatabase):
-    """Migrate info/instruction legacy fields to top-level and remove them.
+    """Migrate legacy fields to canonical format.
 
-    Old syncs stored data in nested info.votingStats, info.committees, and
-    instruction.politicalProfile. This migrates them to top-level fields so
-    _normalize_mp doesn't need compatibility shims.
+    Handles three legacy formats:
+    1. info.votingStats / info.committees → top-level stats/committees
+    2. instruction.politicalProfile → top-level profile fields
+    3. Old stats format (votesFor, attendance as %) → canonical (forVotes, attendanceRate as decimal)
     """
     migrated = 0
+
+    # Phase A: Convert old-format stats (votesFor → forVotes, percentages → decimals)
+    cursor_stats = db.mps.find(
+        {"stats.votesFor": {"$exists": True}, "stats.forVotes": {"$exists": False}},
+        {"slug": 1, "stats": 1},
+    )
+    async for mp in cursor_stats:
+        old = mp["stats"]
+        total = old.get("totalVotes", 0)
+        votes_for = old.get("votesFor", 0)
+        votes_against = old.get("votesAgainst", 0)
+        votes_abstain = old.get("votesAbstain", 0)
+        attendance_pct = old.get("attendance", 0)
+        alignment_pct = old.get("partyAlignmentRate", 0)
+        await db.mps.update_one({"_id": mp["_id"]}, {"$set": {"stats": {
+            "totalVotes": total,
+            "forVotes": votes_for,
+            "againstVotes": votes_against,
+            "abstainVotes": votes_abstain,
+            "absentVotes": total - votes_for - votes_against - votes_abstain,
+            "attendanceRate": round(attendance_pct / 100, 3),
+            "partyAlignmentRate": round(alignment_pct / 100, 3),
+            "recentAlignmentRate": round(alignment_pct / 100, 3),
+        }}})
+        migrated += 1
+
+    # Phase B: Migrate info/instruction nested fields to top-level
     cursor = db.mps.find(
         {"$or": [{"info": {"$exists": True}}, {"instruction": {"$exists": True}}]},
         {"slug": 1, "info": 1, "instruction": 1, "stats": 1, "committees": 1,
