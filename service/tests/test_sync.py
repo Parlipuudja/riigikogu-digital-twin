@@ -75,8 +75,25 @@ class TestMakeSlug:
     def test_simple(self):
         assert make_slug("Kaja", "Kallas") == "kaja-kallas"
 
-    def test_estonian_chars(self):
-        assert make_slug("Jüri", "Ratas") == "jüri-ratas"
+    def test_estonian_diacritics_stripped(self):
+        assert make_slug("Jüri", "Ratas") == "juri-ratas"
+        assert make_slug("Tõnis", "Lukas") == "tonis-lukas"
+        assert make_slug("Helmen", "Kütt") == "helmen-kutt"
+        assert make_slug("Õnne", "Pillak") == "onne-pillak"
+        assert make_slug("Stig", "Rästa") == "stig-rasta"
+
+    def test_estonian_caron_stripped(self):
+        assert make_slug("Kristina", "Šmigun-Vähi") == "kristina-smigun-vahi"
+        assert make_slug("Aleksandr", "Tšaplõgin") == "aleksandr-tsaplogin"
+        assert make_slug("Züleyxa", "Izmailova") == "zuleyxa-izmailova"
+
+    def test_space_in_first_name(self):
+        assert make_slug("Kristo Enn", "Vaga") == "kristo-enn-vaga"
+        assert make_slug("Helle-Moonika", "Helme") == "helle-moonika-helme"
+
+    def test_hyphenated_last_name(self):
+        assert make_slug("Lea", "Danilson-Järg") == "lea-danilson-jarg"
+        assert make_slug("Anastassia", "Kovalenko-Kõlvart") == "anastassia-kovalenko-kolvart"
 
     def test_special_chars_removed(self):
         slug = make_slug("Test.", "Name!")

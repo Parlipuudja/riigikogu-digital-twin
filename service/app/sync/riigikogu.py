@@ -13,6 +13,7 @@ Ports the 867-line TypeScript client. Critical behaviors preserved:
 import asyncio
 import logging
 import re
+import unicodedata
 from datetime import datetime, timezone
 
 import httpx
@@ -94,9 +95,15 @@ def extract_party_code(faction_name: str | None) -> str:
 
 
 def make_slug(first_name: str, last_name: str) -> str:
-    """Create URL-friendly slug from name."""
+    """Create URL-friendly slug from name, stripping diacritics to ASCII."""
     slug = f"{first_name}-{last_name}".lower()
-    slug = re.sub(r"[^a-z0-9äöüõšž-]", "", slug)
+    slug = slug.replace(" ", "-")  # spaces to hyphens before stripping
+    # Normalize unicode: decompose then strip combining marks (ü→u, õ→o, etc.)
+    slug = unicodedata.normalize("NFD", slug)
+    slug = re.sub(r"[\u0300-\u036f]", "", slug)  # strip combining diacritical marks
+    # Also handle š→s, ž→z which decompose differently
+    slug = slug.replace("\u0161", "s").replace("\u017e", "z")
+    slug = re.sub(r"[^a-z0-9-]", "", slug)
     slug = re.sub(r"-+", "-", slug).strip("-")
     return slug
 
