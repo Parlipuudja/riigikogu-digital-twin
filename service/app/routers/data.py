@@ -39,7 +39,7 @@ async def list_mps(
             "slug": 1, "name": 1, "firstName": 1, "lastName": 1,
             "party": 1, "partyCode": 1, "photoUrl": 1,
             "status": 1, "isCurrentMember": 1, "stats": 1,
-            "committees": 1, "info": 1,
+            "committees": 1,
             "_id": 0,
         },
     ).sort(sort_field, sort_dir).skip(skip).limit(limit)
@@ -49,65 +49,16 @@ async def list_mps(
 
 
 def _normalize_mp(mp: dict) -> dict:
-    """Normalize raw MP document for the frontend."""
-    if not mp.get("firstName") and mp.get("name"):
-        parts = mp["name"].split(" ", 1)
-        mp["firstName"] = parts[0]
-        mp["lastName"] = parts[1] if len(parts) > 1 else ""
-    if not mp.get("firstName"):
-        mp["firstName"] = mp.get("slug", "").replace("-", " ").title().split(" ")[0]
-        mp["lastName"] = " ".join(mp.get("slug", "").replace("-", " ").title().split(" ")[1:])
+    """Normalize MP document for the frontend.
 
-    # Use info.votingStats if stats are missing, and info for committees
-    info = mp.pop("info", None) or {}
-    stats = mp.get("stats")
-    if stats:
-        mp["stats"] = {
-            "totalVotes": stats.get("totalVotes", 0),
-            "forVotes": stats.get("votesFor", 0),
-            "againstVotes": stats.get("votesAgainst", 0),
-            "abstainVotes": stats.get("votesAbstain", 0),
-            "absentVotes": stats.get("totalVotes", 0) - stats.get("votesFor", 0) - stats.get("votesAgainst", 0) - stats.get("votesAbstain", 0),
-            "attendanceRate": stats.get("attendance", 0) / 100,
-            "partyAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
-            "recentAlignmentRate": stats.get("partyAlignmentRate", 0) / 100,
-        }
-    elif info.get("votingStats"):
-        vs = info["votingStats"]
-        dist = vs.get("distribution", {})
-        total = vs.get("total", 0)
-        mp["stats"] = {
-            "totalVotes": total,
-            "forVotes": dist.get("FOR", 0),
-            "againstVotes": dist.get("AGAINST", 0),
-            "abstainVotes": dist.get("ABSTAIN", 0),
-            "absentVotes": dist.get("ABSENT", 0),
-            "attendanceRate": vs.get("attendancePercent", 0) / 100,
-            "partyAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
-            "recentAlignmentRate": vs.get("partyLoyaltyPercent", 0) / 100,
-        }
+    After migrate_legacy_fields(), documents are in canonical format.
+    This just flattens committee dicts to name strings and sets isActive.
+    """
     mp["isActive"] = mp.get("isCurrentMember", False)
-    # Pull committees from MP document directly, fall back to info
-    committees = mp.get("committees") or info.get("committees", [])
-    mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
 
-    # Extract profile data from instruction for the frontend
-    instruction = mp.pop("instruction", None) or {}
-    if instruction and not mp.get("politicalProfile"):
-        pp = instruction.get("politicalProfile", {})
-        key_issues = pp.get("keyIssues", [])
-        if key_issues:
-            mp["politicalProfile"] = "\n".join(
-                f"{ki.get('issue', '')}: {ki.get('stance', '')}" for ki in key_issues
-            )
-            mp["politicalProfileEn"] = "\n".join(
-                f"{ki.get('issueEn', '')}: {ki.get('stanceEn', '')}" for ki in key_issues
-            )
-            mp["keyIssues"] = [ki.get("issue", "") for ki in key_issues]
-        bp = instruction.get("behavioralPatterns", {})
-        indicators = bp.get("independenceIndicators", [])
-        if indicators:
-            mp["behavioralPatterns"] = indicators
+    # Flatten committee dicts to name strings
+    committees = mp.get("committees") or []
+    mp["committees"] = [c.get("name", c) if isinstance(c, dict) else c for c in committees]
 
     return mp
 

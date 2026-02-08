@@ -23,14 +23,13 @@ scheduler = AsyncIOScheduler()
 async def _sync_data():
     from app.db import get_db
     from app.sync.embeddings import generate_embeddings
-    from app.sync.riigikogu import RiigikoguSync, compute_mp_stats
+    from app.sync.riigikogu import RiigikoguSync
 
     logger.info("Scheduled sync starting...")
     db = await get_db()
     syncer = RiigikoguSync(db)
     try:
-        await syncer.sync_all()
-        await compute_mp_stats(db)
+        await syncer.sync_all()  # includes compute_mp_stats + validate_data
         await generate_embeddings(db)
     except Exception as e:
         logger.error(f"Scheduled sync failed: {e}")

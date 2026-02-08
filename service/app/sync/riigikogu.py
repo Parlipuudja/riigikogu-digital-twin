@@ -812,6 +812,22 @@ class RiigikoguSync:
             results["drafts"] = f"error: {e}"
             logger.error(f"Drafts sync error: {e}")
 
+        # Post-sync: migrate legacy fields, compute stats, validate
+        try:
+            await migrate_legacy_fields(self.db)
+        except Exception as e:
+            logger.error(f"Legacy migration error: {e}")
+
+        try:
+            await compute_mp_stats(self.db)
+        except Exception as e:
+            logger.error(f"Stats computation error: {e}")
+
+        try:
+            await validate_data(self.db)
+        except Exception as e:
+            logger.error(f"Data validation error: {e}")
+
         return results
 
 
@@ -892,20 +908,194 @@ async def compute_mp_stats(db: AsyncIOMotorDatabase):
                 if mp_decision == majority:
                     alignment_count += 1
 
-        alignment_rate = (alignment_count / alignment_total * 100) if alignment_total > 0 else 0
+        alignment_rate = (alignment_count / alignment_total) if alignment_total > 0 else 0
+        attendance_rate = ((total - votes_absent) / total) if total > 0 else 0
 
         await db.mps.update_one(
             {"slug": mp["slug"]},
             {"$set": {
                 "stats": {
                     "totalVotes": total,
-                    "attendance": round(attendance, 1),
-                    "votesFor": votes_for,
-                    "votesAgainst": votes_against,
-                    "votesAbstain": votes_abstain,
-                    "partyAlignmentRate": round(alignment_rate, 1),
+                    "forVotes": votes_for,
+                    "againstVotes": votes_against,
+                    "abstainVotes": votes_abstain,
+                    "absentVotes": votes_absent,
+                    "attendanceRate": round(attendance_rate, 3),
+                    "partyAlignmentRate": round(alignment_rate, 3),
+                    "recentAlignmentRate": round(alignment_rate, 3),
                 },
             }},
         )
 
     logger.info(f"MP stats computed for {len(mps)} MPs")
+
+
+async def migrate_legacy_fields(db: AsyncIOMotorDatabase):
+    """Migrate info/instruction legacy fields to top-level and remove them.
+
+    Old syncs stored data in nested info.votingStats, info.committees, and
+    instruction.politicalProfile. This migrates them to top-level fields so
+    _normalize_mp doesn't need compatibility shims.
+    """
+    migrated = 0
+    cursor = db.mps.find(
+        {"$or": [{"info": {"$exists": True}}, {"instruction": {"$exists": True}}]},
+        {"slug": 1, "info": 1, "instruction": 1, "stats": 1, "committees": 1,
+         "politicalProfile": 1},
+    )
+
+    async for mp in cursor:
+        updates = {}
+        unsets = {}
+        info = mp.get("info") or {}
+        instruction = mp.get("instruction") or {}
+
+        # Migrate info.votingStats → stats (only if stats missing)
+        if not mp.get("stats") and info.get("votingStats"):
+            vs = info["votingStats"]
+            dist = vs.get("distribution", {})
+            total = vs.get("total", 0)
+            for_v = dist.get("FOR", 0)
+            against_v = dist.get("AGAINST", 0)
+            abstain_v = dist.get("ABSTAIN", 0)
+            absent_v = dist.get("ABSENT", 0)
+            attend_pct = vs.get("attendancePercent", 0)
+            loyalty_pct = vs.get("partyLoyaltyPercent", 0)
+            updates["stats"] = {
+                "totalVotes": total,
+                "forVotes": for_v,
+                "againstVotes": against_v,
+                "abstainVotes": abstain_v,
+                "absentVotes": absent_v,
+                "attendanceRate": round(attend_pct / 100, 3),
+                "partyAlignmentRate": round(loyalty_pct / 100, 3),
+                "recentAlignmentRate": round(loyalty_pct / 100, 3),
+            }
+
+        # Migrate info.committees → committees (only if missing)
+        if not mp.get("committees") and info.get("committees"):
+            raw_comms = info["committees"]
+            updates["committees"] = [
+                {"name": c, "role": None, "active": True} if isinstance(c, str)
+                else c for c in raw_comms
+            ]
+
+        # Migrate instruction.politicalProfile → top-level profile fields
+        if not mp.get("politicalProfile") and instruction:
+            pp = instruction.get("politicalProfile", {})
+            key_issues = pp.get("keyIssues", [])
+            if key_issues:
+                updates["politicalProfile"] = "\n".join(
+                    f"{ki.get('issue', '')}: {ki.get('stance', '')}" for ki in key_issues
+                )
+                updates["politicalProfileEn"] = "\n".join(
+                    f"{ki.get('issueEn', '')}: {ki.get('stanceEn', '')}" for ki in key_issues
+                )
+                updates["keyIssues"] = [ki.get("issue", "") for ki in key_issues]
+
+            bp = instruction.get("behavioralPatterns", {})
+            indicators = bp.get("independenceIndicators", [])
+            if indicators:
+                updates["behavioralPatterns"] = indicators
+
+        # Always unset legacy fields
+        if info:
+            unsets["info"] = ""
+        if instruction:
+            unsets["instruction"] = ""
+
+        if updates or unsets:
+            op = {}
+            if updates:
+                op["$set"] = updates
+            if unsets:
+                op["$unset"] = unsets
+            await db.mps.update_one({"_id": mp["_id"]}, op)
+            migrated += 1
+
+    if migrated:
+        logger.info(f"Migrated legacy fields for {migrated} MP documents")
+    return migrated
+
+
+async def validate_data(db: AsyncIOMotorDatabase) -> list[str]:
+    """Post-sync data invariant checks. Returns list of warnings."""
+    warnings = []
+
+    active_mps = await db.mps.find(
+        {"isCurrentMember": True},
+        {"slug": 1, "partyCode": 1, "committees": 1, "photoUrl": 1, "stats": 1},
+    ).to_list(None)
+
+    total_active = len(active_mps)
+
+    # 1. Party distribution sanity
+    party_counts: dict[str, int] = {}
+    for mp in active_mps:
+        code = mp.get("partyCode", "?")
+        party_counts[code] = party_counts.get(code, 0) + 1
+
+    for code, count in party_counts.items():
+        if count > 40:
+            w = f"INVARIANT: party {code} has {count} MPs (>40 seats)"
+            warnings.append(w)
+            logger.warning(w)
+
+    fr_count = party_counts.get("FR", 0)
+    if total_active > 0 and fr_count / total_active > 0.25:
+        w = f"INVARIANT: {fr_count}/{total_active} MPs classified as FR ({fr_count/total_active:.0%} > 25%)"
+        warnings.append(w)
+        logger.warning(w)
+
+    # 2. Committee coverage (>95% of active MPs should have committees)
+    with_committees = sum(
+        1 for mp in active_mps
+        if mp.get("committees") and len(mp["committees"]) > 0
+    )
+    coverage = with_committees / total_active if total_active > 0 else 0
+    if coverage < 0.95:
+        w = f"INVARIANT: committee coverage {with_committees}/{total_active} ({coverage:.0%} < 95%)"
+        warnings.append(w)
+        logger.warning(w)
+
+    # 3. No duplicate slugs
+    slugs = [mp["slug"] for mp in active_mps]
+    seen: set[str] = set()
+    for s in slugs:
+        if s in seen:
+            w = f"INVARIANT: duplicate slug '{s}'"
+            warnings.append(w)
+            logger.warning(w)
+        seen.add(s)
+
+    # 4. No diacritical characters in slugs
+    import re as _re
+    for s in slugs:
+        if _re.search(r"[äöüõšž]", s):
+            w = f"INVARIANT: diacritical slug '{s}'"
+            warnings.append(w)
+            logger.warning(w)
+
+    # 5. All active MPs have photos
+    without_photos = [mp["slug"] for mp in active_mps if not mp.get("photoUrl")]
+    if without_photos:
+        w = f"INVARIANT: {len(without_photos)} active MPs without photos: {without_photos[:5]}"
+        warnings.append(w)
+        logger.warning(w)
+
+    # 6. All active MPs have stats
+    without_stats = [
+        mp["slug"] for mp in active_mps
+        if not mp.get("stats") or mp["stats"].get("totalVotes", 0) == 0
+    ]
+    if without_stats:
+        w = f"INVARIANT: {len(without_stats)} active MPs without stats: {without_stats[:5]}"
+        warnings.append(w)
+        logger.warning(w)
+
+    if not warnings:
+        logger.info(f"Data validation passed: {total_active} active MPs, all invariants OK")
+    else:
+        logger.warning(f"Data validation: {len(warnings)} invariant violations found")
+
+    return warnings
